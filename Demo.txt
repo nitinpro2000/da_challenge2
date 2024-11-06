@@ -50,3 +50,9 @@ if st.markdown("<div class='box' onclick='window.location.reload();'>Generate Fe
     st.session_state.current_page = "generate_feature_file"
 
 st.markdown("</div>", unsafe_allow_html=True)
+
+
+st.markdown(f"""
+<div class="box" onclick="window.location.href='/pages/1_Validate_Data.py'">Upload and Validate Data</div>
+<div class="box" onclick="window.location.href='/pages/2_Generate_Feature_File.py'">Generate Feature File</div>
+""", unsafe_allow_html=True)
