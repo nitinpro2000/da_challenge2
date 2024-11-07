@@ -56,3 +56,12 @@ st.markdown(f"""
 <div class="box" onclick="window.location.href='/pages/1_Validate_Data.py'">Upload and Validate Data</div>
 <div class="box" onclick="window.location.href='/pages/2_Generate_Feature_File.py'">Generate Feature File</div>
 """, unsafe_allow_html=True)
+
+
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("Upload and Validate Data"):
+        switch_page("1_Validate_Data")
+with col2:
+    if st.button("Generate Feature File"):
+        switch_page("
