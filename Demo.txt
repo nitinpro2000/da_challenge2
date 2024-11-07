@@ -198,3 +198,51 @@ This code updates the appearance of the existing buttons, making them larger, mo
 
 New version of GPT available - Continue chatting to use th
 
+
+
+import streamlit as st
+
+def set_background_image(image_url):
+    """
+    Sets a background image for the Streamlit app.
+    
+    Parameters:
+    image_url (str): URL of the background image to be applied.
+    """
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("{image_url}");
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+def set_logo(logo_url, width=100):
+    """
+    Sets a logo in the top left corner of the Streamlit app.
+    
+    Parameters:
+    logo_url (str): URL of the logo image to be displayed.
+    width (int): Width of the logo in pixels. Adjust as necessary.
+    """
+    st.markdown(
+        f"""
+        <style>
+        [data-testid="stSidebarNav"] {{
+            background-image: url("{logo_url}");
+            background-size: {width}px;
+            background-repeat: no-repeat;
+            background-position: top left;
+            padding-top: 80px; /* Adjusts space from the top */
+            margin-left: 10px;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
