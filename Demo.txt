@@ -246,3 +246,63 @@ def set_logo(logo_url, width=100):
         """,
         unsafe_allow_html=True
     )
+
+
+
+
+
+
+
+
+import streamlit as st
+from streamlit_extras.switch_page_button import switch_page
+from util import set_background_image, set_logo
+
+# Set page configuration with sidebar collapsed
+st.set_page_config(page_title="Excel Test Case App", page_icon="📄", layout="wide", initial_sidebar_state="collapsed")
+
+# Set background and logo using local image paths
+set_background_image("images/background.jpg")  # Replace with your local background image path
+set_logo("images/logo.png", width=100)  # Replace with your local logo image path
+
+st.title("Excel Test Case App")
+st.write("Welcome to the Excel Test Case App! Click on a box below to navigate to a specific function.")
+
+# Custom CSS to style the existing Streamlit buttons
+st.markdown("""
+    <style>
+    div.stButton > button {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 150px;
+        width: 100%;
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+        background-color: #4CAF50;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background-color 0.2s, transform 0.2s;
+    }
+    div.stButton > button:hover {
+        background-color: #45a049;
+        transform: scale(1.05);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Two-column layout for navigation buttons
+col1, col2 = st.columns(2)
+
+# First button to navigate to "Upload and Validate Data" page
+with col1:
+    if st.button("Upload and Validate Data"):
+        switch_page("1_Validate_Data")
+
+# Second button to navigate to "Generate Feature File" page
+with col2:
+    if st.button("Generate Feature File"):
+        switch_page("2_Generate_Feature_File")
+
