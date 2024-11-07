@@ -1,219 +1,29 @@
 import streamlit as st
+import base64
+from pathlib import Path
 
-st.set_page_config(page_title="Excel Test Case App", page_icon="📄")
-
-st.title("Excel Test Case App")
-
-# Initialize session state for page control
-if "current_page" not in st.session_state:
-    st.session_state.current_page = "home"  # Set default page
-
-# Check if we're navigating to a different page
-if st.session_state.current_page == "validate_data":
-    st.experimental_set_query_params(page="validate_data")
-    st.experimental_rerun()
-elif st.session_state.current_page == "generate_feature_file":
-    st.experimental_set_query_params(page="generate_feature_file")
-    st.experimental_rerun()
-
-# Style for navigation boxes
-st.markdown("""
-    <style>
-    .box {
-        border: 2px solid #4CAF50;
-        border-radius: 10px;
-        padding: 20px;
-        margin: 10px;
-        text-align: center;
-        font-size: 20px;
-        font-weight: bold;
-        color: #4CAF50;
-        cursor: pointer;
-        background-color: #f9f9f9;
-    }
-    .box:hover {
-        background-color: #4CAF50;
-        color: white;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Container for navigation boxes
-st.markdown("<div style='display: flex; justify-content: space-evenly;'>", unsafe_allow_html=True)
-
-# Box for "Upload and Validate Data" page
-if st.markdown("<div class='box' onclick='window.location.reload();'>Upload and Validate Data</div>", unsafe_allow_html=True):
-    st.session_state.current_page = "validate_data"
-
-# Box for "Generate Feature File" page
-if st.markdown("<div class='box' onclick='window.location.reload();'>Generate Feature File</div>", unsafe_allow_html=True):
-    st.session_state.current_page = "generate_feature_file"
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-st.markdown(f"""
-<div class="box" onclick="window.location.href='/pages/1_Validate_Data.py'">Upload and Validate Data</div>
-<div class="box" onclick="window.location.href='/pages/2_Generate_Feature_File.py'">Generate Feature File</div>
-""", unsafe_allow_html=True)
-
-
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("Upload and Validate Data"):
-        switch_page("1_Validate_Data")
-with col2:
-    if st.button("Generate Feature File"):
-        switch_page("
-
-
-
-
-st.markdown("""
-    <style>
-    .big-button {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 200px;
-        width: 100%;
-        background-color: #4CAF50;
-        color: white;
-        font-size: 24px;
-        font-weight: bold;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: transform 0.2s, background-color 0.2s;
-    }
-    .big-button:hover {
-        background-color: #45a049;
-        transform: scale(1.05);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Two-column layout for navigation buttons
-col1, col2 = st.columns(2)
-
-# First button to navigate to "Upload and Validate Data" page
-with col1:
-    if st.button("Upload and Validate Data", key="button1"):
-        switch_page("1_Validate_Data")
-    st.markdown('<div class="big-button" onclick="window.location.href=\'/1_Validate_Data\'">Upload and Validate Data</div>', unsafe_allow_html=True)
-
-# Second button to navigate to "Generate Feature File" page
-with col2:
-    if st.button("Generate Feature File", key="button2"):
-        switch_page("2_Generate_Feature_File")
-    st.markdown('<div class="big-button" onclick="window.location.href=\'/2_Generate_Feature_File\'">Generate Feature File</div>', unsafe_allow_html=True)
-Explanation of CSS and Layout
-CSS Styling for Buttons:
-
-.big-button: This class styles each button as a large, centered box with a green background (#4CAF50). Font size is set to 24px to make the text prominent.
-Hover Effect: On hover, the button background darkens (#45a049), and a slight scaling effect (transform: scale(1.05)) is applied, making the button grow slightly to enhance interactivity.
-Two-Column Layout:
-
-st.columns(2) creates two columns, col1 and col2, allowing the buttons to be displayed side by side.
-Button Actions:
-
-The switch_page function handles page redirection when each button is clicked.
-This approach provides a visually appealing, interactive, and accessible way to navigate between pages in Streamlit using large, styled buttons.
-
-
-
-
-
-
-
-
-
-
-New version of GPT available - Continue chatting to use the old version, or start a new chat for the l
-
-
-
-st.markdown("""
-    <style>
-    /* Style for all Streamlit buttons */
-    div.stButton > button {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 150px;
-        width: 100%;
-        font-size: 24px;
-        font-weight: bold;
-        color: white;
-        background-color: #4CAF50;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: background-color 0.2s, transform 0.2s;
-    }
-    /* Hover effect for buttons */
-    div.stButton > button:hover {
-        background-color: #45a049;
-        transform: scale(1.05);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Two-column layout for navigation buttons
-col1, col2 = st.columns(2)
-
-# First button to navigate to "Upload and Validate Data" page
-with col1:
-    if st.button("Upload and Validate Data"):
-        switch_page("1_Validate_Data")
-
-# Second button to navigate to "Generate Feature File" page
-with col2:
-    if st.button("Generate Feature File"):
-        switch_page("2_Generate_Feature_File")
-Explanation of the CSS
-Targeting Existing Buttons:
-
-div.stButton > button: This CSS selector applies styles specifically to buttons generated by st.button, so it will style only the existing buttons.
-Button Styling:
-
-Dimensions: The button height is set to 150px, and it takes up the full width of its column (width: 100%).
-Font: Text size is increased to 24px with bold weight for better readability.
-Background: A green background (#4CAF50) with white text.
-Rounded Corners: border-radius: 10px for a modern look.
-Hover Effects:
-
-On hover, the background color darkens slightly, and a scaling effect (transform: scale(1.05)) makes the button appear to grow, adding interactivity.
-Result
-This code updates the appearance of the existing buttons, making them larger, more visually appealing, and interactive without adding new buttons or elements. This approach maintains the original functionality while enhancing the user experience.
-
-
-
-
-
-
-
-
-
-
-New version of GPT available - Continue chatting to use th
-
-
-
-import streamlit as st
-
-def set_background_image(image_url):
+def set_background_image(image_path):
     """
-    Sets a background image for the Streamlit app.
+    Sets a background image for the Streamlit app from a local file.
     
     Parameters:
-    image_url (str): URL of the background image to be applied.
+    image_path (str): Path to the local background image file.
     """
+    # Read the image file and encode it as base64
+    image_path = Path(image_path)
+    if not image_path.is_file():
+        st.error(f"Background image not found at {image_path}")
+        return
+
+    with open(image_path, "rb") as image_file:
+        base64_image = base64.b64encode(image_file.read()).decode()
+
+    # Set the background image
     st.markdown(
         f"""
         <style>
         .stApp {{
-            background-image: url("{image_url}");
+            background-image: url("data:image/png;base64,{base64_image}");
             background-size: cover;
             background-repeat: no-repeat;
             background-attachment: fixed;
@@ -223,19 +33,29 @@ def set_background_image(image_url):
         unsafe_allow_html=True
     )
 
-def set_logo(logo_url, width=100):
+def set_logo(logo_path, width=100):
     """
-    Sets a logo in the top left corner of the Streamlit app.
+    Sets a logo in the top left corner of the Streamlit app from a local file.
     
     Parameters:
-    logo_url (str): URL of the logo image to be displayed.
+    logo_path (str): Path to the local logo image file.
     width (int): Width of the logo in pixels. Adjust as necessary.
     """
+    # Read the logo file and encode it as base64
+    logo_path = Path(logo_path)
+    if not logo_path.is_file():
+        st.error(f"Logo image not found at {logo_path}")
+        return
+
+    with open(logo_path, "rb") as logo_file:
+        base64_logo = base64.b64encode(logo_file.read()).decode()
+
+    # Display the logo in the sidebar
     st.markdown(
         f"""
         <style>
         [data-testid="stSidebarNav"] {{
-            background-image: url("{logo_url}");
+            background-image: url("data:image/png;base64,{base64_logo}");
             background-size: {width}px;
             background-repeat: no-repeat;
             background-position: top left;
@@ -246,63 +66,3 @@ def set_logo(logo_url, width=100):
         """,
         unsafe_allow_html=True
     )
-
-
-
-
-
-
-
-
-import streamlit as st
-from streamlit_extras.switch_page_button import switch_page
-from util import set_background_image, set_logo
-
-# Set page configuration with sidebar collapsed
-st.set_page_config(page_title="Excel Test Case App", page_icon="📄", layout="wide", initial_sidebar_state="collapsed")
-
-# Set background and logo using local image paths
-set_background_image("images/background.jpg")  # Replace with your local background image path
-set_logo("images/logo.png", width=100)  # Replace with your local logo image path
-
-st.title("Excel Test Case App")
-st.write("Welcome to the Excel Test Case App! Click on a box below to navigate to a specific function.")
-
-# Custom CSS to style the existing Streamlit buttons
-st.markdown("""
-    <style>
-    div.stButton > button {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 150px;
-        width: 100%;
-        font-size: 24px;
-        font-weight: bold;
-        color: white;
-        background-color: #4CAF50;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: background-color 0.2s, transform 0.2s;
-    }
-    div.stButton > button:hover {
-        background-color: #45a049;
-        transform: scale(1.05);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Two-column layout for navigation buttons
-col1, col2 = st.columns(2)
-
-# First button to navigate to "Upload and Validate Data" page
-with col1:
-    if st.button("Upload and Validate Data"):
-        switch_page("1_Validate_Data")
-
-# Second button to navigate to "Generate Feature File" page
-with col2:
-    if st.button("Generate Feature File"):
-        switch_page("2_Generate_Feature_File")
-
