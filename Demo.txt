@@ -65,3 +65,68 @@ with col1:
 with col2:
     if st.button("Generate Feature File"):
         switch_page("
+
+
+
+
+st.markdown("""
+    <style>
+    .big-button {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+        width: 100%;
+        background-color: #4CAF50;
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform 0.2s, background-color 0.2s;
+    }
+    .big-button:hover {
+        background-color: #45a049;
+        transform: scale(1.05);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Two-column layout for navigation buttons
+col1, col2 = st.columns(2)
+
+# First button to navigate to "Upload and Validate Data" page
+with col1:
+    if st.button("Upload and Validate Data", key="button1"):
+        switch_page("1_Validate_Data")
+    st.markdown('<div class="big-button" onclick="window.location.href=\'/1_Validate_Data\'">Upload and Validate Data</div>', unsafe_allow_html=True)
+
+# Second button to navigate to "Generate Feature File" page
+with col2:
+    if st.button("Generate Feature File", key="button2"):
+        switch_page("2_Generate_Feature_File")
+    st.markdown('<div class="big-button" onclick="window.location.href=\'/2_Generate_Feature_File\'">Generate Feature File</div>', unsafe_allow_html=True)
+Explanation of CSS and Layout
+CSS Styling for Buttons:
+
+.big-button: This class styles each button as a large, centered box with a green background (#4CAF50). Font size is set to 24px to make the text prominent.
+Hover Effect: On hover, the button background darkens (#45a049), and a slight scaling effect (transform: scale(1.05)) is applied, making the button grow slightly to enhance interactivity.
+Two-Column Layout:
+
+st.columns(2) creates two columns, col1 and col2, allowing the buttons to be displayed side by side.
+Button Actions:
+
+The switch_page function handles page redirection when each button is clicked.
+This approach provides a visually appealing, interactive, and accessible way to navigate between pages in Streamlit using large, styled buttons.
+
+
+
+
+
+
+
+
+
+
+New version of GPT available - Continue chatting to use the old version, or start a new chat for the l
