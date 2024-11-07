@@ -96,3 +96,14 @@ display: none;
 </style>
 
 """, unsafe_allow_html=True)
+
+
+
+import streamlit as st
+
+# Display a title with white color using HTML/CSS
+st.markdown(
+    "<h1 style='color: white;'>Your Title Here</h1>",
+    unsafe_allow_html=True
+)
+
