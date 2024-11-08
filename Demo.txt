@@ -112,3 +112,49 @@ attachments = [
             ]
             attachment_names = ', '.join(attachments)  # Join names for easier display in a single cell
             
+
+
+
+
+
+
+import os
+import pandas as pd
+
+# Sample DataFrame with columns 'User ID' and 'Attachments'
+# Assuming 'attachments_df' is your DataFrame
+# Example structure:
+# | User ID | Attachments                |
+# | ------- | ---------------------------|
+# | 12345   | file1.pdf, file2.docx      |
+# | 67890   | file3.pdf, file4.txt       |
+
+# Load your DataFrame (replace with your actual DataFrame variable)
+attachments_df = pd.DataFrame({
+    'User ID': ['12345', '67890'],
+    'Attachments': ['file1.pdf, file2.docx', 'file3.pdf, file4.txt']
+})
+
+# Root directory where all attachment folders will be created
+root_dir = 'attachments'
+
+# Create the root directory if it doesn't exist
+os.makedirs(root_dir, exist_ok=True)
+
+# Iterate over each row in the DataFrame
+for _, row in attachments_df.iterrows():
+    user_id = str(row['User ID'])  # Get the User ID as a string
+    attachments = row['Attachments']  # Get the attachments string
+    
+    # Create a directory for the user under the root directory
+    user_dir = os.path.join(root_dir, user_id)
+    os.makedirs(user_dir, exist_ok=True)
+    
+    # Path for the attachments.txt file in the user's directory
+    attachment_file_path = os.path.join(user_dir, 'attachments.txt')
+    
+    # Write the attachments content to attachments.txt
+    with open(attachment_file_path, 'w') as file:
+        file.write(attachments)
+
+print(f"Attachment files created under '{root_dir}' directory.")
