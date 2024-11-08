@@ -41,3 +41,62 @@ output_path = 'jira_stories.xlsx'
 df.to_excel(output_path, index=False)
 
 print(f"Data has been written to {output_path}")
+
+
+
+
+import os
+import pandas as pd
+import xml.etree.ElementTree as ET
+
+# Directory containing the XML files
+xml_directory = 'path/to/xml_files'  # replace with the path to your XML files
+
+# Initialize a list to hold story data
+stories_data = []
+
+# Loop through each XML file in the directory
+for filename in os.listdir(xml_directory):
+    if filename.endswith('.xml'):
+        # Parse the XML file
+        tree = ET.parse(os.path.join(xml_directory, filename))
+        root = tree.getroot()
+        
+        # Extract key fields
+        issue_key = root.findtext('.//key')  # Issue Key (e.g., FAT-501)
+        title = root.findtext('.//title')  # Title of the story
+        description = root.findtext('.//description')  # Description
+        summary = root.findtext('.//summary')  # Summary
+        priority = root.findtext('.//priority')  # Priority level
+        status = root.findtext('.//status')  # Status
+        
+        # Extract acceptance criteria (custom field with specific ID)
+        acceptance_criteria = None
+        for customfield in root.findall('.//customfield'):
+            if customfield.get('id') == 'customfield_10658':  # Custom field for Acceptance Criteria
+                acceptance_criteria = customfield.findtext('.//customfieldvalue')
+                break
+
+        # Attachments can be empty, so handle accordingly
+        attachments = [attachment.text for attachment in root.findall('.//attachments/attachment')]
+        
+        # Append data to the stories_data list
+        stories_data.append({
+            'Issue Key': issue_key,
+            'Title': title,
+            'Summary': summary,
+            'Description': description,
+            'Acceptance Criteria': acceptance_criteria,
+            'Priority': priority,
+            'Status': status,
+            'Attachment Details': ', '.join(attachments)
+        })
+
+# Convert the data into a pandas DataFrame
+df = pd.DataFrame(stories_data)
+
+# Export to Excel
+output_path = 'jira_stories.xlsx'
+df.to_excel(output_path, index=False)
+
+print(f"Data has been written to {output_path}")
