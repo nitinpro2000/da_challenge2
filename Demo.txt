@@ -1,4 +1,4 @@
-import os
+²import os
 import pandas as pd
 import xml.etree.ElementTree as ET
 
@@ -103,3 +103,12 @@ print(f"Data has been written to {output_path}")
 
 
 r"</?[^>]+>"
+
+
+
+attachments = [
+                attachment.get('name') for attachment in item.findall('.//attachments/attachment') 
+                if attachment.get('name') and not attachment.get('name').endswith('.png')
+            ]
+            attachment_names = ', '.join(attachments)  # Join names for easier display in a single cell
+            
