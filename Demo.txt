@@ -1,135 +1,8 @@
-²import os
-import pandas as pd
-import xml.etree.ElementTree as ET
-
-# Directory containing the XML files
-xml_directory = 'path/to/xml_files'  # replace with the path to your XML files
-
-# Initialize a list to hold story data
-stories_data = []
-
-# Loop through each XML file in the directory
-for filename in os.listdir(xml_directory):
-    if filename.endswith('.xml'):
-        # Parse the XML file
-        tree = ET.parse(os.path.join(xml_directory, filename))
-        root = tree.getroot()
-        
-        # Extract fields - adjust the tag names based on XML structure
-        story_id = root.findtext('story_id')
-        title = root.findtext('title')
-        description = root.findtext('description')
-        acceptance_criteria = root.findtext('acceptance_criteria')
-        attachments = [attachment.text for attachment in root.findall('attachments/attachment')]
-        test_description = root.findtext('test_description')
-        
-        # Append data to the stories_data list
-        stories_data.append({
-            'Story ID': story_id,
-            'Title': title,
-            'Description': description,
-            'Acceptance Criteria': acceptance_criteria,
-            'Attachment Details': ', '.join(attachments),
-            'Test Description': test_description
-        })
-
-# Convert the data into a pandas DataFrame
-df = pd.DataFrame(stories_data)
-
-# Export to Excel
-output_path = 'jira_stories.xlsx'
-df.to_excel(output_path, index=False)
-
-print(f"Data has been written to {output_path}")
-
-
-
-
-import os
-import pandas as pd
-import xml.etree.ElementTree as ET
-
-# Directory containing the XML files
-xml_directory = 'path/to/xml_files'  # replace with the path to your XML files
-
-# Initialize a list to hold story data
-stories_data = []
-
-# Loop through each XML file in the directory
-for filename in os.listdir(xml_directory):
-    if filename.endswith('.xml'):
-        # Parse the XML file
-        tree = ET.parse(os.path.join(xml_directory, filename))
-        root = tree.getroot()
-        
-        # Extract key fields
-        issue_key = root.findtext('.//key')  # Issue Key (e.g., FAT-501)
-        title = root.findtext('.//title')  # Title of the story
-        description = root.findtext('.//description')  # Description
-        summary = root.findtext('.//summary')  # Summary
-        priority = root.findtext('.//priority')  # Priority level
-        status = root.findtext('.//status')  # Status
-        
-        # Extract acceptance criteria (custom field with specific ID)
-        acceptance_criteria = None
-        for customfield in root.findall('.//customfield'):
-            if customfield.get('id') == 'customfield_10658':  # Custom field for Acceptance Criteria
-                acceptance_criteria = customfield.findtext('.//customfieldvalue')
-                break
-
-        # Attachments can be empty, so handle accordingly
-        attachments = [attachment.text for attachment in root.findall('.//attachments/attachment')]
-        
-        # Append data to the stories_data list
-        stories_data.append({
-            'Issue Key': issue_key,
-            'Title': title,
-            'Summary': summary,
-            'Description': description,
-            'Acceptance Criteria': acceptance_criteria,
-            'Priority': priority,
-            'Status': status,
-            'Attachment Details': ', '.join(attachments)
-        })
-
-# Convert the data into a pandas DataFrame
-df = pd.DataFrame(stories_data)
-
-# Export to Excel
-output_path = 'jira_stories.xlsx'
-df.to_excel(output_path, index=False)
-
-print(f"Data has been written to {output_path}")
-
-
-r"</?[^>]+>"
-
-
-
-attachments = [
-                attachment.get('name') for attachment in item.findall('.//attachments/attachment') 
-                if attachment.get('name') and not attachment.get('name').endswith('.png')
-            ]
-            attachment_names = ', '.join(attachments)  # Join names for easier display in a single cell
-            
-
-
-
-
-
-
 import os
 import pandas as pd
 
 # Sample DataFrame with columns 'User ID' and 'Attachments'
-# Assuming 'attachments_df' is your DataFrame
-# Example structure:
-# | User ID | Attachments                |
-# | ------- | ---------------------------|
-# | 12345   | file1.pdf, file2.docx      |
-# | 67890   | file3.pdf, file4.txt       |
-
-# Load your DataFrame (replace with your actual DataFrame variable)
+# Example DataFrame structure; replace this with your actual DataFrame
 attachments_df = pd.DataFrame({
     'User ID': ['12345', '67890'],
     'Attachments': ['file1.pdf, file2.docx', 'file3.pdf, file4.txt']
@@ -138,7 +11,7 @@ attachments_df = pd.DataFrame({
 # Root directory where all attachment folders will be created
 root_dir = 'attachments'
 
-# Create the root directory if it doesn't exist
+# Ensure the root directory exists
 os.makedirs(root_dir, exist_ok=True)
 
 # Iterate over each row in the DataFrame
@@ -146,15 +19,17 @@ for _, row in attachments_df.iterrows():
     user_id = str(row['User ID'])  # Get the User ID as a string
     attachments = row['Attachments']  # Get the attachments string
     
-    # Create a directory for the user under the root directory
+    # Create a directory for each user ID under the root directory
     user_dir = os.path.join(root_dir, user_id)
-    os.makedirs(user_dir, exist_ok=True)
+    os.makedirs(user_dir, exist_ok=True)  # Ensure user directory is created
     
-    # Path for the attachments.txt file in the user's directory
+    # Define the path for the attachments.txt file in the user's directory
     attachment_file_path = os.path.join(user_dir, 'attachments.txt')
     
     # Write the attachments content to attachments.txt
-    with open(attachment_file_path, 'w') as file:
-        file.write(attachments)
-
-print(f"Attachment files created under '{root_dir}' directory.")
+    try:
+        with open(attachment_file_path, 'w') as file:
+            file.write(attachments)
+        print(f"Created {attachment_file_path} with attachments data.")
+    except Exception as e:
+        print(f"Failed to create {attachment_file_path}: {e}")
