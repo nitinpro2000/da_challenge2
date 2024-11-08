@@ -100,3 +100,6 @@ output_path = 'jira_stories.xlsx'
 df.to_excel(output_path, index=False)
 
 print(f"Data has been written to {output_path}")
+
+
+r"</?[^>]+>"
