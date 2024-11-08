@@ -1,109 +1,43 @@
-import streamlit as st
-import base64
-from pathlib import Path
+import os
+import pandas as pd
+import xml.etree.ElementTree as ET
 
-def set_background_image(image_path):
-    """
-    Sets a background image for the Streamlit app from a local file.
-    
-    Parameters:
-    image_path (str): Path to the local background image file.
-    """
-    # Read the image file and encode it as base64
-    image_path = Path(image_path)
-    if not image_path.is_file():
-        st.error(f"Background image not found at {image_path}")
-        return
+# Directory containing the XML files
+xml_directory = 'path/to/xml_files'  # replace with the path to your XML files
 
-    with open(image_path, "rb") as image_file:
-        base64_image = base64.b64encode(image_file.read()).decode()
+# Initialize a list to hold story data
+stories_data = []
 
-    # Set the background image
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{base64_image}");
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+# Loop through each XML file in the directory
+for filename in os.listdir(xml_directory):
+    if filename.endswith('.xml'):
+        # Parse the XML file
+        tree = ET.parse(os.path.join(xml_directory, filename))
+        root = tree.getroot()
+        
+        # Extract fields - adjust the tag names based on XML structure
+        story_id = root.findtext('story_id')
+        title = root.findtext('title')
+        description = root.findtext('description')
+        acceptance_criteria = root.findtext('acceptance_criteria')
+        attachments = [attachment.text for attachment in root.findall('attachments/attachment')]
+        test_description = root.findtext('test_description')
+        
+        # Append data to the stories_data list
+        stories_data.append({
+            'Story ID': story_id,
+            'Title': title,
+            'Description': description,
+            'Acceptance Criteria': acceptance_criteria,
+            'Attachment Details': ', '.join(attachments),
+            'Test Description': test_description
+        })
 
-def set_logo(logo_path, width=100):
-    """
-    Sets a logo in the top left corner of the Streamlit app from a local file.
-    
-    Parameters:
-    logo_path (str): Path to the local logo image file.
-    width (int): Width of the logo in pixels. Adjust as necessary.
-    """
-    # Read the logo file and encode it as base64
-    logo_path = Path(logo_path)
-    if not logo_path.is_file():
-        st.error(f"Logo image not found at {logo_path}")
-        return
+# Convert the data into a pandas DataFrame
+df = pd.DataFrame(stories_data)
 
-    with open(logo_path, "rb") as logo_file:
-        base64_logo = base64.b64encode(logo_file.read()).decode()
+# Export to Excel
+output_path = 'jira_stories.xlsx'
+df.to_excel(output_path, index=False)
 
-    # Display the logo in the sidebar
-    st.markdown(
-        f"""
-        <style>
-        [data-testid="stSidebarNav"] {{
-            background-image: url("data:image/png;base64,{base64_logo}");
-            background-size: {width}px;
-            background-repeat: no-repeat;
-            background-position: top left;
-            padding-top: 80px; /* Adjusts space from the top */
-            margin-left: 10px;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-
-def page style():
-
-3
-
-4
-
-5
-
-6
-
-7
-
-}
-
-8
-
-<style>
-
-I
-
-section[data-testid="stSidebar"] [aria-expanded="true"], [data-testid="stHeader"]{
-
-display: none;
-
-</style>
-
-""", unsafe_allow_html=True)
-
-
-
-import streamlit as st
-
-# Display a title with white color using HTML/CSS
-st.markdown(
-    "<h1 style='color: white;'>Your Title Here</h1>",
-    unsafe_allow_html=True
-)
-
+print(f"Data has been written to {output_path}")
