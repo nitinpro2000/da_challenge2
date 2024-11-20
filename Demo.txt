@@ -1,27 +1,14 @@
-import streamlit as st
-
-# Text content to be saved in the demo.feature file
-feature_text = """Feature: Sample feature file
-  Scenario: Sample scenario
-    Given I have a valid Streamlit app
-    When I add a download button
-    Then I should be able to download the file successfully
-"""
-
-# Streamlit app title
-st.title("Download Feature File")
-
-# Display the content of the feature file
-st.subheader("Content of the demo.feature file:")
-st.code(feature_text, language="gherkin")
-
-# Convert the text to bytes for downloading
-file_bytes = feature_text.encode("utf-8")
-
-# Create a download button
-st.download_button(
-    label="Download demo.feature",
-    data=file_bytes,
-    file_name="demo.feature",
-    mime="text/plain"
-)
+data = {
+    "Test Case ID": ["TC001", "TC002", "TC003"],
+    "Step Number": [1, 2, 3],
+    "Action": [
+        "Navigate to the login page",
+        "Enter valid username and password",
+        "Click on the login button"
+    ],
+    "Expected Result": [
+        "Login page is displayed",
+        "Username and password are entered",
+        "User is successfully logged in"
+    ],
+}
