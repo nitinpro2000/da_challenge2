@@ -9,3 +9,16 @@ if uploaded_files:
         with open(file_path, "wb") as f:
             f.write(uploaded_file.read())
         st.write(f"Saved file: {uploaded_file.name}")
+
+
+
+# Set the output directory
+OUTPUT_DIR = "output"
+
+# Check if the directory exists
+if os.path.exists(OUTPUT_DIR):
+    # Empty the directory
+    shutil.rmtree(OUTPUT_DIR)
+
+# Recreate the directory
+os.makedirs(OUTPUT_DIR)
