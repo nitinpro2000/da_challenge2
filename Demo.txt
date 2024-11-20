@@ -1,56 +1,27 @@
 import streamlit as st
-import os
-import shutil
-import json
 
-# Set the output directory
-OUTPUT_DIR = "output"
+# Text content to be saved in the demo.feature file
+feature_text = """Feature: Sample feature file
+  Scenario: Sample scenario
+    Given I have a valid Streamlit app
+    When I add a download button
+    Then I should be able to download the file successfully
+"""
 
-# Check if the directory exists
-if os.path.exists(OUTPUT_DIR):
-    # Empty the directory
-    shutil.rmtree(OUTPUT_DIR)
+# Streamlit app title
+st.title("Download Feature File")
 
-# Recreate the directory
-os.makedirs(OUTPUT_DIR)
+# Display the content of the feature file
+st.subheader("Content of the demo.feature file:")
+st.code(feature_text, language="gherkin")
 
-# Streamlit app
-st.title("Upload Files and Generate JSON")
+# Convert the text to bytes for downloading
+file_bytes = feature_text.encode("utf-8")
 
-# File uploader
-uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True)
-
-if uploaded_files:
-    st.write(f"{len(uploaded_files)} files uploaded.")
-
-    story_dict = {}  # To store mapping of story_id to TDM files
-
-    # Process each uploaded file
-    for uploaded_file in uploaded_files:
-        file_path = os.path.join(OUTPUT_DIR, uploaded_file.name)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.read())
-        st.write(f"Saved file: {uploaded_file.name}")
-
-        # Extract story ID and categorize files
-        file_name = uploaded_file.name
-        if file_name.endswith("_user_story.xlsx"):
-            # Extract the story_id
-            story_id = file_name.split("_user_story.xlsx")[0]
-            if story_id not in story_dict:
-                story_dict[story_id] = []
-        elif file_name.endswith("_tdm.xlsx"):
-            # Extract the story_id
-            story_id = file_name.split("_tdm.xlsx")[0]
-            if story_id in story_dict:
-                story_dict[story_id].append(file_name)
-
-    # Save the story_dict as a JSON file in the output directory
-    json_path = os.path.join(OUTPUT_DIR, "story_mapping.json")
-    with open(json_path, "w") as json_file:
-        json.dump(story_dict, json_file, indent=4)
-
-    st.write(f"Generated JSON file: story_mapping.json")
-    st.json(story_dict)  # Display JSON in the Streamlit app
-
-st.write(f"Uploaded files and JSON file will be saved in the `{OUTPUT_DIR}` folder.")
+# Create a download button
+st.download_button(
+    label="Download demo.feature",
+    data=file_bytes,
+    file_name="demo.feature",
+    mime="text/plain"
+)
