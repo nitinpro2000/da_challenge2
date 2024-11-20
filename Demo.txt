@@ -1,35 +1,11 @@
-import os
-import pandas as pd
+uploaded_files = st.file_uploader("Choose files to upload", accept_multiple_files=True)
 
-# Sample DataFrame with columns 'User ID' and 'Attachments'
-# Example DataFrame structure; replace this with your actual DataFrame
-attachments_df = pd.DataFrame({
-    'User ID': ['12345', '67890'],
-    'Attachments': ['file1.pdf, file2.docx', 'file3.pdf, file4.txt']
-})
-
-# Root directory where all attachment folders will be created
-root_dir = 'attachments'
-
-# Ensure the root directory exists
-os.makedirs(root_dir, exist_ok=True)
-
-# Iterate over each row in the DataFrame
-for _, row in attachments_df.iterrows():
-    user_id = str(row['User ID'])  # Get the User ID as a string
-    attachments = row['Attachments']  # Get the attachments string
+if uploaded_files:
+    st.write(f"{len(uploaded_files)} files uploaded.")
     
-    # Create a directory for each user ID under the root directory
-    user_dir = os.path.join(root_dir, user_id)
-    os.makedirs(user_dir, exist_ok=True)  # Ensure user directory is created
-    
-    # Define the path for the attachments.txt file in the user's directory
-    attachment_file_path = os.path.join(user_dir, 'attachments.txt')
-    
-    # Write the attachments content to attachments.txt
-    try:
-        with open(attachment_file_path, 'w') as file:
-            file.write(attachments)
-        print(f"Created {attachment_file_path} with attachments data.")
-    except Exception as e:
-        print(f"Failed to create {attachment_file_path}: {e}")
+    # Save each uploaded file
+    for uploaded_file in uploaded_files:
+        file_path = os.path.join(OUTPUT_DIR, uploaded_file.name)
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.read())
+        st.write(f"Saved file: {uploaded_file.name}")
