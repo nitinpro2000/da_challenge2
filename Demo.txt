@@ -1,1 +1,39 @@
+import streamlit as st
+import shutil
+import os
+from pathlib import Path
+
+def zip_folder(folder_path, output_zip):
+    """Compress a folder into a zip file."""
+    shutil.make_archive(output_zip, 'zip', folder_path)
+
+def main():
+    st.title("Download Folder as ZIP")
+
+    # Path to the folder you want to allow downloading
+    folder_to_zip = "path_to_your_folder"  # Replace with your folder path
+    output_zip_name = "output_folder"
+
+    # Compress the folder
+    zip_path = f"{output_zip_name}.zip"
+    zip_folder(folder_to_zip, output_zip_name)
+
+    # Read the ZIP file as binary
+    with open(zip_path, "rb") as zip_file:
+        zip_data = zip_file.read()
+
+    # Create a download button
+    st.download_button(
+        label="Download ZIP",
+        data=zip_data,
+        file_name="folder_download.zip",
+        mime="application/zip",
+    )
+
+    # Cleanup the zip file after creating it
+    if Path(zip_path).exists():
+        os.remove(zip_path)
+
+if __name__ == "__main__":
+    main()
 
