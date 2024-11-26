@@ -1,39 +1,36 @@
-import streamlit as st
-import shutil
 import os
-from pathlib import Path
+import pandas as pd
 
-def zip_folder(folder_path, output_zip):
-    """Compress a folder into a zip file."""
-    shutil.make_archive(output_zip, 'zip', folder_path)
+def consolidate_excel_files(folder_path, output_file):
+    """
+    Consolidates all Excel files in a folder into a single Excel file with each file's content
+    placed in a separate sheet named after the file.
 
-def main():
-    st.title("Download Folder as ZIP")
+    Args:
+        folder_path (str): Path to the folder containing Excel files.
+        output_file (str): Path for the consolidated output Excel file.
 
-    # Path to the folder you want to allow downloading
-    folder_to_zip = "path_to_your_folder"  # Replace with your folder path
-    output_zip_name = "output_folder"
+    Returns:
+        None
+    """
+    # Create a writer object
+    writer = pd.ExcelWriter(output_file, engine='openpyxl')
 
-    # Compress the folder
-    zip_path = f"{output_zip_name}.zip"
-    zip_folder(folder_to_zip, output_zip_name)
+    # Iterate over all files in the folder
+    for file_name in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, file_name)
+        # Check if the file is an Excel file
+        if file_name.endswith(('.xlsx', '.xls')) and os.path.isfile(file_path):
+            try:
+                # Read the Excel file
+                data = pd.read_excel(file_path)
+                # Remove the extension from the file name for the sheet name
+                sheet_name = os.path.splitext(file_name)[0][:31]  # Sheet names have a max length of 31
+                # Write to the Excel writer object
+                data.to_excel(writer, index=False, sheet_name=sheet_name)
+            except Exception as e:
+                print(f"Could not process {file_name}: {e}")
 
-    # Read the ZIP file as binary
-    with open(zip_path, "rb") as zip_file:
-        zip_data = zip_file.read()
-
-    # Create a download button
-    st.download_button(
-        label="Download ZIP",
-        data=zip_data,
-        file_name="folder_download.zip",
-        mime="application/zip",
-    )
-
-    # Cleanup the zip file after creating it
-    if Path(zip_path).exists():
-        os.remove(zip_path)
-
-if __name__ == "__main__":
-    main()
-
+    # Save the consolidated Excel file
+    writer.save()
+    print(f"Consolidated file saved as {output_file}")
