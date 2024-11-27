@@ -1,35 +1,14 @@
-def extract_gherkin_text(input_string):
-    # Split the string into lines
-    lines = input_string.splitlines()
-    
-    # Initialize variables
-    start_marker = "```gherkin"
-    end_marker = "```"
-    extracting = False
-    result_lines = []
-    
-    # Iterate through the lines
-    for line in lines:
-        if line.strip() == start_marker:
-            extracting = True
-            continue  # Skip the marker line
-        
-        if line.strip() == end_marker and extracting:
-            break  # Stop when end marker is reached
-        
-        if extracting:
-            result_lines.append(line)
-    
-    # Join the extracted lines
-    return "\n".join(result_lines)
+import os
 
+def list_files(directory, prefix=""):
+    for entry in os.listdir(directory):
+        entry_path = os.path.join(directory, entry)
+        if os.path.isdir(entry_path):
+            print(f"{prefix}{entry}/")
+            list_files(entry_path, prefix=f"{prefix}{entry}/")
+        else:
+            print(f"{prefix}{entry}")
 
-# Example string
-example_string = """
-Some text above
-```gherkin
-Feature: Sample Feature
-  Scenario: Sample Scenario
-    Given a sample condition
-    When something happens
-    Then verify something
+# Specify the root directory
+root_dir = "path/to/your/directory"
+list_files(root_dir)
