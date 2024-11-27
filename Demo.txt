@@ -1,28 +1,34 @@
-Here's a description of what each package does in your project:
+Here are the flow steps for the process:
 
-1. **openpyxl==3.1.5**  
-   - A Python library for reading and writing Excel files in the `.xlsx` format.
+1. **Run the Application**:  
+   - Execute the command: `streamlit run login.py` to start the application.
 
-2. **pandas==2.2.3**  
-   - A data analysis and manipulation library, useful for working with structured data like DataFrames and performing operations on Excel and CSV files.
+2. **Login**:  
+   - On the login screen, enter the credentials:  
+     - **Username**: `admin`  
+     - **Password**: `admin`  
+   - Click the **Login** button to proceed.
 
-3. **streamlit-extras==0.5.0**  
-   - Provides additional widgets and features for enhancing Streamlit applications, such as advanced UI components.
+3. **Navigate to Home Page**:  
+   - After successful login, the home page is displayed.  
+   - Click the **Test Case Generation** button to navigate to the Test Case Generation page.
 
-4. **streamlit==1.39.0**  
-   - A framework for building interactive, web-based data applications directly from Python scripts.
+4. **Upload User Story File**:  
+   - On the Test Case Generation page, upload a file named `user_story.xlsx` in the **Upload User Story File** section.
 
-5. **XlsxWriter==3.2.0**  
-   - A library for writing data, formatting, and creating charts in Excel files.
+5. **Upload TDM File**:  
+   - Upload a file named `story_id_tdm.xlsx` in the **Upload TDM File** section.
 
-6. **python-dotenv==1.0.1**  
-   - A tool for managing environment variables using `.env` files, often for configuration and secret management.
+6. **Generate Test Cases**:  
+   - Click the **Generate Test Cases** button.  
+   - After processing, click the **Download Test Cases** button to download a ZIP file containing the test case step files.
 
-7. **boto3==1.35.63**  
-   - The Amazon Web Services (AWS) SDK for Python, used for interacting with AWS services such as S3, DynamoDB, and Bedrock.
+7. **Navigate to Feature Generation**:  
+   - Click the **Continue to Feature Generation** button to navigate to the Feature Generation page.
 
-8. **lxml[html_clean]**  
-   - A library for processing XML and HTML, with additional features for cleaning HTML content.
+8. **Generate Feature Files**:  
+   - On the Feature Generation page, click the **Generate Feature File** button to process the feature files.  
+   - After processing, click the **Download Feature Files** button to download a ZIP file containing the feature files.
 
-9. **anthropic**  
-   - A Python SDK to interact with Anthropic's API for AI model integrations, enabling tasks such as text generation and natural language processing.
+9. **Logout**:  
+   - Click the **Logout** button to log out of the application.
