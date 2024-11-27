@@ -1,14 +1,142 @@
-import os
+Chat Open A I Gpt 3
+You said:
+What each file means explain in short sentence with folder structure given with proper formating and I am using streamlit for the front end and its a python application using aws bedrock to generate test steps, feature file from user stories
 
-def list_files(directory, prefix=""):
-    for entry in os.listdir(directory):
-        entry_path = os.path.join(directory, entry)
-        if os.path.isdir(entry_path):
-            print(f"{prefix}{entry}/")
-            list_files(entry_path, prefix=f"{prefix}{entry}/")
-        else:
-            print(f"{prefix}{entry}")
+env
 
-# Specify the root directory
-root_dir = "path/to/your/directory"
-list_files(root_dir)
+2
+
+3
+
+4
+
+3
+
+6
+
+7
+
+9
+
+10
+
+11
+
+artifacts/Clean_DOM/clean_dom.py
+
+artifacts/Clean_DOM/utils.py
+
+artifacts/Clean_DOM/_init.py
+
+artifacts/Clean_DOM/_pycache/utils.cpython-313.pyc
+
+artifacts/DOM_Files/FAST_UI_Paths.json
+
+artifacts/Raw_DOM_Files/FAST_UI_Paths.json
+
+artifacts/step_definations.xlsx
+
+artifacts/TestinputData.xlsx
+
+artifacts/ui_paths/FAST_UI_Paths.json
+
+backend/feature_file_generator.py
+
+12
+
+backend/utils.py
+
+13
+
+backend/_init__.py
+
+14
+
+feature_files.zip
+
+15 Login.py
+
+16
+
+output/feature_files/FAT-438.feature
+
+17
+
+18
+
+19
+
+20
+
+21
+
+22
+
+23
+
+24
+
+25
+
+output/feature_files/PCFG-401.feature
+
+output/test_cases/test_steps.xlsx
+
+pages/FeatureFileGenerator.py
+
+pages/Home.py
+
+pages/TestCaseGenerator.py
+
+Sign_in_details.csv
+
+ui_utils.py
+
+uploaded_files/PCFG-401_tdm.xlsx
+
+uploaded_files/user_story.xlsx
+
+26 _init__.py
+ChatGPT said:
+Here's a concise explanation of the folder structure and files in your project, formatted for clarity:
+
+Folder Structure and File Descriptions
+Root Files
+env: Configuration file for managing the application's environment settings.
+feature_files.zip: Archive containing generated feature files.
+Login.py: Script for handling user login functionality.
+Sign_in_details.csv: CSV file storing user authentication details.
+ui_utils.py: Utility functions for UI handling.
+artifacts/ (Stores intermediate and generated data)
+Clean_DOM/
+clean_dom.py: Script for cleaning and parsing DOM-related data.
+utils.py: Helper functions for DOM processing.
+_init.py: Marks the folder as a Python package.
+_pycache/utils.cpython-313.pyc: Compiled Python bytecode for utils.py.
+DOM_Files/
+FAST_UI_Paths.json: Processed DOM paths for UI automation.
+Raw_DOM_Files/
+FAST_UI_Paths.json: Unprocessed raw DOM paths.
+step_definations.xlsx: Excel file defining steps for automation.
+TestinputData.xlsx: Input data for generating test cases.
+ui_paths/
+FAST_UI_Paths.json: Another version of DOM paths used for UI mapping.
+backend/ (Backend logic for feature and test case generation)
+feature_file_generator.py: Main script to generate feature files from user stories.
+utils.py: Backend utility functions for shared operations.
+init_.py: Marks the folder as a Python package.
+output/ (Stores generated files)
+feature_files/
+FAT-438.feature: Generated feature file for a specific task.
+PCFG-401.feature: Another generated feature file for a different task.
+test_cases/
+test_steps.xlsx: Excel file containing generated test steps.
+pages/ (Streamlit frontend components)
+FeatureFileGenerator.py: Streamlit page for generating feature files.
+Home.py: Homepage of the Streamlit application.
+TestCaseGenerator.py: Streamlit page for generating test cases.
+uploaded_files/ (User-uploaded files)
+PCFG-401_tdm.xlsx: Test data matrix uploaded by the user.
+user_story.xlsx: User story file uploaded for feature file generation.
+init_.py
+Marks various folders as Python packages for modular organization.
