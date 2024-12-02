@@ -1,10 +1,8 @@
-from sentence_transformers import SentenceTransformer, util
-
-# Initialize the model
-model = SentenceTransformer('all-MiniLM-L6-v2')
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Input sentences
-query_sentence = "The cat sat on the mat."  # The sentence to match
+query_sentence = "The cat sat on the mat."  # Sentence to match
 existing_sentences = [
     "A cat is sitting on a rug.",
     "The quick brown fox jumps over the lazy dog.",
@@ -12,15 +10,18 @@ existing_sentences = [
     "Cats are great companions."
 ]
 
-# Compute embeddings
-query_embedding = model.encode(query_sentence)
-existing_embeddings = model.encode(existing_sentences)
+# Combine the query sentence with the existing sentences
+sentences = [query_sentence] + existing_sentences
 
-# Compute similarities
-similarities = util.cos_sim(query_embedding, existing_embeddings)
+# Compute TF-IDF vectors
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(sentences)
+
+# Compute cosine similarity between the query and all other sentences
+similarities = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:]).flatten()
 
 # Rank and display similarities
-results = list(zip(existing_sentences, similarities[0].tolist()))
+results = list(zip(existing_sentences, similarities))
 results = sorted(results, key=lambda x: x[1], reverse=True)  # Sort by similarity score
 
 print(f"Similarity of '{query_sentence}' with existing sentences:")
