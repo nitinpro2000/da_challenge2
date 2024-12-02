@@ -1,34 +1,28 @@
-Here are the flow steps for the process:
+from sentence_transformers import SentenceTransformer, util
 
-1. **Run the Application**:  
-   - Execute the command: `streamlit run login.py` to start the application.
+# Initialize the model
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
-2. **Login**:  
-   - On the login screen, enter the credentials:  
-     - **Username**: `admin`  
-     - **Password**: `admin`  
-   - Click the **Login** button to proceed.
+# Input sentences
+query_sentence = "The cat sat on the mat."  # The sentence to match
+existing_sentences = [
+    "A cat is sitting on a rug.",
+    "The quick brown fox jumps over the lazy dog.",
+    "I love programming in Python.",
+    "Cats are great companions."
+]
 
-3. **Navigate to Home Page**:  
-   - After successful login, the home page is displayed.  
-   - Click the **Test Case Generation** button to navigate to the Test Case Generation page.
+# Compute embeddings
+query_embedding = model.encode(query_sentence)
+existing_embeddings = model.encode(existing_sentences)
 
-4. **Upload User Story File**:  
-   - On the Test Case Generation page, upload a file named `user_story.xlsx` in the **Upload User Story File** section.
+# Compute similarities
+similarities = util.cos_sim(query_embedding, existing_embeddings)
 
-5. **Upload TDM File**:  
-   - Upload a file named `story_id_tdm.xlsx` in the **Upload TDM File** section.
+# Rank and display similarities
+results = list(zip(existing_sentences, similarities[0].tolist()))
+results = sorted(results, key=lambda x: x[1], reverse=True)  # Sort by similarity score
 
-6. **Generate Test Cases**:  
-   - Click the **Generate Test Cases** button.  
-   - After processing, click the **Download Test Cases** button to download a ZIP file containing the test case step files.
-
-7. **Navigate to Feature Generation**:  
-   - Click the **Continue to Feature Generation** button to navigate to the Feature Generation page.
-
-8. **Generate Feature Files**:  
-   - On the Feature Generation page, click the **Generate Feature File** button to process the feature files.  
-   - After processing, click the **Download Feature Files** button to download a ZIP file containing the feature files.
-
-9. **Logout**:  
-   - Click the **Logout** button to log out of the application.
+print(f"Similarity of '{query_sentence}' with existing sentences:")
+for sentence, score in results:
+    print(f"'{sentence}': {score:.4f}")
