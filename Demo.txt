@@ -1,29 +1,22 @@
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
 
-# Input sentences
-query_sentence = "The cat sat on the mat."  # Sentence to match
-existing_sentences = [
-    "A cat is sitting on a rug.",
-    "The quick brown fox jumps over the lazy dog.",
-    "I love programming in Python.",
-    "Cats are great companions."
-]
+# Sample DataFrame
+data = {'Column1': ['Line1\nLine2\nLine3', 'Another\nExample']}
+df = pd.DataFrame(data)
 
-# Combine the query sentence with the existing sentences
-sentences = [query_sentence] + existing_sentences
+# Export DataFrame to Excel
+filename = 'output.xlsx'
+df.to_excel(filename, index=False)
 
-# Compute TF-IDF vectors
-vectorizer = TfidfVectorizer()
-tfidf_matrix = vectorizer.fit_transform(sentences)
+# Adjust formatting with openpyxl
+from openpyxl import load_workbook
+wb = load_workbook(filename)
+ws = wb.active
 
-# Compute cosine similarity between the query and all other sentences
-similarities = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:]).flatten()
+# Enable text wrapping for the column
+for row in ws.iter_rows():
+    for cell in row:
+        cell.alignment = Alignment(wrap_text=True)
 
-# Rank and display similarities
-results = list(zip(existing_sentences, similarities))
-results = sorted(results, key=lambda x: x[1], reverse=True)  # Sort by similarity score
-
-print(f"Similarity of '{query_sentence}' with existing sentences:")
-for sentence, score in results:
-    print(f"'{sentence}': {score:.4f}")
+wb.save(filename)
