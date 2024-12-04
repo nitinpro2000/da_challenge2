@@ -1,57 +1,21 @@
 import streamlit as st
 from streamlit_cookies_manager import EncryptedCookieManager
 
-# Configure the cookie manager (use a secure key in production)
-cookie_manager = EncryptedCookieManager(prefix="myapp_", password="your-secure-key")
-if not cookie_manager.ready():
-    st.stop()
+# Singleton to ensure only one cookie manager instance is created
+def get_cookie_manager():
+    if "cookie_manager" not in st.session_state:
+        st.session_state.cookie_manager = EncryptedCookieManager(
+            prefix="myapp_", password="your-secure-key"
+        )
+    cookie_manager = st.session_state.cookie_manager
+
+    if not cookie_manager.ready():
+        st.warning("Please wait for the cookies to initialize...")
+        st.stop()
+
+    return cookie_manager
 
 # Function to validate user credentials
 def validate_user(username, password):
-    # Dummy user data (replace with your database or authentication logic)
+    # Replace this with your actual authentication logic
     return username == "admin" and password == "password123"
-
-# Function to set login state in cookies
-def login_user(username):
-    cookie_manager["logged_in"] = True
-    cookie_manager["username"] = username
-    cookie_manager.save()
-
-# Function to clear login state in cookies
-def logout_user():
-    cookie_manager["logged_in"] = False
-    cookie_manager["username"] = ""
-    cookie_manager.save()
-
-# Main application
-def main():
-    st.title("Persistent Login in Streamlit")
-
-    # Read cookie data
-    logged_in = cookie_manager.get("logged_in", False)
-    username = cookie_manager.get("username", "")
-
-    if not logged_in:
-        st.subheader("Login")
-
-        input_username = st.text_input("Username", key="input_username")
-        input_password = st.text_input("Password", type="password", key="input_password")
-        login_button = st.button("Login")
-
-        if login_button:
-            if validate_user(input_username, input_password):
-                login_user(input_username)
-                st.success("Login successful!")
-                st.experimental_rerun()  # Refresh the page to reflect login state
-            else:
-                st.error("Invalid username or password")
-    else:
-        st.subheader(f"Welcome, {username}!")
-        if st.button("Logout"):
-            logout_user()
-            st.info("Logged out successfully.")
-            st.experimental_rerun()  # Refresh the page to reflect logout state
-
-# Run the app
-if __name__ == "__main__":
-    main()
