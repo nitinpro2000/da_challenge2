@@ -1,86 +1,57 @@
-from openpyxl import Workbook
-from openpyxl.styles import Alignment
+import streamlit as st
+from streamlit_cookies_manager import EncryptedCookieManager
 
-# Sample DataFrame
-data = {'Column1': ['Line1\nLine2\nLine3', 'Another\nExample']}
-df = pd.DataFrame(data)
+# Configure the cookie manager (use a secure key in production)
+cookie_manager = EncryptedCookieManager(prefix="myapp_", password="your-secure-key")
+if not cookie_manager.ready():
+    st.stop()
 
-# Export DataFrame to Excel
-filename = 'output.xlsx'
-df.to_excel(filename, index=False)
+# Function to validate user credentials
+def validate_user(username, password):
+    # Dummy user data (replace with your database or authentication logic)
+    return username == "admin" and password == "password123"
 
-# Adjust formatting with openpyxl
-from openpyxl import load_workbook
-wb = load_workbook(filename)
-ws = wb.active
+# Function to set login state in cookies
+def login_user(username):
+    cookie_manager["logged_in"] = True
+    cookie_manager["username"] = username
+    cookie_manager.save()
 
-# Enable text wrapping for the column
-for row in ws.iter_rows():
-    for cell in row:
-        cell.alignment = Alignment(wrap_text=True)
+# Function to clear login state in cookies
+def logout_user():
+    cookie_manager["logged_in"] = False
+    cookie_manager["username"] = ""
+    cookie_manager.save()
 
-wb.save(filename)
+# Main application
+def main():
+    st.title("Persistent Login in Streamlit")
 
+    # Read cookie data
+    logged_in = cookie_manager.get("logged_in", False)
+    username = cookie_manager.get("username", "")
 
+    if not logged_in:
+        st.subheader("Login")
 
+        input_username = st.text_input("Username", key="input_username")
+        input_password = st.text_input("Password", type="password", key="input_password")
+        login_button = st.button("Login")
 
+        if login_button:
+            if validate_user(input_username, input_password):
+                login_user(input_username)
+                st.success("Login successful!")
+                st.experimental_rerun()  # Refresh the page to reflect login state
+            else:
+                st.error("Invalid username or password")
+    else:
+        st.subheader(f"Welcome, {username}!")
+        if st.button("Logout"):
+            logout_user()
+            st.info("Logged out successfully.")
+            st.experimental_rerun()  # Refresh the page to reflect logout state
 
-
-
-import pandas as pd
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
-from openpyxl.utils.dataframe import dataframe_to_rows
-
-# Sample DataFrame
-data = {'Column1': ['Line1\nLine2\nLine3', 'Another\nExample'],
-        'Column2': ['Data1', 'Data2']}
-df = pd.DataFrame(data)
-
-# Create a workbook and add data
-wb = Workbook()
-ws = wb.active
-ws.title = "Styled Sheet"
-
-# Add DataFrame to the worksheet
-for r_idx, row in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
-    for c_idx, value in enumerate(row, 1):
-        ws.cell(row=r_idx, column=c_idx, value=value)
-
-# Define styles
-header_font = Font(bold=True, color="FFFFFF")
-header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
-thin_border = Border(
-    left=Side(style="thin"),
-    right=Side(style="thin"),
-    top=Side(style="thin"),
-    bottom=Side(style="thin")
-)
-
-# Apply styles to header
-for cell in ws[1]:
-    cell.font = header_font
-    cell.fill = header_fill
-    cell.alignment = Alignment(horizontal="center", vertical="center")
-    cell.border = thin_border
-
-# Apply border and alignment to the table data
-for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-    for cell in row:
-        cell.border = thin_border
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
-
-# Adjust column widths
-for col in ws.columns:
-    max_length = 0
-    col_letter = col[0].column_letter  # Get the column name
-    for cell in col:
-        try:  # Ignore header cells
-            if cell.value:
-                max_length = max(max_length, len(str(cell.value)))
-        except:
-            pass
-    ws.column_dimensions[col_letter].width = max_length + 2
-
-# Save the styled workbook
-wb.save("styled_output.xlsx")
+# Run the app
+if __name__ == "__main__":
+    main()
