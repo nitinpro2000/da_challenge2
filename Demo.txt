@@ -1,30 +1,18 @@
 import os
+import shutil
 
-def clear_directory(directory_path):
-    try:
-        # Check if the directory exists
-        if not os.path.exists(directory_path):
-            print(f"Directory '{directory_path}' does not exist.")
-            return
+def delete_directory(directory_path):
+    if os.path.exists(directory_path):  # Check if the directory exists
+        if os.path.isdir(directory_path):  # Ensure it's a directory
+            shutil.rmtree(directory_path)  # Remove directory and all its contents
+            print(f"Directory '{directory_path}' has been deleted.")
+        else:
+            print(f"The path '{directory_path}' exists but is not a directory.")
+    else:
+        print(f"The directory '{directory_path}' does not exist.")
 
-        # Check if it is a directory
-        if not os.path.isdir(directory_path):
-            print(f"'{directory_path}' is not a directory.")
-            return
+# Example usage:
+directory_to_delete = "/path/to/your/directory"
+delete_directory(directory_to_delete)
 
-        # Iterate through files in the directory
-        for filename in os.listdir(directory_path):
-            file_path = os.path.join(directory_path, filename)
-            
-            # Check if it is a file and delete it
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-                print(f"Removed file: {file_path}")
-        
-        print("All files in the directory have been removed.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
 
-# Example usage
-directory = input("Enter the directory path: ")
-clear_directory(directory)
