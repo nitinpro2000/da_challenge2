@@ -1,21 +1,30 @@
-import streamlit as st
-from streamlit_cookies_manager import EncryptedCookieManager
+import os
 
-# Singleton to ensure only one cookie manager instance is created
-def get_cookie_manager():
-    if "cookie_manager" not in st.session_state:
-        st.session_state.cookie_manager = EncryptedCookieManager(
-            prefix="myapp_", password="your-secure-key"
-        )
-    cookie_manager = st.session_state.cookie_manager
+def clear_directory(directory_path):
+    try:
+        # Check if the directory exists
+        if not os.path.exists(directory_path):
+            print(f"Directory '{directory_path}' does not exist.")
+            return
 
-    if not cookie_manager.ready():
-        st.warning("Please wait for the cookies to initialize...")
-        st.stop()
+        # Check if it is a directory
+        if not os.path.isdir(directory_path):
+            print(f"'{directory_path}' is not a directory.")
+            return
 
-    return cookie_manager
+        # Iterate through files in the directory
+        for filename in os.listdir(directory_path):
+            file_path = os.path.join(directory_path, filename)
+            
+            # Check if it is a file and delete it
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                print(f"Removed file: {file_path}")
+        
+        print("All files in the directory have been removed.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-# Function to validate user credentials
-def validate_user(username, password):
-    # Replace this with your actual authentication logic
-    return username == "admin" and password == "password123"
+# Example usage
+directory = input("Enter the directory path: ")
+clear_directory(directory)
