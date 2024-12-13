@@ -1,18 +1,37 @@
-import os
-import shutil
+import streamlit as st
+import pandas as pd
 
-def delete_directory(directory_path):
-    if os.path.exists(directory_path):  # Check if the directory exists
-        if os.path.isdir(directory_path):  # Ensure it's a directory
-            shutil.rmtree(directory_path)  # Remove directory and all its contents
-            print(f"Directory '{directory_path}' has been deleted.")
-        else:
-            print(f"The path '{directory_path}' exists but is not a directory.")
-    else:
-        print(f"The directory '{directory_path}' does not exist.")
+# Sample dataframes
+dataframes = [
+    pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}),
+    pd.DataFrame({'X': [7, 8, 9], 'Y': [10, 11, 12]}),
+    pd.DataFrame({'P': [13, 14, 15], 'Q': [16, 17, 18]})
+]
 
-# Example usage:
-directory_to_delete = "/path/to/your/directory"
-delete_directory(directory_to_delete)
-
-
+# Scrollable container
+with st.container():
+    st.markdown(
+        """
+        <style>
+        .scrollable-container {
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    
+    # Create a container for the scrollable area
+    st.markdown('<div class="scrollable-container">', unsafe_allow_html=True)
+    
+    # Loop through and display all dataframes
+    for idx, df in enumerate(dataframes):
+        st.write(f"### DataFrame {idx + 1}")
+        st.dataframe(df, use_container_width=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
