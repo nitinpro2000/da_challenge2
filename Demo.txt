@@ -8,30 +8,30 @@ dataframes = [
     pd.DataFrame({'P': [13, 14, 15], 'Q': [16, 17, 18]})
 ]
 
-# Scrollable container
-with st.container():
-    st.markdown(
-        """
-        <style>
-        .scrollable-container {
-            height: 400px;
-            overflow-y: scroll;
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    
-    # Create a container for the scrollable area
-    st.markdown('<div class="scrollable-container">', unsafe_allow_html=True)
-    
-    # Loop through and display all dataframes
-    for idx, df in enumerate(dataframes):
-        st.write(f"### DataFrame {idx + 1}")
-        st.dataframe(df, use_container_width=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+# Add CSS for the scrollable container
+st.markdown(
+    """
+    <style>
+    .scrollable-container {
+        height: 400px;
+        overflow-y: scroll;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Open a single scrollable container
+st.markdown('<div class="scrollable-container">', unsafe_allow_html=True)
+
+# Loop through and add all dataframes inside the container
+for idx, df in enumerate(dataframes):
+    st.write(f"### DataFrame {idx + 1}")
+    st.dataframe(df, use_container_width=True)
+
+# Close the scrollable container
+st.markdown('</div>', unsafe_allow_html=True)
