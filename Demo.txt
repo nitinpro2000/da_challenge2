@@ -1,37 +1,17 @@
 import streamlit as st
-import pandas as pd
 
-# Sample dataframes
-dataframes = [
-    pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}),
-    pd.DataFrame({'X': [7, 8, 9], 'Y': [10, 11, 12]}),
-    pd.DataFrame({'P': [13, 14, 15], 'Q': [16, 17, 18]})
-]
+# Add a title
+st.title("Radio Button Example")
 
-# Add CSS for the scrollable container
-st.markdown(
-    """
-    <style>
-    .scrollable-container {
-        height: 400px;
-        overflow-y: scroll;
-        border: 1px solid #ddd;
-        padding: 10px;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
+# Create a radio button with two options
+option = st.radio(
+    "Choose an option:",
+    ("Option 1", "Option 2"),
+    index=0  # Default selection is the first option
 )
 
-# Open a single scrollable container
-st.markdown('<div class="scrollable-container">', unsafe_allow_html=True)
-
-# Loop through and add all dataframes inside the container
-for idx, df in enumerate(dataframes):
-    st.write(f"### DataFrame {idx + 1}")
-    st.dataframe(df, use_container_width=True)
-
-# Close the scrollable container
-st.markdown('</div>', unsafe_allow_html=True)
+# Display content based on the selected option
+if option == "Option 1":
+    st.write("You selected Option 1. Here's some content for it!")
+else:
+    st.write("You selected Option 2. Here's some other content!")
