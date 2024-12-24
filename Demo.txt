@@ -14,26 +14,28 @@ def parse_test_scenarios(file_path):
         
         # Detect Test Scenario
         if line.startswith("Test Scenario"):
+            # Save the previous test case if it exists
             if current_test_case:
                 test_cases[f"TC-{case_number}"] = current_test_case
                 case_number += 1
                 current_test_case = {}
             current_test_case["Test Scenario"] = line.strip()
+            current_key = None  # Reset current key
         
         # Detect Test Description
         elif line.startswith("Test Description:"):
             current_key = "Test Description"
-            current_test_case[current_key] = ""
+            current_test_case[current_key] = ""  # Initialize the key
         
         # Detect Test Steps
         elif line.startswith("Test Steps:"):
             current_key = "Test Steps"
-            current_test_case[current_key] = ""
+            current_test_case[current_key] = ""  # Initialize the key
         
         # Detect Expected Result
         elif line.startswith("Expected Result:"):
             current_key = "Expected Results"
-            current_test_case[current_key] = ""
+            current_test_case[current_key] = ""  # Initialize the key
         
         # Populate the current key with the next line of text
         elif current_key:
@@ -41,6 +43,10 @@ def parse_test_scenarios(file_path):
                 current_test_case[current_key] = line
             else:
                 current_test_case[current_key] += " " + line
+        
+        # Skip empty lines or unexpected content
+        else:
+            continue
 
     # Add the last test case
     if current_test_case:
