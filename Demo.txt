@@ -1,5 +1,4 @@
 import json
-import re
 
 def parse_test_scenarios(file_path):
     with open(file_path, 'r') as file:
@@ -13,47 +12,39 @@ def parse_test_scenarios(file_path):
     for line in lines:
         line = line.strip()
         
-        # Detect Test Description
-        if line.startswith("Test Description:"):
-            current_key = "Test Description"
-            current_test_case[current_key] = line.replace("Test Description:", "").strip()
-        
         # Detect Test Scenario
-        elif line.startswith("Test Scenario"):
+        if line.startswith("Test Scenario"):
             if current_test_case:
                 test_cases[f"TC-{case_number}"] = current_test_case
                 case_number += 1
                 current_test_case = {}
-            current_test_case["Test Scenario"] = line
+            current_test_case["Test Scenario"] = line.strip()
+        
+        # Detect Test Description
+        elif line.startswith("Test Description:"):
+            current_key = "Test Description"
+            current_test_case[current_key] = ""
         
         # Detect Test Steps
         elif line.startswith("Test Steps:"):
             current_key = "Test Steps"
-            current_test_case[current_key] = []
+            current_test_case[current_key] = ""
         
         # Detect Expected Result
         elif line.startswith("Expected Result:"):
             current_key = "Expected Results"
-            current_test_case[current_key] = []
+            current_test_case[current_key] = ""
         
-        # Add lines to the current key
+        # Populate the current key with the next line of text
         elif current_key:
-            if current_key in ["Test Steps", "Expected Results"]:
-                current_test_case[current_key].append(line)
+            if current_test_case[current_key] == "":
+                current_test_case[current_key] = line
             else:
                 current_test_case[current_key] += " " + line
 
     # Add the last test case
     if current_test_case:
         test_cases[f"TC-{case_number}"] = current_test_case
-
-    # Clean up and format
-    for tc in test_cases:
-        for key in test_cases[tc]:
-            if isinstance(test_cases[tc][key], list):
-                test_cases[tc][key] = " ".join(test_cases[tc][key]).strip()
-            else:
-                test_cases[tc][key] = test_cases[tc][key].strip()
 
     return test_cases
 
