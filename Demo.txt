@@ -1,17 +1,71 @@
-import streamlit as st
+import json
+import re
 
-# Add a title
-st.title("Radio Button Example")
+def parse_test_scenarios(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+    
+    test_cases = {}
+    current_test_case = {}
+    current_key = None
+    case_number = 1
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Detect Test Description
+        if line.startswith("Test Description:"):
+            current_key = "Test Description"
+            current_test_case[current_key] = line.replace("Test Description:", "").strip()
+        
+        # Detect Test Scenario
+        elif line.startswith("Test Scenario"):
+            if current_test_case:
+                test_cases[f"TC-{case_number}"] = current_test_case
+                case_number += 1
+                current_test_case = {}
+            current_test_case["Test Scenario"] = line
+        
+        # Detect Test Steps
+        elif line.startswith("Test Steps:"):
+            current_key = "Test Steps"
+            current_test_case[current_key] = []
+        
+        # Detect Expected Result
+        elif line.startswith("Expected Result:"):
+            current_key = "Expected Results"
+            current_test_case[current_key] = []
+        
+        # Add lines to the current key
+        elif current_key:
+            if current_key in ["Test Steps", "Expected Results"]:
+                current_test_case[current_key].append(line)
+            else:
+                current_test_case[current_key] += " " + line
 
-# Create a radio button with two options
-option = st.radio(
-    "Choose an option:",
-    ("Option 1", "Option 2"),
-    index=0  # Default selection is the first option
-)
+    # Add the last test case
+    if current_test_case:
+        test_cases[f"TC-{case_number}"] = current_test_case
 
-# Display content based on the selected option
-if option == "Option 1":
-    st.write("You selected Option 1. Here's some content for it!")
-else:
-    st.write("You selected Option 2. Here's some other content!")
+    # Clean up and format
+    for tc in test_cases:
+        for key in test_cases[tc]:
+            if isinstance(test_cases[tc][key], list):
+                test_cases[tc][key] = " ".join(test_cases[tc][key]).strip()
+            else:
+                test_cases[tc][key] = test_cases[tc][key].strip()
+
+    return test_cases
+
+def save_to_json(data, output_path):
+    with open(output_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
+# Main program
+input_file = 'FAT-480 best steps.txt'  # Replace with your file name
+output_file = 'temp.json'
+
+parsed_data = parse_test_scenarios(input_file)
+save_to_json(parsed_data, output_file)
+
+print(f"JSON file saved to {output_file}")
