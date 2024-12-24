@@ -16,7 +16,7 @@ def parse_test_scenarios(file_path):
         if line.startswith("Test Scenario"):
             case_number += 1  # Increment case number
             test_cases["TC.NO"][str(case_number)] = 1.0  # Add TC.NO entry
-            # Initialize all fields for this test case as empty strings
+            # Initialize all fields for this test case as None
             test_cases["Test Description"][str(case_number)] = None
             test_cases["Test Steps"][str(case_number)] = None
             test_cases["Expected Results"][str(case_number)] = None
@@ -28,7 +28,7 @@ def parse_test_scenarios(file_path):
             test_cases[current_key][str(case_number)] = ""  # Initialize empty
         
         # Detect Test Steps
-        elif line.startswith("Test Steps:"):
+        elif line.startswith("Steps:"):
             current_key = "Test Steps"
             test_cases[current_key][str(case_number)] = ""  # Initialize empty
         
@@ -37,9 +37,9 @@ def parse_test_scenarios(file_path):
             current_key = "Expected Results"
             test_cases[current_key][str(case_number)] = ""  # Initialize empty
         
-        # Append text to the current key
+        # Populate the current key with the subsequent lines of text
         elif current_key and case_number > 0:
-            if test_cases[current_key][str(case_number)] is None:
+            if test_cases[current_key][str(case_number)] == "":
                 test_cases[current_key][str(case_number)] = line
             else:
                 test_cases[current_key][str(case_number)] += " " + line
