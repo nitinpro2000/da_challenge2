@@ -4,9 +4,10 @@ def parse_test_scenarios(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
     
+    # Initialize the main dictionary with required keys
     test_cases = {"TC.NO": {}, "Test Description": {}, "Test Steps": {}, "Expected Results": {}}
     case_number = 0  # Initialize test case number
-    current_key = None
+    current_key = None  # Tracks the current section being processed
     
     for line in lines:
         line = line.strip()
@@ -15,36 +16,35 @@ def parse_test_scenarios(file_path):
         if line.startswith("Test Scenario"):
             case_number += 1  # Increment case number
             test_cases["TC.NO"][str(case_number)] = 1.0  # Add TC.NO entry
-            
+            # Initialize all fields for this test case as empty strings
+            test_cases["Test Description"][str(case_number)] = None
+            test_cases["Test Steps"][str(case_number)] = None
+            test_cases["Expected Results"][str(case_number)] = None
+            current_key = None  # Reset current key for the new test case
+        
         # Detect Test Description
         elif line.startswith("Test Description:"):
             current_key = "Test Description"
-            test_cases[current_key][str(case_number)] = ""
+            test_cases[current_key][str(case_number)] = ""  # Initialize empty
         
         # Detect Test Steps
         elif line.startswith("Test Steps:"):
             current_key = "Test Steps"
-            test_cases[current_key][str(case_number)] = ""
+            test_cases[current_key][str(case_number)] = ""  # Initialize empty
         
         # Detect Expected Result
         elif line.startswith("Expected Result:"):
             current_key = "Expected Results"
-            test_cases[current_key][str(case_number)] = ""
+            test_cases[current_key][str(case_number)] = ""  # Initialize empty
         
-        # Populate the current key with the next line of text
+        # Append text to the current key
         elif current_key and case_number > 0:
-            if test_cases[current_key][str(case_number)] == "":
+            if test_cases[current_key][str(case_number)] is None:
                 test_cases[current_key][str(case_number)] = line
             else:
                 test_cases[current_key][str(case_number)] += " " + line
 
-    # Fill null values for missing test cases
-    max_case = case_number
-    for key in ["Test Description", "Test Steps", "Expected Results"]:
-        for i in range(1, max_case + 1):
-            if str(i) not in test_cases[key]:
-                test_cases[key][str(i)] = None
-    
+    # Return the formatted test cases
     return test_cases
 
 def save_to_json(data, output_path):
