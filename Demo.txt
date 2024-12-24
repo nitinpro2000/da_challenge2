@@ -4,54 +4,47 @@ def parse_test_scenarios(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
     
-    test_cases = {}
-    current_test_case = {}
+    test_cases = {"TC.NO": {}, "Test Description": {}, "Test Steps": {}, "Expected Results": {}}
+    case_number = 0  # Initialize test case number
     current_key = None
-    case_number = 1
     
     for line in lines:
         line = line.strip()
         
         # Detect Test Scenario
         if line.startswith("Test Scenario"):
-            # Save the previous test case if it exists
-            if current_test_case:
-                test_cases[f"TC-{case_number}"] = current_test_case
-                case_number += 1
-                current_test_case = {}
-            current_test_case["Test Scenario"] = line.strip()
-            current_key = None  # Reset current key
-        
+            case_number += 1  # Increment case number
+            test_cases["TC.NO"][str(case_number)] = 1.0  # Add TC.NO entry
+            
         # Detect Test Description
         elif line.startswith("Test Description:"):
             current_key = "Test Description"
-            current_test_case[current_key] = ""  # Initialize the key
+            test_cases[current_key][str(case_number)] = ""
         
         # Detect Test Steps
         elif line.startswith("Test Steps:"):
             current_key = "Test Steps"
-            current_test_case[current_key] = ""  # Initialize the key
+            test_cases[current_key][str(case_number)] = ""
         
         # Detect Expected Result
         elif line.startswith("Expected Result:"):
             current_key = "Expected Results"
-            current_test_case[current_key] = ""  # Initialize the key
+            test_cases[current_key][str(case_number)] = ""
         
         # Populate the current key with the next line of text
-        elif current_key:
-            if current_test_case[current_key] == "":
-                current_test_case[current_key] = line
+        elif current_key and case_number > 0:
+            if test_cases[current_key][str(case_number)] == "":
+                test_cases[current_key][str(case_number)] = line
             else:
-                current_test_case[current_key] += " " + line
-        
-        # Skip empty lines or unexpected content
-        else:
-            continue
+                test_cases[current_key][str(case_number)] += " " + line
 
-    # Add the last test case
-    if current_test_case:
-        test_cases[f"TC-{case_number}"] = current_test_case
-
+    # Fill null values for missing test cases
+    max_case = case_number
+    for key in ["Test Description", "Test Steps", "Expected Results"]:
+        for i in range(1, max_case + 1):
+            if str(i) not in test_cases[key]:
+                test_cases[key][str(i)] = None
+    
     return test_cases
 
 def save_to_json(data, output_path):
