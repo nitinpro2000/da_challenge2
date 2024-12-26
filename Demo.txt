@@ -1,61 +1,59 @@
 import json
 
-def parse_test_scenarios(file_path):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-    
-    # Initialize the main dictionary with required keys
-    test_cases = {"TC.NO": {}, "Test Description": {}, "Test Steps": {}, "Expected Results": {}}
-    case_number = 0  # Initialize test case number
-    current_key = None  # Tracks the current section being processed
-    
-    for line in lines:
-        line = line.strip()
-        
-        # Detect Test Scenario
-        if line.startswith("Test Scenario"):
-            case_number += 1  # Increment case number
-            test_cases["TC.NO"][str(case_number)] = 1.0  # Add TC.NO entry
-            # Initialize all fields for this test case as None
-            test_cases["Test Description"][str(case_number)] = None
-            test_cases["Test Steps"][str(case_number)] = None
-            test_cases["Expected Results"][str(case_number)] = None
-            current_key = None  # Reset current key for the new test case
-        
-        # Detect Test Description
-        elif line.startswith("Test Description:"):
-            current_key = "Test Description"
-            test_cases[current_key][str(case_number)] = ""  # Initialize empty
-        
-        # Detect Test Steps
-        elif line.startswith("Steps:"):
-            current_key = "Test Steps"
-            test_cases[current_key][str(case_number)] = ""  # Initialize empty
-        
-        # Detect Expected Result
-        elif line.startswith("Expected Result:"):
-            current_key = "Expected Results"
-            test_cases[current_key][str(case_number)] = ""  # Initialize empty
-        
-        # Populate the current key with the subsequent lines of text
-        elif current_key and case_number > 0:
-            if test_cases[current_key][str(case_number)] == "":
-                test_cases[current_key][str(case_number)] = line
-            else:
-                test_cases[current_key][str(case_number)] += " " + line
+# Input JSON
+input_json = {
+    "TC.NO": {"0": 1.0, "1": None, "2": None, "3": 2.8, "4": None, "5": None},
+    "Test Description": {
+        "0": "Validate that User is able to see Partyname in Authorization tab for a policy",
+        "1": None,
+        "2": None,
+        "3": "Validate that User is able to see Partyname in Authorization tab for a case",
+        "4": None,
+    },
+    "Test Steps": {
+        "0": "Login to FAST with valid credentials",
+        "1": "Submit and issue a Cash annuity app.",
+        "2": "Verify user is able to see the PartyName (agent name/contract name) in Authorization tab.",
+        "3": "Login to FAST with valid credentials",
+        "4": "Submit and issue a Cash annuity app.",
+        "5": "Verify user is able to see the PartyName (agent name/contract name) in Authorization tab.",
+    },
+    "Expected Results": {
+        "0": "FAST should be logged in successfully.",
+        "1": "Case is created.",
+        "2": "User is able to see the PartyName (agent name/contract name) in Authorization tab.",
+        "3": "FAST should be logged in successfully.",
+        "4": None,
+        "5": None,
+    },
+}
 
-    # Return the formatted test cases
-    return test_cases
+# Function to generate the output string
+def generate_test_cases(input_json):
+    result = []
+    last_valid_description = None
+    for key, test_case in input_json["TC.NO"].items():
+        # Handle null descriptions
+        description = input_json["Test Description"].get(key)
+        if description is not None:
+            last_valid_description = description
 
-def save_to_json(data, output_path):
-    with open(output_path, 'w') as file:
-        json.dump(data, file, indent=4)
+        # Format test case
+        result.append(f"Test case number: {key}")
+        result.append(f"Test Description: {last_valid_description}")
+        result.append("Test Steps:")
+        for step_key, step in input_json["Test Steps"].items():
+            if step_key == key and step:
+                result.append(f"{step_key}. {step}")
+        result.append("Expected Results:")
+        for result_key, expected in input_json["Expected Results"].items():
+            if result_key == key and expected:
+                result.append(f"{result_key}. {expected}")
+        result.append("")  # Empty line between test cases
 
-# Main program
-input_file = 'FAT-480 best steps.txt'  # Replace with your file name
-output_file = 'temp.json'
+    return "\n".join(result)
 
-parsed_data = parse_test_scenarios(input_file)
-save_to_json(parsed_data, output_file)
 
-print(f"JSON file saved to {output_file}")
+# Generate and print the output string
+output_string = generate_test_cases(input_json)
+print(output_string)
