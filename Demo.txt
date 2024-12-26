@@ -32,24 +32,47 @@ input_json = {
 def generate_test_cases(input_json):
     result = []
     last_valid_description = None
+    test_steps = []
+    expected_results = []
+    step_number = 1  # Reset step number for each description
+    result_number = 1  # Reset result number for each description
+
     for key, test_case in input_json["TC.NO"].items():
         # Handle null descriptions
         description = input_json["Test Description"].get(key)
         if description is not None:
+            if last_valid_description:
+                # Add accumulated steps and results for the previous description
+                result.append(f"Test Description: {last_valid_description}")
+                result.append("Test Steps:")
+                result.extend(test_steps)
+                result.append("Expected Results:")
+                result.extend(expected_results)
+                result.append("")  # Empty line between descriptions
+            # Reset for the new description
             last_valid_description = description
+            test_steps = []
+            expected_results = []
+            step_number = 1  # Reset step number
+            result_number = 1  # Reset result number
 
-        # Format test case
-        result.append(f"Test case number: {key}")
+        # Accumulate steps and results
+        step = input_json["Test Steps"].get(key)
+        if step:
+            test_steps.append(f"{step_number}. {step}")
+            step_number += 1
+        expected = input_json["Expected Results"].get(key)
+        if expected:
+            expected_results.append(f"{result_number}. {expected}")
+            result_number += 1
+
+    # Add the final description's steps and results
+    if last_valid_description:
         result.append(f"Test Description: {last_valid_description}")
         result.append("Test Steps:")
-        for step_key, step in input_json["Test Steps"].items():
-            if step_key == key and step:
-                result.append(f"{step_key}. {step}")
+        result.extend(test_steps)
         result.append("Expected Results:")
-        for result_key, expected in input_json["Expected Results"].items():
-            if result_key == key and expected:
-                result.append(f"{result_key}. {expected}")
-        result.append("")  # Empty line between test cases
+        result.extend(expected_results)
 
     return "\n".join(result)
 
