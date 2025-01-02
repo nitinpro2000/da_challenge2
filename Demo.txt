@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import pandas as pd  # For creating a clean table
 
 # Define the folder path
 folder_path = "your/folder/path"
@@ -22,9 +23,10 @@ except FileNotFoundError:
 if files:
     with st.expander("Click to view files in the folder", expanded=True):
         st.subheader("Files List")
-        # Create a table with file names and other optional info
-        table_data = [{"File Name": file} for file in files]
-        st.table(table_data)
+        # Create a DataFrame for better formatting
+        file_data = pd.DataFrame({"File Name": files})
+        # Display the DataFrame without index
+        st.table(file_data.style.hide_index())
 else:
     st.info("No files found in the folder.")
 
