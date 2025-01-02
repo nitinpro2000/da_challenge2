@@ -1,1 +1,36 @@
-I need a Gherkin feature file written using Scenario Outlines, not regular Scenarios. Each Scenario Outline should include placeholders for variables and an Examples table to provide values for those placeholders. Ensure the feature and scenario outlines adhere to proper Gherkin syntax. Use concise, realistic examples relevant to [your domain, e.g., e-commerce, banking, etc.]. Avoid providing plain scenarios; convert them to Scenario Outlines with parameterized steps and examples.
+import streamlit as st
+import os
+
+# Define the folder path
+folder_path = "your/folder/path"
+
+# Title
+st.title("File Explorer")
+
+# Description
+st.write("This app displays the files in a specified folder.")
+
+# Fetch files from the directory
+try:
+    files = os.listdir(folder_path)
+    files.sort()  # Sort files alphabetically
+except FileNotFoundError:
+    st.error("The folder path does not exist. Please check the path.")
+    files = []
+
+# Display files in a grid
+if files:
+    st.subheader("Files in the folder:")
+    cols = st.columns(3)  # Adjust number for different grid sizes
+    for i, file in enumerate(files):
+        with cols[i % 3]:
+            st.text(file)  # Display file name
+else:
+    st.info("No files found in the folder.")
+
+# Optional: Upload functionality
+uploaded_file = st.file_uploader("Upload a file to the folder", type=None)
+if uploaded_file is not None:
+    with open(os.path.join(folder_path, uploaded_file.name), "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    st.success(f"File {uploaded_file.name} has been uploaded successfully!")
