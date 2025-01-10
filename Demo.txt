@@ -1,169 +1,44 @@
-Here’s an example of documentation content based on the structure provided:
+import requests
+import streamlit as st
 
----
+# Jira API credentials and endpoint
+JIRA_URL = "https://your-domain.atlassian.net/rest/api/2/search"
+API_KEY = "your_api_key"
+EMAIL = "your_email@example.com"
 
-## 1. **Development Documentation**  
+# Function to fetch user stories from Jira
+def fetch_user_stories():
+    headers = {
+        "Authorization": f"Basic {EMAIL}:{API_KEY}",
+        "Content-Type": "application/json"
+    }
+    query = {
+        "jql": "issuetype = 'Story'",  # Filter only 'Story' type issues
+        "fields": "key"  # Only fetch the 'key' field (story IDs)
+    }
+    response = requests.get(JIRA_URL, headers=headers, params=query)
+    
+    if response.status_code == 200:
+        issues = response.json().get("issues", [])
+        return [issue["key"] for issue in issues]  # Extract story IDs
+    else:
+        st.error(f"Failed to fetch user stories: {response.status_code}")
+        return []
 
-### a. **Project Overview**  
-**Project Name:** AI Test Case Generator  
-**Description:** This project uses Generative AI to convert user stories into test cases and Gherkin feature files. It reduces manual effort in test planning and ensures comprehensive test coverage.  
-**Technologies Used:**  
-- **Language:** Python  
-- **Frameworks:** Flask, Pytest, Cucumber  
-- **AI Model:** GPT-4 API  
-- **Others:** Docker, Postman for API testing  
+# Streamlit UI
+def main():
+    st.title("Jira User Story Selector")
 
----
+    # Fetch user stories
+    with st.spinner("Fetching user stories..."):
+        story_ids = fetch_user_stories()
 
-### b. **Source Code Repository**  
-**Repository:** GitHub  
-**URL:** [https://github.com/your-repo/ai-test-case-generator](https://github.com/your-repo/ai-test-case-generator)  
+    if story_ids:
+        # Create a dropdown to select story ID
+        selected_story = st.selectbox("Select a User Story ID:", story_ids)
+        st.success(f"Selected Story ID: {selected_story}")
+    else:
+        st.warning("No user stories found.")
 
-**Branch Structure:**  
-- **main:** Production-ready code  
-- **dev:** Development branch  
-- **feature/**: Feature-specific branches  
-
-**Commands:**  
-- Clone the repository:  
-  ```bash
-  git clone https://github.com/your-repo/ai-test-case-generator.git
-  ```  
-- Checkout a branch:  
-  ```bash
-  git checkout dev
-  ```
-
----
-
-### c. **Code Structure and Explanation**  
-
-```plaintext
-ai-test-case-generator/
-│
-├── src/
-│   ├── main.py           # Entry point for the application
-│   ├── generator/
-│   │   ├── ai_engine.py  # Core logic for Generative AI
-│   │   ├── parser.py     # Parses user stories into input format
-│   │   └── test_writer.py# Writes test cases and feature files
-│   └── utils/
-│       └── helpers.py    # Utility functions
-│
-├── tests/
-│   ├── test_generator.py # Unit tests for the generator module
-│   └── test_parser.py    # Unit tests for the parser
-│
-├── configs/
-│   ├── config.yaml       # Application configuration
-│   └── env.example       # Environment variables
-│
-└── docs/
-    └── README.md         # Documentation
-```
-
-**Explanation:**  
-- **src/main.py:** Initializes the API endpoints.  
-- **generator/ai_engine.py:** Uses GPT-4 to convert user stories into test cases.  
-- **tests/:** Contains unit tests for the generator and parser modules.
-
----
-
-### d. **Environment Setup and Configuration Guide**  
-**Requirements:**  
-- Python 3.9+  
-- Docker  
-
-**Setup Instructions:**  
-1. Clone the repository:  
-   ```bash
-   git clone https://github.com/your-repo/ai-test-case-generator.git
-   cd ai-test-case-generator
-   ```  
-2. Create a virtual environment and install dependencies:  
-   ```bash
-   python -m venv venv  
-   source venv/bin/activate  
-   pip install -r requirements.txt  
-   ```  
-3. Run the application locally:  
-   ```bash
-   python src/main.py
-   ```  
-4. Optional: Use Docker for containerized setup:  
-   ```bash
-   docker build -t ai-test-case-generator .  
-   docker run -p 5000:5000 ai-test-case-generator
-   ```
-
----
-
-## 2. **Testing Documentation**  
-
-### a. **Test Cases and Scenarios**  
-
-| **Test ID** | **Scenario**                                    | **Input**            | **Expected Output**                        |  
-|-------------|-------------------------------------------------|----------------------|--------------------------------------------|  
-| TC001       | Generate test cases for valid user story        | "As a user..."       | Valid test cases in JSON format            |  
-| TC002       | Handle incomplete user story                   | "As a..."            | Error message: "Invalid user story input." |  
-| TC003       | Gherkin feature file generation from user story | "As a user..."       | Valid `.feature` file                      |  
-
----
-
-### b. **Test Execution Report**  
-
-| **Test ID** | **Status** | **Comments**       |  
-|-------------|------------|--------------------|  
-| TC001       | Passed     | Output as expected |  
-| TC002       | Passed     | Error handling works|  
-| TC003       | Failed     | Incorrect Gherkin syntax |  
-
----
-
-### c. **Defect Logs and Resolution Summaries**  
-
-| **Defect ID** | **Description**                  | **Severity** | **Resolution**         |  
-|---------------|----------------------------------|--------------|-------------------------|  
-| D001          | Invalid Gherkin syntax          | High         | Fixed parsing algorithm|  
-
----
-
-## 3. **User Manual**  
-
-### a. **Usage Guide**  
-1. **Input Format:** Provide a user story in the following format:  
-   ```  
-   As a <role>, I want to <action>, so that <goal>.  
-   ```  
-2. **Generating Test Cases:**  
-   - Access the web interface or API.  
-   - Enter the user story.  
-   - Click on "Generate."  
-
-**Example Input:**  
-```
-As a customer, I want to search for products, so that I can find items quickly.  
-```  
-
-**Generated Output:**  
-- Test Case: Verify the search functionality for various inputs.  
-- Feature File:  
-   ```gherkin
-   Feature: Product Search  
-   Scenario: Search with valid input  
-     Given the user is on the homepage  
-     When they enter a product name in the search bar  
-     Then they see relevant product results  
-   ```
-
----
-
-### b. **FAQs and Troubleshooting**  
-- **Q:** The test cases are incomplete.  
-  **A:** Ensure the user story follows the correct format.  
-- **Q:** The API isn’t responding.  
-  **A:** Check if the server is running and network settings are correct.  
-
---- 
-
-This example should provide clarity and usability for your documentation.
+if __name__ == "__main__":
+    main()
