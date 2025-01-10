@@ -1,77 +1,47 @@
-import requests
 import streamlit as st
 
-# Jira API credentials and endpoint
-JIRA_URL = "https://your-domain.atlassian.net/rest/api/2/search"
-API_KEY = "your_api_key"
-EMAIL = "your_email@example.com"
-
-# Function to fetch user stories from Jira
-def fetch_user_stories():
-    headers = {
-        "Authorization": f"Basic {EMAIL}:{API_KEY}",
-        "Content-Type": "application/json"
+# Function to simulate fetching data
+def fetch_jira_data(jira_url, selected_projects, selected_stories):
+    # Simulate data fetching for simplicity
+    sample_data = {
+        "PROJ-1": {
+            "title": "Sample Story 1",
+            "description": "This is a description of story 1.",
+            "acceptance_criteria": "Criteria for story 1.",
+            "has_attachments": True,
+        },
+        "PROJ-2": {
+            "title": "Sample Story 2",
+            "description": "This is a description of story 2.",
+            "acceptance_criteria": "Criteria for story 2.",
+            "has_attachments": False,
+        },
     }
-    query = {
-        "jql": "issuetype = 'Story'",  # Filter only 'Story' type issues
-        "fields": "key"  # Only fetch the 'key' field (story IDs)
-    }
-    response = requests.get(JIRA_URL, headers=headers, params=query)
-    
-    if response.status_code == 200:
-        issues = response.json().get("issues", [])
-        return [issue["key"] for issue in issues]  # Extract story IDs
-    else:
-        st.error(f"Failed to fetch user stories: {response.status_code}")
-        return []
+    # Filter based on selected stories
+    return {story: sample_data[story] for story in selected_stories if story in sample_data}
 
-# Streamlit UI
-def main():
-    st.title("Jira User Story Selector")
+# Streamlit app UI
+st.title("Jira Story Viewer")
 
-    # Fetch user stories
-    with st.spinner("Fetching user stories..."):
-        story_ids = fetch_user_stories()
+# Text box for Jira URL
+jira_url = st.text_input("Enter Jira URL:")
 
-    if story_ids:
-        # Create a dropdown to select story ID
-        selected_story = st.selectbox("Select a User Story ID:", story_ids)
-        st.success(f"Selected Story ID: {selected_story}")
-    else:
-        st.warning("No user stories found.")
+# Multi-select for projects
+projects = ["Project A", "Project B", "Project C"]
+selected_projects = st.multiselect("Select Projects:", projects)
 
-if __name__ == "__main__":
-    main()
+# Multi-select for user stories (dummy data)
+user_stories = ["PROJ-1", "PROJ-2", "PROJ-3"]
+selected_stories = st.multiselect("Select User Stories:", user_stories)
 
-
-https://your-domain.atlassian.net/rest/api/2/mypermissions
-
-
-
-import requests
-import base64
-
-# Jira API credentials
-JIRA_URL = "https://your-domain.atlassian.net/rest/api/2/mypermissions"
-EMAIL = "your_email@example.com"
-API_KEY = "your_api_key"
-
-# Encode authentication credentials
-auth = f"{EMAIL}:{API_KEY}"
-encoded_auth = base64.b64encode(auth.encode()).decode()
-
-def check_permissions():
-    headers = {
-        "Authorization": f"Basic {encoded_auth}",
-        "Accept": "application/json"
-    }
-    response = requests.get(JIRA_URL, headers=headers)
-    if response.status_code == 200:
-        permissions = response.json()
-        print("Permissions:", permissions)
-        return permissions
-    else:
-        print("Failed to fetch permissions:", response.status_code, response.text)
-
-# Call the function
-check_permissions()
+# Display story details if a Jira URL and stories are selected
+if jira_url and selected_stories:
+    st.subheader("Story Details")
+    story_data = fetch_jira_data(jira_url, selected_projects, selected_stories)
+    for story_id, details in story_data.items():
+        st.markdown(f"**Story ID:** {story_id}")
+        st.markdown(f"**Title:** {details['title']}")
+        st.markdown(f"**Description:** {details['description']}")
+        st.markdown(f"**Acceptance Criteria:** {details['acceptance_criteria']}")
+        st.markdown(f"**Has Attachments:** {details['has_attachments']}")
+        st.markdown("---")
