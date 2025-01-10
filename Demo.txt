@@ -42,3 +42,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+https://your-domain.atlassian.net/rest/api/2/mypermissions
