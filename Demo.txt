@@ -21,19 +21,32 @@ st.title("Jira User Stories Information")
 # Input for Jira URL
 jira_url = st.text_input("Enter Jira URL", "")
 
+# Store selected projects and user stories in session state
+if 'selected_projects' not in st.session_state:
+    st.session_state.selected_projects = []
+if 'selected_user_stories' not in st.session_state:
+    st.session_state.selected_user_stories = []
+
 # Button to load projects after entering the Jira URL
 if st.button("Load Projects"):
     if jira_url:  # Check if URL is provided
-        selected_projects = st.multiselect("Select Projects", list(projects_data.keys()))
+        # Show project selection
+        selected_projects = st.multiselect("Select Projects", list(projects_data.keys()), default=st.session_state.selected_projects)
         if selected_projects:
+            # Save the selected projects in session state
+            st.session_state.selected_projects = selected_projects
+            
             # Button to load user stories after selecting projects
             if st.button("Load User Stories"):
                 user_stories = []
                 for project in selected_projects:
                     user_stories.extend(projects_data[project])
 
-                # Multi-select for user stories based on selected projects
-                selected_user_stories = st.multiselect("Select User Stories", user_stories)
+                # Show user stories selection
+                selected_user_stories = st.multiselect("Select User Stories", user_stories, default=st.session_state.selected_user_stories)
+
+                # Save selected user stories in session state
+                st.session_state.selected_user_stories = selected_user_stories
 
                 # Button to fetch and display user stories details
                 if st.button("Show Story Details"):
