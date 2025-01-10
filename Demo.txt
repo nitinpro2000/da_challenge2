@@ -1,63 +1,20 @@
-import streamlit as st
 
-# App Title
-st.title("Item List Display")
+import os
 
-# Items to display
-items = [
-    "Item 1: Apple",
-    "Item 2: Banana",
-    "Item 3: Orange",
-    "Item 4: Mango",
-    "Item 5: Pineapple"
-]
+# Specify the folder path
+folder_path = "path/to/your/folder"
 
-# Display items with a styled header
-st.header("Available Items")
+# List to store file objects
+file_objects = []
 
-# Using an expander for better UI
-with st.expander("View Items"):
-    for item in items:
-        st.markdown(f"- **{item}**")
+# Iterate through the folder and get file objects
+for file in os.listdir(folder_path):
+    file_path = os.path.join(folder_path, file)
+    if os.path.isfile(file_path):
+        with open(file_path, 'rb') as f:
+            file_objects.append(f)
 
-# Option to select an item
-selected_item = st.selectbox("Select an item:", items)
-
-# Display the selected item
-st.success(f"You selected: {selected_item}")
-
-# Add more interactivity (Optional)
-if st.button("Confirm Selection"):
-    st.write(f"Confirmed: {selected_item}")
-
-
-
-import streamlit as st
-
-# App Title
-st.title("Item List Display")
-
-# Example item list (replace with your dynamic data)
-items = []  # This list is intentionally empty for demonstration
-
-# Check if the list is empty
-if not items:
-    st.error("Error: The item list is empty. Please add some items.")
-else:
-    # Display items with a styled header
-    st.header("Available Items")
-    
-    # Using an expander for better UI
-    with st.expander("View Items"):
-        for item in items:
-            st.markdown(f"- **{item}**")
-    
-    # Option to select an item
-    selected_item = st.selectbox("Select an item:", items)
-    
-    # Display the selected item
-    st.success(f"You selected: {selected_item}")
-    
-    # Add more interactivity (Optional)
-    if st.button("Confirm Selection"):
-        st.write(f"Confirmed: {selected_item}")
+# Print the file names using file.filename
+print("Files in the folder:")
+for file in file_objects:
+    print(file.name)  # file.name provides the full path
