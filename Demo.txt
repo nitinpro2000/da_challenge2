@@ -1,47 +1,57 @@
 import streamlit as st
 
-# Function to simulate fetching data
-def fetch_jira_data(jira_url, selected_projects, selected_stories):
-    # Simulate data fetching for simplicity
-    sample_data = {
-        "PROJ-1": {
-            "title": "Sample Story 1",
-            "description": "This is a description of story 1.",
-            "acceptance_criteria": "Criteria for story 1.",
-            "has_attachments": True,
-        },
-        "PROJ-2": {
-            "title": "Sample Story 2",
-            "description": "This is a description of story 2.",
-            "acceptance_criteria": "Criteria for story 2.",
-            "has_attachments": False,
-        },
-    }
-    # Filter based on selected stories
-    return {story: sample_data[story] for story in selected_stories if story in sample_data}
+# Dummy data for projects and user stories
+projects_data = {
+    "Project A": ["US-001", "US-002", "US-003"],
+    "Project B": ["US-004", "US-005", "US-006"]
+}
 
-# Streamlit app UI
-st.title("Jira Story Viewer")
+user_stories_data = {
+    "US-001": {"title": "Story 1", "description": "Description of Story 1", "acceptance_criteria": "AC1, AC2", "has_attachments": True},
+    "US-002": {"title": "Story 2", "description": "Description of Story 2", "acceptance_criteria": "AC1", "has_attachments": False},
+    "US-003": {"title": "Story 3", "description": "Description of Story 3", "acceptance_criteria": "AC1, AC2, AC3", "has_attachments": True},
+    "US-004": {"title": "Story 4", "description": "Description of Story 4", "acceptance_criteria": "AC1", "has_attachments": True},
+    "US-005": {"title": "Story 5", "description": "Description of Story 5", "acceptance_criteria": "AC1, AC2", "has_attachments": False},
+    "US-006": {"title": "Story 6", "description": "Description of Story 6", "acceptance_criteria": "AC1, AC2, AC3", "has_attachments": True},
+}
 
-# Text box for Jira URL
-jira_url = st.text_input("Enter Jira URL:")
+# Streamlit UI
+st.title("Jira User Stories Information")
 
-# Multi-select for projects
-projects = ["Project A", "Project B", "Project C"]
-selected_projects = st.multiselect("Select Projects:", projects)
+# Input for Jira URL
+jira_url = st.text_input("Enter Jira URL", "")
 
-# Multi-select for user stories (dummy data)
-user_stories = ["PROJ-1", "PROJ-2", "PROJ-3"]
-selected_stories = st.multiselect("Select User Stories:", user_stories)
+# Button to load projects after entering the Jira URL
+if st.button("Load Projects"):
+    if jira_url:  # Check if URL is provided
+        selected_projects = st.multiselect("Select Projects", list(projects_data.keys()))
+        if selected_projects:
+            # Button to load user stories after selecting projects
+            if st.button("Load User Stories"):
+                user_stories = []
+                for project in selected_projects:
+                    user_stories.extend(projects_data[project])
 
-# Display story details if a Jira URL and stories are selected
-if jira_url and selected_stories:
-    st.subheader("Story Details")
-    story_data = fetch_jira_data(jira_url, selected_projects, selected_stories)
-    for story_id, details in story_data.items():
-        st.markdown(f"**Story ID:** {story_id}")
-        st.markdown(f"**Title:** {details['title']}")
-        st.markdown(f"**Description:** {details['description']}")
-        st.markdown(f"**Acceptance Criteria:** {details['acceptance_criteria']}")
-        st.markdown(f"**Has Attachments:** {details['has_attachments']}")
-        st.markdown("---")
+                # Multi-select for user stories based on selected projects
+                selected_user_stories = st.multiselect("Select User Stories", user_stories)
+
+                # Button to fetch and display user stories details
+                if st.button("Show Story Details"):
+                    if selected_user_stories:
+                        with st.container():  # Use container to group story details
+                            st.subheader("User Story Details")
+                            for us_id in selected_user_stories:
+                                story = user_stories_data.get(us_id)
+                                if story:
+                                    st.write(f"**Story ID**: {us_id}")
+                                    st.write(f"**Title**: {story['title']}")
+                                    st.write(f"**Description**: {story['description']}")
+                                    st.write(f"**Acceptance Criteria**: {story['acceptance_criteria']}")
+                                    st.write(f"**Has Attachments**: {story['has_attachments']}")
+                                    st.write("---")
+                    else:
+                        st.warning("Please select some user stories.")
+        else:
+            st.warning("Please select at least one project.")
+    else:
+        st.warning("Please enter a valid Jira URL.")
