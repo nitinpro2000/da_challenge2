@@ -1,70 +1,31 @@
 import streamlit as st
 
-# Dummy data for projects and user stories
-projects_data = {
-    "Project A": ["US-001", "US-002", "US-003"],
-    "Project B": ["US-004", "US-005", "US-006"]
-}
+# App Title
+st.title("Item List Display")
 
-user_stories_data = {
-    "US-001": {"title": "Story 1", "description": "Description of Story 1", "acceptance_criteria": "AC1, AC2", "has_attachments": True},
-    "US-002": {"title": "Story 2", "description": "Description of Story 2", "acceptance_criteria": "AC1", "has_attachments": False},
-    "US-003": {"title": "Story 3", "description": "Description of Story 3", "acceptance_criteria": "AC1, AC2, AC3", "has_attachments": True},
-    "US-004": {"title": "Story 4", "description": "Description of Story 4", "acceptance_criteria": "AC1", "has_attachments": True},
-    "US-005": {"title": "Story 5", "description": "Description of Story 5", "acceptance_criteria": "AC1, AC2", "has_attachments": False},
-    "US-006": {"title": "Story 6", "description": "Description of Story 6", "acceptance_criteria": "AC1, AC2, AC3", "has_attachments": True},
-}
+# Items to display
+items = [
+    "Item 1: Apple",
+    "Item 2: Banana",
+    "Item 3: Orange",
+    "Item 4: Mango",
+    "Item 5: Pineapple"
+]
 
-# Streamlit UI
-st.title("Jira User Stories Information")
+# Display items with a styled header
+st.header("Available Items")
 
-# Input for Jira URL
-jira_url = st.text_input("Enter Jira URL", "")
+# Using an expander for better UI
+with st.expander("View Items"):
+    for item in items:
+        st.markdown(f"- **{item}**")
 
-# Store selected projects and user stories in session state
-if 'selected_projects' not in st.session_state:
-    st.session_state.selected_projects = []
-if 'selected_user_stories' not in st.session_state:
-    st.session_state.selected_user_stories = []
+# Option to select an item
+selected_item = st.selectbox("Select an item:", items)
 
-# Button to load projects after entering the Jira URL
-if st.button("Load Projects"):
-    if jira_url:  # Check if URL is provided
-        # Show project selection
-        selected_projects = st.multiselect("Select Projects", list(projects_data.keys()), default=st.session_state.selected_projects)
-        if selected_projects:
-            # Save the selected projects in session state
-            st.session_state.selected_projects = selected_projects
-            
-            # Button to load user stories after selecting projects
-            if st.button("Load User Stories"):
-                user_stories = []
-                for project in selected_projects:
-                    user_stories.extend(projects_data[project])
+# Display the selected item
+st.success(f"You selected: {selected_item}")
 
-                # Show user stories selection
-                selected_user_stories = st.multiselect("Select User Stories", user_stories, default=st.session_state.selected_user_stories)
-
-                # Save selected user stories in session state
-                st.session_state.selected_user_stories = selected_user_stories
-
-                # Button to fetch and display user stories details
-                if st.button("Show Story Details"):
-                    if selected_user_stories:
-                        with st.container():  # Use container to group story details
-                            st.subheader("User Story Details")
-                            for us_id in selected_user_stories:
-                                story = user_stories_data.get(us_id)
-                                if story:
-                                    st.write(f"**Story ID**: {us_id}")
-                                    st.write(f"**Title**: {story['title']}")
-                                    st.write(f"**Description**: {story['description']}")
-                                    st.write(f"**Acceptance Criteria**: {story['acceptance_criteria']}")
-                                    st.write(f"**Has Attachments**: {story['has_attachments']}")
-                                    st.write("---")
-                    else:
-                        st.warning("Please select some user stories.")
-        else:
-            st.warning("Please select at least one project.")
-    else:
-        st.warning("Please enter a valid Jira URL.")
+# Add more interactivity (Optional)
+if st.button("Confirm Selection"):
+    st.write(f"Confirmed: {selected_item}")
