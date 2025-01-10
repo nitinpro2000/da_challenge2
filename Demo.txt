@@ -29,3 +29,35 @@ st.success(f"You selected: {selected_item}")
 # Add more interactivity (Optional)
 if st.button("Confirm Selection"):
     st.write(f"Confirmed: {selected_item}")
+
+
+
+import streamlit as st
+
+# App Title
+st.title("Item List Display")
+
+# Example item list (replace with your dynamic data)
+items = []  # This list is intentionally empty for demonstration
+
+# Check if the list is empty
+if not items:
+    st.error("Error: The item list is empty. Please add some items.")
+else:
+    # Display items with a styled header
+    st.header("Available Items")
+    
+    # Using an expander for better UI
+    with st.expander("View Items"):
+        for item in items:
+            st.markdown(f"- **{item}**")
+    
+    # Option to select an item
+    selected_item = st.selectbox("Select an item:", items)
+    
+    # Display the selected item
+    st.success(f"You selected: {selected_item}")
+    
+    # Add more interactivity (Optional)
+    if st.button("Confirm Selection"):
+        st.write(f"Confirmed: {selected_item}")
