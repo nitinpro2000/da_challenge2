@@ -45,3 +45,33 @@ if __name__ == "__main__":
 
 
 https://your-domain.atlassian.net/rest/api/2/mypermissions
+
+
+
+import requests
+import base64
+
+# Jira API credentials
+JIRA_URL = "https://your-domain.atlassian.net/rest/api/2/mypermissions"
+EMAIL = "your_email@example.com"
+API_KEY = "your_api_key"
+
+# Encode authentication credentials
+auth = f"{EMAIL}:{API_KEY}"
+encoded_auth = base64.b64encode(auth.encode()).decode()
+
+def check_permissions():
+    headers = {
+        "Authorization": f"Basic {encoded_auth}",
+        "Accept": "application/json"
+    }
+    response = requests.get(JIRA_URL, headers=headers)
+    if response.status_code == 200:
+        permissions = response.json()
+        print("Permissions:", permissions)
+        return permissions
+    else:
+        print("Failed to fetch permissions:", response.status_code, response.text)
+
+# Call the function
+check_permissions()
