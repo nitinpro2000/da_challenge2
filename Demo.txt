@@ -1,20 +1,19 @@
+import streamlit as st
 
-import os
+# Inject custom CSS
+st.markdown(
+    """
+    <style>
+    .stMultiSelect > div[data-baseweb="select"] > div {
+        color: blue; /* Change selected text color to blue */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-# Specify the folder path
-folder_path = "path/to/your/folder"
+# Multiselect component
+options = ['Saffron', 'Blue', 'Green', 'Yellow']
+selected = st.multiselect("Choose your colors:", options)
 
-# List to store file objects
-file_objects = []
-
-# Iterate through the folder and get file objects
-for file in os.listdir(folder_path):
-    file_path = os.path.join(folder_path, file)
-    if os.path.isfile(file_path):
-        with open(file_path, 'rb') as f:
-            file_objects.append(f)
-
-# Print the file names using file.filename
-print("Files in the folder:")
-for file in file_objects:
-    print(file.name)  # file.name provides the full path
+st.write("You selected:", selected)
