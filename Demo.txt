@@ -1,19 +1,37 @@
-import streamlit as st
+import json
 
-# Inject custom CSS
-st.markdown(
-    """
-    <style>
-    .stMultiSelect > div[data-baseweb="select"] > div {
-        color: blue; /* Change selected text color to blue */
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# Sample input dictionary with expected results
+data = {
+    "test_case_number": [1, 2],
+    "test_description": ["Login Test", "Logout Test"],
+    "test_steps": [
+        ["Open browser", "Enter username", "Enter password", "Click login"],
+        ["Click logout", "Close browser"]
+    ],
+    "expected_results": [
+        ["Browser should open", "Username entered", "Password entered", "Login successful"],
+        ["User logged out", "Browser closed"]
+    ]
+}
 
-# Multiselect component
-options = ['Saffron', 'Blue', 'Green', 'Yellow']
-selected = st.multiselect("Choose your colors:", options)
+# Processing the data to match the desired format
+formatted_data = []
+for i in range(len(data["test_case_number"])):
+    test_case = data["test_case_number"][i]
+    test_desc = data["test_description"][i]
+    steps = data["test_steps"][i]
+    results = data["expected_results"][i]
 
-st.write("You selected:", selected)
+    for j in range(len(steps)):
+        formatted_data.append({
+            "test_case_number": test_case if j == 0 else "",
+            "test_description": test_desc if j == 0 else "",
+            "test_step": steps[j],
+            "expected_result": results[j]
+        })
+
+# Convert to JSON
+json_output = json.dumps(formatted_data, indent=4)
+
+# Print or save the JSON
+print(json_output)
