@@ -1,0 +1,4 @@
+semantic-kernel
+google-generativeai
+serpapi
+newspaper3k
