@@ -27,13 +27,13 @@ class LinkedInAgent:
             link = block.find('a')
             snippet = block.find('span', class_='aCOpRe')
             if title and link:
-                profile_summary = self.kernel.run_text_completion(
-                    f"Summarize this LinkedIn snippet: {snippet.text if snippet else title.text}"
-                )
+                snippet_text = snippet.text if snippet else title.text
+                summary_prompt = f"This is a LinkedIn search result snippet. Extract and summarize the professional background from it:\n{snippet_text}"
+                profile_summary = self.kernel.run_text_completion(summary_prompt)
                 profiles.append({
                     "profile_name": title.text,
                     "url": link['href'],
-                    "summary": profile_summary
+                    "summary": profile_summary.strip()
                 })
 
         return profiles
@@ -67,7 +67,7 @@ class BingSearchAgent:
             )
             summarized_results.append({
                 "title": article.get("title"),
-                "summary": summarized_snippet,
+                "summary": summarized_snippet.strip(),
                 "url": article.get("link"),
                 "date": article.get("date")
             })
@@ -83,7 +83,7 @@ class WriterAgent:
         self.kernel = kernel
 
     def generate_text(self, prompt: str) -> str:
-        return self.kernel.run_text_completion(prompt)
+        return self.kernel.run_text_completion(prompt).strip()
 
 
 # semantic_kernel_agents/agents/rag_agent.py
@@ -105,7 +105,7 @@ class RAGAgent:
         answer = self.kernel.run_text_completion(
             f"Answer the following based on context:\n{combined_text}\nQuestion: {user_query}"
         )
-        return {"answer": answer, "sources": [r.key for r in results]}
+        return {"answer": answer.strip(), "sources": [r.key for r in results]}
 
 
 # semantic_kernel_agents/agents/control_agent.py
