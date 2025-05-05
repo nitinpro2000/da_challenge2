@@ -1,34 +1,54 @@
 # semantic_kernel_agents/agents/linkedin_agent.py
 import json
+import requests
+from bs4 import BeautifulSoup
 from typing import List, Dict
+from semantic_kernel.kernel import Kernel
 
 class LinkedInAgent:
-    def __init__(self):
-        # Placeholder for LinkedIn API credentials or mock implementation
-        pass
+    def __init__(self, kernel: Kernel):
+        self.search_url = "https://www.google.com/search"
+        self.kernel = kernel
 
     def search_profiles(self, full_name: str, company: str, location: str) -> List[Dict]:
-        # Mock response - Replace with actual LinkedIn API or scraping logic if compliant
-        print(f"Searching LinkedIn for: {full_name}, {company}, {location}")
-        return [
-            {
-                "profile_name": full_name,
-                "headline": f"Senior Engineer at {company}",
-                "location": location,
-                "summary": f"Experienced professional at {company} located in {location}.",
-                "url": f"https://linkedin.com/in/{full_name.lower().replace(' ', '-')}-123"
-            }
-        ]
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+        }
+        query = f"site:linkedin.com/in \"{full_name}\" \"{company}\" \"{location}\""
+        params = {"q": query}
+
+        response = requests.get(self.search_url, headers=headers, params=params)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        result_blocks = soup.find_all('div', class_='tF2Cxc')
+
+        profiles = []
+        for block in result_blocks:
+            title = block.find('h3')
+            link = block.find('a')
+            snippet = block.find('span', class_='aCOpRe')
+            if title and link:
+                profile_summary = self.kernel.run_text_completion(
+                    f"Summarize this LinkedIn snippet: {snippet.text if snippet else title.text}"
+                )
+                profiles.append({
+                    "profile_name": title.text,
+                    "url": link['href'],
+                    "summary": profile_summary
+                })
+
+        return profiles
 
 
 # semantic_kernel_agents/agents/bing_search_agent.py
 import requests
 from typing import List, Dict
+from semantic_kernel.kernel import Kernel
 
 class BingSearchAgent:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, kernel: Kernel):
         self.api_url = "https://www.searchapi.io/api/v1/search"
         self.api_key = api_key
+        self.kernel = kernel
 
     def search_news(self, topic: str) -> List[Dict]:
         params = {
@@ -38,15 +58,21 @@ class BingSearchAgent:
         }
         response = requests.get(self.api_url, params=params)
         results = response.json().get("news_results", [])
-        return [
-            {
+
+        summarized_results = []
+        for article in results:
+            snippet = article.get("snippet", "")
+            summarized_snippet = self.kernel.run_text_completion(
+                f"Summarize this news snippet: {snippet}"
+            )
+            summarized_results.append({
                 "title": article.get("title"),
-                "snippet": article.get("snippet"),
+                "summary": summarized_snippet,
                 "url": article.get("link"),
                 "date": article.get("date")
-            }
-            for article in results
-        ]
+            })
+
+        return summarized_results
 
 
 # semantic_kernel_agents/agents/writer_agent.py
@@ -87,6 +113,7 @@ from agents.linkedin_agent import LinkedInAgent
 from agents.bing_search_agent import BingSearchAgent
 from agents.writer_agent import WriterAgent
 from agents.rag_agent import RAGAgent
+import json
 
 class ControlAgent:
     def __init__(self, linkedin: LinkedInAgent, bing: BingSearchAgent, writer: WriterAgent, rag: RAGAgent):
@@ -99,8 +126,8 @@ class ControlAgent:
         profiles = self.linkedin.search_profiles(full_name, company, location)
         news = self.bing.search_news(topic)
 
-        prompt = f"Generate a report for {full_name} at {company} in {location}.\n"
-        prompt += f"LinkedIn Profiles:\n{profiles}\n\nNews Articles:\n{news}"
+        prompt = f"Generate a detailed report for {full_name} at {company}, {location}.\n\n"
+        prompt += f"LinkedIn Profiles:\n{json.dumps(profiles, indent=2)}\n\nNews Articles:\n{json.dumps(news, indent=2)}"
         report = self.writer.generate_text(prompt)
 
         return {
@@ -131,10 +158,6 @@ def get_completion_service(api_key: str):
     )
 
 
-# semantic_kernel_agents/services/serp_service.py
-# Already integrated inside BingSearchAgent using searchapi.io
-
-
 # semantic_kernel_agents/main.py
 from semantic_kernel.kernel import Kernel
 from semantic_kernel.connectors.memory.chroma import ChromaStore
@@ -145,9 +168,10 @@ from agents.rag_agent import RAGAgent
 from agents.control_agent import ControlAgent
 from services.embedding_service import get_embedding_service
 from services.completion_service import get_completion_service
+import json
 
-OPENAI_API_KEY = "your-openai-api-key"
-SERP_API_KEY = "your-serp-api-key"
+OPENAI_API_KEY = "dummy-openai-api-key"
+SERP_API_KEY = "dummy-serp-api-key"
 
 # Initialize Kernel
 kernel = Kernel()
@@ -156,8 +180,8 @@ kernel.add_service(get_embedding_service())
 kernel.add_memory(ChromaStore())
 
 # Initialize agents
-linkedin_agent = LinkedInAgent()
-bing_agent = BingSearchAgent(api_key=SERP_API_KEY)
+linkedin_agent = LinkedInAgent(kernel)
+bing_agent = BingSearchAgent(api_key=SERP_API_KEY, kernel=kernel)
 writer_agent = WriterAgent(kernel)
 rag_agent = RAGAgent(kernel)
 control_agent = ControlAgent(linkedin_agent, bing_agent, writer_agent, rag_agent)
@@ -170,4 +194,4 @@ if __name__ == "__main__":
         location="Seattle, WA",
         topic="renewable energy"
     )
-    print(output)
+    print(json.dumps(output, indent=2))
