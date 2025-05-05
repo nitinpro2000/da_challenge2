@@ -1,3 +1,173 @@
-Nitin Prodduturi Hyderabad, India — nitinprodduturi15@gmail.com — +91-8074725731 — Google Scholar — LinkedIn — GitHub Objective Data scientist and Machine learning engineer with 2+ years of experience developing and deploying data-driven solutions to optimize performance and drive innovation. Education Jawaharlal Nehru Technological University, Hyderabad, India B.Tech in Computer Science — College- VBIT — CGPA: 8.21 — 2018- 2022 Technical Skills Programming Languages– Python, SQL, Java, C Data Science Stack– Statistics, Machine Learning, Deep Learning, Natural Language Processing, Generative AI, MlOps- CI/CD, kubeflow. Databases– MySQL, Oracle, Vector Databases: ChromaDB, Pinecone Google Cloud Platform– Vertex AI Pipeline, BigQuery, Google Cloud Storage, Cloud Functions, Cloud Run, Cloud Build, Pub/Sub, Artifact Registry, Cloud Scheduler, Logging, Monitoring, and Alerting Control Systems and Documentation– Git, Jira, Confluence Data Engineering– Talend ETL Dashboarding Tool– Looker Studio Experience Tata Consultancy Services (TCS) —DataScientist, Machine Learning Engineer — Aug’22– Present– Automated machine learning model training and inference with Vertex AI pipelines in GCP.– Transformed IBM Infosphere Data Stage ETL jobs into Talend ETL jobs, ensuring a seamless transition.– Collaborated in project planning sessions using Agile methodology to analyze business requirements and develop proposed solutions.
+# semantic_kernel_agents/agents/linkedin_agent.py
+import json
+from typing import List, Dict
 
-Customer Asset Master- CAM Machine Learning Models Migration– Migrated machine learning models from SAS to Google Cloud Platform, saving the client 9 million dollars in licensing costs.– Built and deployed propensity ML models using algorithms like XGBoost, TensorFlow, Random Forest, and AutoML, while automating end-to-end model training and serving with Vertex AI Kubeflow Pipelines.– Enhanced pipeline functionalities with logging, alerting, and scheduling, and developed a Looker Studio dashboard for model validation, metadata tracking, and pipeline monitoring. Question And Answer Generator– Developed an end-to-end pipeline for auto-generating six questions and answers for new and existing products with no user-generated content, focusing on the appliances category, to help customers make confident buying decisions.– Leveraged Retrieval-Augmented Generation (RAG) to increase conversion rates on products with no reviews or Q&A, with an estimated opportunity of 18 million dollars. Review Distillation– Created a pipeline that accepts reviews as input and generates positive and negative aspects, providing customers with quick and representative high-level pros and cons based on sentiment.– This distilled review system enhances customer decision-making and boosts company reputation by highlighting genuine feedback and improving transparency. Product Description Generator- POC– Created an application that generates product overviews, features, and specifications from raw data provided by the vendor, significantly reducing manual effort in creating product descriptions. Enterprise Data Warehouse (EDW) Migration– Migrated ETL processes from on-premise infrastructure to Azure cloud.– Extracted data from various relational database sources, applied necessary transformations, and efficiently loaded processed data into Teradata using the Talend ETL tool. Publications Plant Disease Classification using CNN Model and Transfer Learning- 2022– This paper presents the research work of fine-tuning the MobileNet-v2 model to classify plant diseases.– Published in the International Journal of Photo Chemistry and indexed in Google Scholar. Certifications / Courses– Google Cloud Professional Machine Learning Engineer– Microsoft Certified: Azure Data Science Associate (DP-100)– Python Institute– PCAP Certification Honors and Awards– On the Spot Award, for Best Performance- Tata Consultancy Services– Best Team Award- Tata Consultancy Services– Learning Milestone- Tata Consultancy Services– Best Academic Performer- Vignana Bharathi Institute of Technology, Hyderabad
+class LinkedInAgent:
+    def __init__(self):
+        # Placeholder for LinkedIn API credentials or mock implementation
+        pass
+
+    def search_profiles(self, full_name: str, company: str, location: str) -> List[Dict]:
+        # Mock response - Replace with actual LinkedIn API or scraping logic if compliant
+        print(f"Searching LinkedIn for: {full_name}, {company}, {location}")
+        return [
+            {
+                "profile_name": full_name,
+                "headline": f"Senior Engineer at {company}",
+                "location": location,
+                "summary": f"Experienced professional at {company} located in {location}.",
+                "url": f"https://linkedin.com/in/{full_name.lower().replace(' ', '-')}-123"
+            }
+        ]
+
+
+# semantic_kernel_agents/agents/bing_search_agent.py
+import requests
+from typing import List, Dict
+
+class BingSearchAgent:
+    def __init__(self, api_key: str):
+        self.api_url = "https://www.searchapi.io/api/v1/search"
+        self.api_key = api_key
+
+    def search_news(self, topic: str) -> List[Dict]:
+        params = {
+            "engine": "bing_news",
+            "q": topic,
+            "api_key": self.api_key
+        }
+        response = requests.get(self.api_url, params=params)
+        results = response.json().get("news_results", [])
+        return [
+            {
+                "title": article.get("title"),
+                "snippet": article.get("snippet"),
+                "url": article.get("link"),
+                "date": article.get("date")
+            }
+            for article in results
+        ]
+
+
+# semantic_kernel_agents/agents/writer_agent.py
+from semantic_kernel.kernel import Kernel
+
+class WriterAgent:
+    def __init__(self, kernel: Kernel):
+        self.kernel = kernel
+
+    def generate_text(self, prompt: str) -> str:
+        return self.kernel.run_text_completion(prompt)
+
+
+# semantic_kernel_agents/agents/rag_agent.py
+from typing import List, Dict
+from semantic_kernel.kernel import Kernel
+
+class RAGAgent:
+    def __init__(self, kernel: Kernel):
+        self.kernel = kernel
+
+    def ingest_documents(self, documents: List[Dict]) -> Dict:
+        for doc in documents:
+            self.kernel.memory.save_information("rag_collection", doc["id"], doc["text"])
+        return {"status": "ingested", "count": len(documents)}
+
+    def query(self, user_query: str) -> Dict:
+        results = self.kernel.memory.search("rag_collection", user_query, limit=3)
+        combined_text = "\n".join([r.text for r in results])
+        answer = self.kernel.run_text_completion(
+            f"Answer the following based on context:\n{combined_text}\nQuestion: {user_query}"
+        )
+        return {"answer": answer, "sources": [r.key for r in results]}
+
+
+# semantic_kernel_agents/agents/control_agent.py
+from agents.linkedin_agent import LinkedInAgent
+from agents.bing_search_agent import BingSearchAgent
+from agents.writer_agent import WriterAgent
+from agents.rag_agent import RAGAgent
+
+class ControlAgent:
+    def __init__(self, linkedin: LinkedInAgent, bing: BingSearchAgent, writer: WriterAgent, rag: RAGAgent):
+        self.linkedin = linkedin
+        self.bing = bing
+        self.writer = writer
+        self.rag = rag
+
+    def handle_request(self, full_name, company, location, topic) -> dict:
+        profiles = self.linkedin.search_profiles(full_name, company, location)
+        news = self.bing.search_news(topic)
+
+        prompt = f"Generate a report for {full_name} at {company} in {location}.\n"
+        prompt += f"LinkedIn Profiles:\n{profiles}\n\nNews Articles:\n{news}"
+        report = self.writer.generate_text(prompt)
+
+        return {
+            "report": report,
+            "linkedIn_profiles": profiles,
+            "news_articles": news
+        }
+
+
+# semantic_kernel_agents/services/embedding_service.py
+from semantic_kernel.connectors.ai.hugging_face import HuggingFaceTextEmbedding
+
+def get_embedding_service():
+    return HuggingFaceTextEmbedding(
+        service_id="hf-embedder",
+        ai_model_id="sentence-transformers/all-MiniLM-L6-v2"
+    )
+
+
+# semantic_kernel_agents/services/completion_service.py
+from semantic_kernel.connectors.ai.open_ai import OpenAITextCompletion
+
+def get_completion_service(api_key: str):
+    return OpenAITextCompletion(
+        service_id="openai",
+        api_key=api_key,
+        ai_model_id="gpt-4"
+    )
+
+
+# semantic_kernel_agents/services/serp_service.py
+# Already integrated inside BingSearchAgent using searchapi.io
+
+
+# semantic_kernel_agents/main.py
+from semantic_kernel.kernel import Kernel
+from semantic_kernel.connectors.memory.chroma import ChromaStore
+from agents.linkedin_agent import LinkedInAgent
+from agents.bing_search_agent import BingSearchAgent
+from agents.writer_agent import WriterAgent
+from agents.rag_agent import RAGAgent
+from agents.control_agent import ControlAgent
+from services.embedding_service import get_embedding_service
+from services.completion_service import get_completion_service
+
+OPENAI_API_KEY = "your-openai-api-key"
+SERP_API_KEY = "your-serp-api-key"
+
+# Initialize Kernel
+kernel = Kernel()
+kernel.add_service(get_completion_service(OPENAI_API_KEY))
+kernel.add_service(get_embedding_service())
+kernel.add_memory(ChromaStore())
+
+# Initialize agents
+linkedin_agent = LinkedInAgent()
+bing_agent = BingSearchAgent(api_key=SERP_API_KEY)
+writer_agent = WriterAgent(kernel)
+rag_agent = RAGAgent(kernel)
+control_agent = ControlAgent(linkedin_agent, bing_agent, writer_agent, rag_agent)
+
+# Run example request
+if __name__ == "__main__":
+    output = control_agent.handle_request(
+        full_name="Alice Smith",
+        company="Contoso Ltd.",
+        location="Seattle, WA",
+        topic="renewable energy"
+    )
+    print(output)
