@@ -1,197 +1,366 @@
-# semantic_kernel_agents/agents/linkedin_agent.py
-import json
-import requests
+"""
+LinkedIn Profile Scraper - A modular and maintainable implementation
+"""
+
+import os
+import time
+import pickle
+import logging
+from typing import List, Optional, Iterator
+
 from bs4 import BeautifulSoup
-from typing import List, Dict
-from semantic_kernel.kernel import Kernel
-
-class LinkedInAgent:
-    def __init__(self, kernel: Kernel):
-        self.search_url = "https://www.google.com/search"
-        self.kernel = kernel
-
-    def search_profiles(self, full_name: str, company: str, location: str) -> List[Dict]:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
-        }
-        query = f"site:linkedin.com/in \"{full_name}\" \"{company}\" \"{location}\""
-        params = {"q": query}
-
-        response = requests.get(self.search_url, headers=headers, params=params)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        result_blocks = soup.find_all('div', class_='tF2Cxc')
-
-        profiles = []
-        for block in result_blocks:
-            title = block.find('h3')
-            link = block.find('a')
-            snippet = block.find('span', class_='aCOpRe')
-            if title and link:
-                snippet_text = snippet.text if snippet else title.text
-                summary_prompt = f"This is a LinkedIn search result snippet. Extract and summarize the professional background from it:\n{snippet_text}"
-                profile_summary = self.kernel.run_text_completion(summary_prompt)
-                profiles.append({
-                    "profile_name": title.text,
-                    "url": link['href'],
-                    "summary": profile_summary.strip()
-                })
-
-        return profiles
+from googlesearch import search
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 
 
-# semantic_kernel_agents/agents/bing_search_agent.py
-import requests
-from typing import List, Dict
-from semantic_kernel.kernel import Kernel
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('linkedin_scraper.log')
+    ]
+)
+logger = logging.getLogger('linkedin_scraper')
 
-class BingSearchAgent:
-    def __init__(self, api_key: str, kernel: Kernel):
-        self.api_url = "https://www.searchapi.io/api/v1/search"
-        self.api_key = api_key
-        self.kernel = kernel
 
-    def search_news(self, topic: str) -> List[Dict]:
-        params = {
-            "engine": "bing_news",
-            "q": topic,
-            "api_key": self.api_key
-        }
-        response = requests.get(self.api_url, params=params)
-        results = response.json().get("news_results", [])
+class ConfigManager:
+    """Manages configuration settings for the LinkedIn scraper."""
+    
+    def __init__(self, 
+                 driver_path: str = None, 
+                 cookie_path: str = None,
+                 skip_keywords: List[str] = None):
+        """
+        Initialize the ConfigManager with paths and settings.
+        
+        Args:
+            driver_path: Path to the ChromeDriver executable
+            cookie_path: Path to store/retrieve cookies
+            skip_keywords: List of keywords to skip in profile text
+        """
+        self.driver_path = driver_path or os.path.join(os.getcwd(), "chromedriver.exe")
+        self.cookie_path = cookie_path or os.path.join(os.getcwd(), "linkedin_cookies.pkl")
+        self.skip_keywords = skip_keywords or [
+            "mutual connection", 
+            "Status is offline", 
+            "degree connection", 
+            "mutual connection"
+        ]
+        
+    def validate(self) -> bool:
+        """
+        Validate that the configuration is correct.
+        
+        Returns:
+            bool: True if configuration is valid, False otherwise
+        """
+        if not os.path.exists(self.driver_path):
+            logger.error(f"ChromeDriver not found at: {self.driver_path}")
+            return False
+        
+        return True
 
-        summarized_results = []
-        for article in results:
-            snippet = article.get("snippet", "")
-            summarized_snippet = self.kernel.run_text_completion(
-                f"Summarize this news snippet: {snippet}"
+
+class LinkedInAuthManager:
+    """Manages authentication with LinkedIn."""
+    
+    def __init__(self, config: ConfigManager):
+        """
+        Initialize the authentication manager.
+        
+        Args:
+            config: ConfigManager instance with configuration settings
+        """
+        self.config = config
+    
+    def save_cookies_after_manual_login(self, login_wait_time: int = 90) -> bool:
+        """
+        Opens a browser for manual login and saves cookies.
+        
+        Args:
+            login_wait_time: Time in seconds to wait for manual login
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            service = Service(executable_path=self.config.driver_path)
+            driver = webdriver.Chrome(service=service)
+            driver.get("https://www.linkedin.com/login")
+            
+            logger.info("Please log in manually within the browser window...")
+            time.sleep(login_wait_time)
+            
+            with open(self.config.cookie_path, "wb") as file:
+                pickle.dump(driver.get_cookies(), file)
+            
+            logger.info("Cookies saved successfully.")
+            driver.quit()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error during manual login: {str(e)}")
+            return False
+    
+    def load_cookies(self, driver) -> bool:
+        """
+        Load cookies from file into the driver.
+        
+        Args:
+            driver: WebDriver instance
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if not os.path.exists(self.config.cookie_path):
+                logger.error(f"Cookie file not found: {self.config.cookie_path}")
+                return False
+                
+            driver.get("https://www.linkedin.com")
+            with open(self.config.cookie_path, "rb") as f:
+                cookies = pickle.load(f)
+                
+            for cookie in cookies:
+                if 'sameSite' in cookie:
+                    del cookie['sameSite']
+                driver.add_cookie(cookie)
+                
+            driver.get("https://www.linkedin.com/feed/")
+            time.sleep(1)
+            
+            if "Sign In" in driver.title or "Log In" in driver.title:
+                logger.error("Authentication failed: Cookies are not valid.")
+                return False
+                
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error loading cookies: {str(e)}")
+            return False
+
+
+class LinkedInSearcher:
+    """Handles searching for LinkedIn profiles."""
+    
+    @staticmethod
+    def search_profiles(query: str, num_results: int = 1) -> Iterator[str]:
+        """
+        Search for LinkedIn profiles using Google.
+        
+        Args:
+            query: Search query string
+            num_results: Number of results to return
+            
+        Returns:
+            Iterator of URLs
+        """
+        try:
+            search_results = search(query, num_results=num_results)
+            return search_results
+        except Exception as e:
+            logger.error(f"Error searching profiles: {str(e)}")
+            return iter([])
+
+
+class ProfileScraper:
+    """Scrapes LinkedIn profiles."""
+    
+    def __init__(self, config: ConfigManager, auth_manager: LinkedInAuthManager):
+        """
+        Initialize the profile scraper.
+        
+        Args:
+            config: ConfigManager instance
+            auth_manager: LinkedInAuthManager instance
+        """
+        self.config = config
+        self.auth_manager = auth_manager
+    
+    def scrape_profile(self, url: str, text_to_terminate_profile_append: str = None) -> Optional[str]:
+        """
+        Scrape a LinkedIn profile.
+        
+        Args:
+            url: LinkedIn profile URL
+            text_to_terminate_profile_append: Text that signals end of profile content
+            
+        Returns:
+            str: Extracted profile text or None if failed
+        """
+        driver = None
+        try:
+            chrome_options = Options()
+            # Uncomment for headless mode in production
+            # chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            
+            service = Service(self.config.driver_path)
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            
+            # Load cookies for authentication
+            if not self.auth_manager.load_cookies(driver):
+                return None
+            
+            # Go to the LinkedIn profile
+            logger.info(f"Accessing profile: {url}")
+            driver.get(url)
+            time.sleep(2)
+            
+            # Extract content
+            html_content = driver.page_source
+            extracted_text = self._parse_profile_content(
+                html_content, 
+                self.config.skip_keywords,
+                text_to_terminate_profile_append
             )
-            summarized_results.append({
-                "title": article.get("title"),
-                "summary": summarized_snippet.strip(),
-                "url": article.get("link"),
-                "date": article.get("date")
-            })
+            
+            return extracted_text
+            
+        except Exception as e:
+            logger.error(f"Error scraping profile: {str(e)}")
+            return None
+            
+        finally:
+            if driver:
+                driver.quit()
+    
+    def _parse_profile_content(self, 
+                              html_content: str, 
+                              skip_keywords: List[str],
+                              text_to_terminate_profile_append: str) -> str:
+        """
+        Parse HTML content to extract profile information.
+        
+        Args:
+            html_content: HTML content of the profile page
+            skip_keywords: Keywords to skip
+            text_to_terminate_profile_append: Text to stop parsing at
+            
+        Returns:
+            str: Extracted profile text
+        """
+        soup = BeautifulSoup(html_content, 'html.parser')
+        spans = soup.find_all('span', class_='visually-hidden')
+        
+        extracted_lines = []
+        for span in spans:
+            text = span.get_text(strip=True)
+            
+            if not text:
+                continue
+                
+            if any(skip_kw.lower() in text.lower() for skip_kw in skip_keywords):
+                continue
+                
+            if text_to_terminate_profile_append and text == text_to_terminate_profile_append:
+                break
+                
+            extracted_lines.append(text)
+            
+        return "\n".join(extracted_lines)
 
-        return summarized_results
 
-
-# semantic_kernel_agents/agents/writer_agent.py
-from semantic_kernel.kernel import Kernel
-
-class WriterAgent:
-    def __init__(self, kernel: Kernel):
-        self.kernel = kernel
-
-    def generate_text(self, prompt: str) -> str:
-        return self.kernel.run_text_completion(prompt).strip()
-
-
-# semantic_kernel_agents/agents/rag_agent.py
-from typing import List, Dict
-from semantic_kernel.kernel import Kernel
-
-class RAGAgent:
-    def __init__(self, kernel: Kernel):
-        self.kernel = kernel
-
-    def ingest_documents(self, documents: List[Dict]) -> Dict:
-        for doc in documents:
-            self.kernel.memory.save_information("rag_collection", doc["id"], doc["text"])
-        return {"status": "ingested", "count": len(documents)}
-
-    def query(self, user_query: str) -> Dict:
-        results = self.kernel.memory.search("rag_collection", user_query, limit=3)
-        combined_text = "\n".join([r.text for r in results])
-        answer = self.kernel.run_text_completion(
-            f"Answer the following based on context:\n{combined_text}\nQuestion: {user_query}"
+class LinkedInProfileFetcher:
+    """Main class orchestrating the LinkedIn profile fetching process."""
+    
+    def __init__(self,
+                driver_path: str = None,
+                cookie_path: str = None,
+                skip_keywords: List[str] = None):
+        """
+        Initialize the profile fetcher with configuration.
+        
+        Args:
+            driver_path: Path to ChromeDriver
+            cookie_path: Path to cookies file
+            skip_keywords: Keywords to skip in profile text
+        """
+        self.config = ConfigManager(
+            driver_path=driver_path,
+            cookie_path=cookie_path,
+            skip_keywords=skip_keywords
         )
-        return {"answer": answer.strip(), "sources": [r.key for r in results]}
+        
+        if not self.config.validate():
+            raise ValueError("Invalid configuration")
+            
+        self.auth_manager = LinkedInAuthManager(self.config)
+        self.searcher = LinkedInSearcher()
+        self.scraper = ProfileScraper(self.config, self.auth_manager)
+    
+    def setup_authentication(self, login_wait_time: int = 90) -> bool:
+        """
+        Set up authentication by manually logging in.
+        
+        Args:
+            login_wait_time: Time in seconds to wait for manual login
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        return self.auth_manager.save_cookies_after_manual_login(login_wait_time)
+    
+    def get_profile(self, 
+                   name: str, 
+                   company: str, 
+                   text_to_terminate_profile_append: str = None) -> Optional[str]:
+        """
+        Get a LinkedIn profile by name and company.
+        
+        Args:
+            name: Person's name
+            company: Company name
+            text_to_terminate_profile_append: Text to stop parsing at
+            
+        Returns:
+            str: Profile data or None if failed
+        """
+        query = f"{name} {company} site:linkedin.com"
+        query_text = f"Name: {name} Company: {company}\n"
+        
+        try:
+            # Search for the profile
+            results = self.searcher.search_profiles(query=query, num_results=1)
+            url = next(results, None)
+            
+            if not url:
+                logger.error("No profile found for the search query")
+                return f"{query_text}Profile Data: Not found"
+            
+            # Scrape the profile
+            profile_data = self.scraper.scrape_profile(
+                url, 
+                text_to_terminate_profile_append
+            )
+            
+            if profile_data:
+                return f"{query_text}Profile Data:\n{profile_data}"
+            else:
+                return f"{query_text}Profile Data: Failed to scrape"
+                
+        except Exception as e:
+            logger.error(f"Error getting profile: {str(e)}")
+            return f"{query_text}Profile Data: Error - {str(e)}"
 
 
-# semantic_kernel_agents/agents/control_agent.py
-from agents.linkedin_agent import LinkedInAgent
-from agents.bing_search_agent import BingSearchAgent
-from agents.writer_agent import WriterAgent
-from agents.rag_agent import RAGAgent
-import json
-
-class ControlAgent:
-    def __init__(self, linkedin: LinkedInAgent, bing: BingSearchAgent, writer: WriterAgent, rag: RAGAgent):
-        self.linkedin = linkedin
-        self.bing = bing
-        self.writer = writer
-        self.rag = rag
-
-    def handle_request(self, full_name, company, location, topic) -> dict:
-        profiles = self.linkedin.search_profiles(full_name, company, location)
-        news = self.bing.search_news(topic)
-
-        prompt = f"Generate a detailed report for {full_name} at {company}, {location}.\n\n"
-        prompt += f"LinkedIn Profiles:\n{json.dumps(profiles, indent=2)}\n\nNews Articles:\n{json.dumps(news, indent=2)}"
-        report = self.writer.generate_text(prompt)
-
-        return {
-            "report": report,
-            "linkedIn_profiles": profiles,
-            "news_articles": news
-        }
-
-
-# semantic_kernel_agents/services/embedding_service.py
-from semantic_kernel.connectors.ai.hugging_face import HuggingFaceTextEmbedding
-
-def get_embedding_service():
-    return HuggingFaceTextEmbedding(
-        service_id="hf-embedder",
-        ai_model_id="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-
-# semantic_kernel_agents/services/completion_service.py
-from semantic_kernel.connectors.ai.open_ai import OpenAITextCompletion
-
-def get_completion_service(api_key: str):
-    return OpenAITextCompletion(
-        service_id="openai",
-        api_key=api_key,
-        ai_model_id="gpt-4"
-    )
-
-
-# semantic_kernel_agents/main.py
-from semantic_kernel.kernel import Kernel
-from semantic_kernel.connectors.memory.chroma import ChromaStore
-from agents.linkedin_agent import LinkedInAgent
-from agents.bing_search_agent import BingSearchAgent
-from agents.writer_agent import WriterAgent
-from agents.rag_agent import RAGAgent
-from agents.control_agent import ControlAgent
-from services.embedding_service import get_embedding_service
-from services.completion_service import get_completion_service
-import json
-
-OPENAI_API_KEY = "dummy-openai-api-key"
-SERP_API_KEY = "dummy-serp-api-key"
-
-# Initialize Kernel
-kernel = Kernel()
-kernel.add_service(get_completion_service(OPENAI_API_KEY))
-kernel.add_service(get_embedding_service())
-kernel.add_memory(ChromaStore())
-
-# Initialize agents
-linkedin_agent = LinkedInAgent(kernel)
-bing_agent = BingSearchAgent(api_key=SERP_API_KEY, kernel=kernel)
-writer_agent = WriterAgent(kernel)
-rag_agent = RAGAgent(kernel)
-control_agent = ControlAgent(linkedin_agent, bing_agent, writer_agent, rag_agent)
-
-# Run example request
+# Example usage
 if __name__ == "__main__":
-    output = control_agent.handle_request(
-        full_name="Alice Smith",
-        company="Contoso Ltd.",
-        location="Seattle, WA",
-        topic="renewable energy"
+    # Create the profile fetcher
+    fetcher = LinkedInProfileFetcher()
+    
+    # First-time setup - only needed once
+    # fetcher.setup_authentication(login_wait_time=90)
+    
+    # Get a profile
+    profile_data = fetcher.get_profile(
+        name="John Doe",
+        company="Acme Inc"
     )
-    print(json.dumps(output, indent=2))
+    
+    print(profile_data)
