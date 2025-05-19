@@ -1,41 +1,26 @@
-import time
-from googlesearch import search
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from bs4 import BeautifulSoup
-import os
+from serpapi import GoogleSearch
+import datetime
 
-def search_results(query, num_results):
-    search_results = search(query, num_results=num_results)
-    return search_results
+def search_serpapi_urls(query: str, num_results: int, api_key: str):
+    # Calculate date range: today and 18 months ago (approximate to 30 days/month)
+    today = datetime.date.today()
+    past_18_months = today - datetime.timedelta(days=18 * 30)
 
-def scrape_url(url, chrome_driver_path):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    service = Service(chrome_driver_path)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    driver.get(url)
-    time.sleep(2)
-    html_content = driver.page_source
-    soup = BeautifulSoup(html_content, 'html.parser')
-    with open('scraped_news_selenium3.html', 'w', encoding='utf-8') as file:
-        file.write(html_content)
-    driver.quit()
-    return soup.get_text()
+    # Format date range for Google 'tbs' parameter
+    tbs = f"cdr:1,cd_min:{past_18_months.strftime('%m/%d/%Y')},cd_max:{today.strftime('%m/%d/%Y')}"
 
-def get_raw_scraped_data(name, search_term):
-    query = f"{name} {search_term} (Company)"
-    chrome_driver_path = os.path.join(os.getcwd(), "chromedriver.exe")
-    query_text = f"Name: {name} search term: {search_term}"
-    results = search_results(query, num_results=3)
-    url = next(results, None)
-    raw_scraped_data = scrape_url(url, chrome_driver_path)
-    return raw_scraped_data
+    params = {
+        "engine": "google",
+        "q": query,
+        "num": num_results,
+        "api_key": api_key,
+        "tbs": tbs,
+    }
 
-name = "Tesla"
-search_term = "financial news bloomberg"
-scraped_data = get_raw_scraped_data(name, search_term)
-print(scraped_data)
+    search = GoogleSearch(params)
+    results = search.get_dict()
+
+    # Extract URLs from organic results
+    urls = [result.get("link") for result in results.get("organic_results", []) if result.get("link")]
+    
+    return urls
