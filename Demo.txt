@@ -1,75 +1,34 @@
-import pandas as pd
-import uuid
+@kernel_function(
+    description="Extracts optimized search queries for a company or its industry using an LLM.",
+    name="extract_keywords"
+)
 
-def prepare_dataframe(chunks: list, url: str, mode: str, category: str = "client") -> pd.DataFrame:
-    """
-    Prepares a DataFrame with article chunks, including metadata.
+@kernel_function(
+    description="Performs a web search using SerpAPI for given keyword queries.",
+    name="search_results"
+)
 
-    Args:
-        chunks (list): List of text chunks.
-        url (str): Source URL of the article.
-        mode (str): Mode of search used ("company" or "industry").
-        category (str, optional): Category label for the article. Defaults to "client".
+@kernel_function(
+    description="Scrapes the full HTML content from a URL using Selenium.",
+    name="scrape_url"
+)
 
-    Returns:
-        pd.DataFrame: DataFrame with columns: ['url', 'mode', 'category', 'chunk_id', 'article_id', 'chunk']
-    """
-    article_id = str(uuid.uuid4())  # generate unique article ID
-    data = []
+@kernel_function(
+    description="Cleans and extracts readable text from raw HTML content.",
+    name="extract_text_from_html"
+)
 
-    for idx, chunk in enumerate(chunks):
-        chunk_id = f"{article_id}_{idx+1}"
-        data.append({
-            "url": url,
-            "mode": mode,
-            "category": category,
-            "chunk_id": chunk_id,
-            "article_id": article_id,
-            "chunk": chunk
-        })
+@kernel_function(
+    description="Splits text into overlapping chunks for further processing.",
+    name="chunk_text"
+)
 
-    df = pd.DataFrame(data)
-    logging.info(f"Prepared DataFrame with {len(df)} chunks for URL: {url}")
-    return df
+@kernel_function(
+    description="Prepares a DataFrame from text chunks, assigning metadata including chunk ID and article ID.",
+    name="prepare_dataframe"
+)
 
-def fetch_company_news(
-    company_name: str,
-    focus: str,
-    openai_client: OpenAI,
-    mode: str = "company",
-    max_keywords: int = 5,
-    num_results: int = 3,
-    driver_path: str = "C:/Path/To/EdgeDriver.exe"
-) -> pd.DataFrame:
-    """
-    Runs full pipeline: extract keywords, search via SerpAPI, scrape articles, chunk, and prepare DataFrame.
-
-    Args:
-        company_name (str): Company to analyze.
-        focus (str): Focus area or topic of interest.
-        openai_client (OpenAI): Authenticated OpenAI client.
-        mode (str): "company" or "industry".
-        max_keywords (int, optional): Number of keyword queries to use. Defaults to 5.
-        num_results (int, optional): Number of search results per keyword. Defaults to 3.
-        driver_path (str, optional): Path to Edge WebDriver. Required for scraping.
-
-    Returns:
-        pd.DataFrame: Final combined DataFrame of all article chunks.
-    """
-    final_df = pd.DataFrame()
-    queries = extract_keywords(company_name, focus, openai_client, max_keywords, mode)
-
-    for query in queries:
-        urls = search_results(query, num_results)
-        for url in urls:
-            try:
-                raw_html = scrape_url(url, driver_path)
-                clean_text = extract_text_from_html(raw_html)
-                chunks = chunk_text(clean_text)
-                df = prepare_dataframe(chunks, url, mode)
-                final_df = pd.concat([final_df, df], ignore_index=True)
-            except Exception as e:
-                logging.error(f"Error processing URL {url}: {e}")
-
-    logging.info(f"Completed pipeline for '{company_name}' in mode '{mode}'. Total rows: {len(final_df)}")
-    return final_df
+@kernel_function(
+    description="Runs the full pipeline to extract and process company or industry news into structured data.",
+    name="fetch_company_news"
+)
