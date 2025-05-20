@@ -1,26 +1,75 @@
-def chunk_text(text: str, chunk_size: int = 300, chunk_overlap: int = 50) -> list:
+import pandas as pd
+import uuid
+
+def prepare_dataframe(chunks: list, url: str, mode: str, category: str = "client") -> pd.DataFrame:
     """
-    Splits text into overlapping chunks.
+    Prepares a DataFrame with article chunks, including metadata.
 
     Args:
-        text (str): Raw text to split.
-        chunk_size (int, optional): Maximum number of words per chunk. Defaults to 300.
-        chunk_overlap (int, optional): Number of words to overlap between chunks. Defaults to 50.
+        chunks (list): List of text chunks.
+        url (str): Source URL of the article.
+        mode (str): Mode of search used ("company" or "industry").
+        category (str, optional): Category label for the article. Defaults to "client".
 
     Returns:
-        list: List of text chunks.
+        pd.DataFrame: DataFrame with columns: ['url', 'mode', 'category', 'chunk_id', 'article_id', 'chunk']
     """
-    logging.info(f"Chunking text with chunk size={chunk_size}, overlap={chunk_overlap}")
+    article_id = str(uuid.uuid4())  # generate unique article ID
+    data = []
 
-    words = text.split()
-    chunks = []
-    start = 0
+    for idx, chunk in enumerate(chunks):
+        chunk_id = f"{article_id}_{idx+1}"
+        data.append({
+            "url": url,
+            "mode": mode,
+            "category": category,
+            "chunk_id": chunk_id,
+            "article_id": article_id,
+            "chunk": chunk
+        })
 
-    while start < len(words):
-        end = start + chunk_size
-        chunk = ' '.join(words[start:end])
-        chunks.append(chunk)
-        start += chunk_size - chunk_overlap  # move start forward with overlap
+    df = pd.DataFrame(data)
+    logging.info(f"Prepared DataFrame with {len(df)} chunks for URL: {url}")
+    return df
 
-    logging.info(f"Generated {len(chunks)} chunks")
-    return chunks
+def fetch_company_news(
+    company_name: str,
+    focus: str,
+    openai_client: OpenAI,
+    mode: str = "company",
+    max_keywords: int = 5,
+    num_results: int = 3,
+    driver_path: str = "C:/Path/To/EdgeDriver.exe"
+) -> pd.DataFrame:
+    """
+    Runs full pipeline: extract keywords, search via SerpAPI, scrape articles, chunk, and prepare DataFrame.
+
+    Args:
+        company_name (str): Company to analyze.
+        focus (str): Focus area or topic of interest.
+        openai_client (OpenAI): Authenticated OpenAI client.
+        mode (str): "company" or "industry".
+        max_keywords (int, optional): Number of keyword queries to use. Defaults to 5.
+        num_results (int, optional): Number of search results per keyword. Defaults to 3.
+        driver_path (str, optional): Path to Edge WebDriver. Required for scraping.
+
+    Returns:
+        pd.DataFrame: Final combined DataFrame of all article chunks.
+    """
+    final_df = pd.DataFrame()
+    queries = extract_keywords(company_name, focus, openai_client, max_keywords, mode)
+
+    for query in queries:
+        urls = search_results(query, num_results)
+        for url in urls:
+            try:
+                raw_html = scrape_url(url, driver_path)
+                clean_text = extract_text_from_html(raw_html)
+                chunks = chunk_text(clean_text)
+                df = prepare_dataframe(chunks, url, mode)
+                final_df = pd.concat([final_df, df], ignore_index=True)
+            except Exception as e:
+                logging.error(f"Error processing URL {url}: {e}")
+
+    logging.info(f"Completed pipeline for '{company_name}' in mode '{mode}'. Total rows: {len(final_df)}")
+    return final_df
