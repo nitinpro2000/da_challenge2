@@ -1,84 +1,26 @@
-def extract_keywords(
-    company_name: str,
-    focus: str,
-    openai_client: OpenAI,
-    max_keywords: int = 5,
-    mode: str = "company"
-) -> list:
+def chunk_text(text: str, chunk_size: int = 300, chunk_overlap: int = 50) -> list:
     """
-    Uses OpenAI LLM to generate optimized search queries for a company or its industry.
+    Splits text into overlapping chunks.
 
     Args:
-        company_name (str): Name of the company.
-        focus (str): Optional user-defined focus area (included in user prompt).
-        openai_client (OpenAI): Initialized OpenAI client.
-        max_keywords (int, optional): Max number of search queries to return. Defaults to 5.
-        mode (str): Either "company" or "industry". Defaults to "company".
+        text (str): Raw text to split.
+        chunk_size (int, optional): Maximum number of words per chunk. Defaults to 300.
+        chunk_overlap (int, optional): Number of words to overlap between chunks. Defaults to 50.
 
     Returns:
-        list: List of search query strings.
+        list: List of text chunks.
     """
-    logging.info(f"Generating '{mode}' search queries for: {company_name} (max: {max_keywords})")
+    logging.info(f"Chunking text with chunk size={chunk_size}, overlap={chunk_overlap}")
 
-    if mode == "company":
-        system_prompt = """You are a Query Generation Agent. Your role is to create optimized search queries for a given company name. The purpose of these queries is to retrieve news articles and web pages containing relevant, up-to-date information on key business activities. Output must be a Python-style list of strings only. Do not include any explanations or formatting.
+    words = text.split()
+    chunks = []
+    start = 0
 
-Focus on the following categories:
+    while start < len(words):
+        end = start + chunk_size
+        chunk = ' '.join(words[start:end])
+        chunks.append(chunk)
+        start += chunk_size - chunk_overlap  # move start forward with overlap
 
-1. Personnel Turnover or C-Level Hires
-2. Mergers and Acquisitions
-3. Financial News
-4. Earnings Reports
-5. Analyst Reports
-6. Public Fund Clients (if applicable)
-
-Structure queries like "[Company Name] [event keyword]" using real-world phrasing such as:
-- "CEO appointment"
-- "earnings report"
-- "merger announcement"
-- "executive turnover"
-
-Generate diverse queries to maximize coverage. Output only a Python list of strings."""
-
-        user_prompt = f"{company_name}"
-
-    elif mode == "industry":
-        system_prompt = """You are a Query Generation Agent. Your task is to generate search queries focused on industry-wide news and trends related to a given company. These queries should help retrieve broad market or sector developments, not just company-specific news. Output must be a Python-style list of strings only, without explanations or formatting.
-
-Include topics such as:
-1. Industry trends and outlook
-2. Regulatory changes or legislation
-3. Competitive landscape and innovation
-4. Supply chain or labor developments
-5. Technological disruption or new market entrants
-
-Use phrasing like:
-- "[Company Name] industry trends 2024"
-- "[Industry] market outlook"
-- "[Sector] regulatory impact"
-- "[Company] vs competitors news"
-
-Only return a Python list of string queries."""
-
-        user_prompt = f"{company_name} {focus}"
-
-    else:
-        logging.error(f"Invalid mode: {mode}. Must be 'company' or 'industry'.")
-        return []
-
-    try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.3
-        )
-
-        raw_list = eval(response.choices[0].message.content)
-        cleaned_list = [q.strip() for q in raw_list if isinstance(q, str)]
-        return cleaned_list[:max_keywords]
-    except Exception as e:
-        logging.error(f"Failed to generate search queries: {e}")
-        return []
+    logging.info(f"Generated {len(chunks)} chunks")
+    return chunks
