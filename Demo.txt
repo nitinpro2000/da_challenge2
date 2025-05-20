@@ -1,199 +1,50 @@
-import time
-import datetime
-import logging
-import requests
-import pandas as pd
-from textwrap import wrap
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from openai import OpenAI
-
-# ------------------ CONFIG ------------------ #
-SERPAPI_KEY = "your_serpapi_key_here"
-DRIVER_PATH = "C:/Users/yourusername/edgedriver.exe"  # Update path
-
-# ------------------ LOGGING SETUP ------------------ #
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("pipeline.log"),
-        logging.StreamHandler()
-    ]
-)
-
-# ------------------ KEYWORD EXTRACTION ------------------ #
-def extract_keywords(company_name: str, focus: str, openai_client: OpenAI) -> list:
+def extract_keywords(company_name: str, focus: str, openai_client: OpenAI, max_keywords: int = 5) -> list:
     """
-    Uses OpenAI LLM to generate keywords for a company based on a focus topic.
+    Uses OpenAI LLM to generate optimized search queries for a company focused on business events.
 
     Args:
         company_name (str): Name of the company.
-        focus (str): Topic or focus area for keyword generation.
-        openai_client (OpenAI): OpenAI client with API key configured.
+        focus (str): Topical focus area (can be ignored by LLM if prompt covers event types).
+        openai_client (OpenAI): Initialized OpenAI client with API key configured.
+        max_keywords (int, optional): Maximum number of keyword queries to return. Defaults to 5.
 
     Returns:
-        list: List of extracted keywords.
+        list: List of search query strings.
     """
-    logging.info(f"Extracting keywords for {company_name} focused on '{focus}'")
-    prompt = f"Generate keywords to search news for {company_name} focused on {focus}."
+    logging.info(f"Generating search queries for company: {company_name} (max {max_keywords})")
+
+    system_prompt = """You are a Query Generation Agent. Your role is to create optimized search queries for a given company name. The purpose of these queries is to retrieve of news articles and web pages containing relevant, up-to-date information on key business activities. Your output must be a "list of strings only-no explanations, formatting, or additional text." For each query, ensure it is structured in a way that increases the likelihood of retrieving information related to the following categories:
+
+1. Personnel Turnover or C-Level Hires: Focus on executive changes, new appointments, or high-profile departures.
+2. Mergers and Acquisitions: Include both confirmed and rumored M&A activity involving the company.
+3. Financial News: Target general financial developments, including stock movement, market positioning, or macroeconomic implications for the company
+4. Earnings Reports: Include earnings announcements, quarterly/annual financial results, revenue/profit analysis, and investor calls.
+5. Analyst Reports: Look for growth forecasts, evaluations of product/service lines, and analyst expectations or revisions.
+6. Public Fund Clients (if applicable): Search for board meeting minutes or notes discussing organizational concerns, staff freezes, pension fund decisions, budget trends, and strategic goals.
+
+Instructions:
+- Use keywords like "[Company Name] [event keyword]" to structure queries.
+- Include variations for each event type (e.g., "leadership change," "CEO hire," "earnings call," "merger talks").
+- Output must be a Python-style list of search query strings, e.g., ["query 1", "query 2", ..., "query n"]
+- Generate multiple queries per company to increase coverage.
+- Only output the list.
+"""
+
+    user_prompt = f"{company_name}"
+
     response = openai_client.chat.completions.create(
         model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
         temperature=0.3
     )
-    keywords = response.choices[0].message.content.split(",")
-    return [k.strip() for k in keywords if k.strip()]
-
-# ------------------ SERPAPI SEARCH ------------------ #
-def search_results(query: str, num_results: int = 5) -> list:
-    """
-    Uses SerpAPI to search for news articles using Google.
-
-    Args:
-        query (str): Search query.
-        num_results (int): Number of search results to retrieve.
-
-    Returns:
-        list: List of URLs from search results.
-    """
-    logging.info(f"Searching for query: {query}")
-    today = datetime.date.today()
-    past_18_months = today - datetime.timedelta(days=18 * 30)
-    tbs = f"cd_min:{past_18_months:%m/%d/%Y},cd_max:{today:%m/%d/%Y}"
-
-    params = {
-        "engine": "google",
-        "q": query,
-        "num": num_results,
-        "api_key": SERPAPI_KEY,
-        "tbs": tbs,
-    }
-
-    response = requests.get("https://serpapi.com/search", params=params)
-    results = response.json()
-    urls = [r["link"] for r in results.get("organic_results", []) if "link" in r]
-    logging.info(f"Found {len(urls)} URLs for query '{query}'")
-    return urls
-
-# ------------------ SELENIUM SCRAPER ------------------ #
-def scrap_url(url: str) -> str:
-    """
-    Uses Selenium to scrape the HTML content of a web page.
-
-    Args:
-        url (str): Target URL.
-
-    Returns:
-        str: HTML content of the page.
-    """
-    logging.info(f"Scraping URL: {url}")
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-
-    service = Service(DRIVER_PATH)
-    driver = webdriver.Edge(service=service, options=options)
 
     try:
-        driver.get(url)
-        time.sleep(3)
-        html_content = driver.execute_script("return document.body.outerHTML;")
-        return html_content
-    finally:
-        driver.quit()
-
-def parse_article(html: str) -> str:
-    """
-    Parses raw HTML to extract clean text from the article.
-
-    Args:
-        html (str): HTML content.
-
-    Returns:
-        str: Extracted article text.
-    """
-    soup = BeautifulSoup(html, 'html.parser')
-    article = soup.get_text(separator=' ')
-    return article.strip()
-
-# ------------------ DATA PROCESSOR ------------------ #
-def chunk_text(text: str, max_tokens: int = 512) -> list:
-    """
-    Splits long text into manageable chunks based on a token count approximation.
-
-    Args:
-        text (str): Full article text.
-        max_tokens (int): Approximate max size of each chunk.
-
-    Returns:
-        list: List of text chunks.
-    """
-    return wrap(text, max_tokens)
-
-def prepare_dataframe(url: str, article_text: str, client_name: str) -> pd.DataFrame:
-    """
-    Converts article text into a structured DataFrame with metadata.
-
-    Args:
-        url (str): Source URL.
-        article_text (str): Full article text.
-        client_name (str): Category or label for the source (usually company name).
-
-    Returns:
-        pd.DataFrame: DataFrame with URL, chunk ID, article ID, and text chunk.
-    """
-    chunks = chunk_text(article_text)
-    logging.info(f"Chunking article from {url} into {len(chunks)} parts")
-    return pd.DataFrame([{
-        "url": url,
-        "Category": client_name,
-        "chunkid": i,
-        "article_id": f"{client_name}_{i}",
-        "chunk": chunk
-    } for i, chunk in enumerate(chunks)])
-
-# ------------------ MAIN PIPELINE ------------------ #
-def run_pipeline(company: str, focus: str):
-    """
-    Main pipeline to extract news articles related to a company,
-    scrape content, and compile structured information.
-
-    Args:
-        company (str): Company name to search for.
-        focus (str): Focus area to generate keywords and search for.
-    """
-    openai_client = OpenAI()  # Ensure OPENAI_API_KEY is set in environment
-    keywords = extract_keywords(company, focus, openai_client)
-    logging.info(f"Keywords for {company}: {keywords}")
-
-    urls = []
-    for keyword in keywords:
-        urls += search_results(f"{company} {keyword}", num_results=3)
-
-    final_df = []
-    for url in urls:
-        try:
-            html = scrap_url(url)
-            text = parse_article(html)
-            df = prepare_dataframe(url, text, company)
-            final_df.append(df)
-        except Exception as e:
-            logging.error(f"Failed to scrape {url}: {e}")
-
-    if final_df:
-        full_df = pd.concat(final_df, ignore_index=True)
-        output_path = f"{company.lower()}_news_chunks.csv"
-        full_df.to_csv(output_path, index=False)
-        logging.info(f"Saved structured data to {output_path}")
-    else:
-        logging.warning("No data extracted from any URLs.")
-
-# ------------------ ENTRY POINT ------------------ #
-if __name__ == "__main__":
-    client_name = "Tesla"
-    focus_area = "financial performance and recent news"
-    run_pipeline(client_name, focus_area)
+        raw_list = eval(response.choices[0].message.content)
+        cleaned_list = [q.strip() for q in raw_list if isinstance(q, str)]
+        return cleaned_list[:max_keywords]
+    except Exception as e:
+        logging.error(f"Failed to parse search queries: {e}")
+        return []
