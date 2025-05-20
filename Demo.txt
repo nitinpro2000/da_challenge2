@@ -1,26 +1,20 @@
-from serpapi import GoogleSearch
-import datetime
+import snowflake.connector
 
-def search_serpapi_urls(query: str, num_results: int, api_key: str):
-    # Calculate date range: today and 18 months ago (approximate to 30 days/month)
-    today = datetime.date.today()
-    past_18_months = today - datetime.timedelta(days=18 * 30)
+# Use your OAuth access token
+access_token = "<your_access_token>"
 
-    # Format date range for Google 'tbs' parameter
-    tbs = f"cdr:1,cd_min:{past_18_months.strftime('%m/%d/%Y')},cd_max:{today.strftime('%m/%d/%Y')}"
+conn = snowflake.connector.connect(
+    account="<your_account>.snowflakecomputing.com",
+    authenticator="oauth",
+    token=access_token,
+    warehouse="<your_warehouse>",
+    database="<your_database>",
+    schema="<your_schema>",
+    role="<your_role>"  # Optional
+)
 
-    params = {
-        "engine": "google",
-        "q": query,
-        "num": num_results,
-        "api_key": api_key,
-        "tbs": tbs,
-    }
-
-    search = GoogleSearch(params)
-    results = search.get_dict()
-
-    # Extract URLs from organic results
-    urls = [result.get("link") for result in results.get("organic_results", []) if result.get("link")]
-    
-    return urls
+cur = conn.cursor()
+cur.execute("SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_REGION()")
+print(cur.fetchall())
+cur.close()
+conn.close()
