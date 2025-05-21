@@ -1,1 +1,19 @@
-a6897dea2f1261b5b6df1defb8b6814b9bb5629806a77214e3844cde15293dbf
+import asyncio
+from playwright.async_api import async_playwright
+
+async def run():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
+        await page.goto("https://finance.yahoo.com/quote/AAPL/")
+        content = await page.content()
+
+        # Save content to file
+        with open("page_content.html", "w", encoding="utf-8") as f:
+            f.write(content)
+
+        print("Content saved to page_content.html")
+        await browser.close()
+
+await run()
+
