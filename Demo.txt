@@ -1,19 +1,37 @@
-import asyncio
-from playwright.async_api import async_playwright
+# logger.py
 
-async def run():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        await page.goto("https://finance.yahoo.com/quote/AAPL/")
-        content = await page.content()
+import logging
+import sys
 
-        # Save content to file
-        with open("page_content.html", "w", encoding="utf-8") as f:
-            f.write(content)
+def setup_logger(name: str) -> logging.Logger:
+    """
+    Sets up and returns a logger with the specified name.
+    Logs are output to both console and a file with a consistent format.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
 
-        print("Content saved to page_content.html")
-        await browser.close()
+    # Prevent adding multiple handlers to the logger
+    if not logger.handlers:
+        # Console handler
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
 
-await run()
+        # File handler
+        file_handler = logging.FileHandler("structured_client_data.log")
+        file_handler.setLevel(logging.DEBUG)
 
+        # Formatter
+        formatter = logging.Formatter(
+            fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
+
+        console_handler.setFormatter(formatter)
+        file_handler.setFormatter(formatter)
+
+        # Add handlers to the logger
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
+
+    return logger
