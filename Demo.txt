@@ -1,77 +1,12 @@
-# plugin.py
+# config.py
 
-import json
-import pandas as pd
-import snowflake.connector
-from typing import Annotated
-from semantic_kernel.functions import kernel_function
-from config import SNOWFLAKE_CONFIG
-from logger import setup_logger
+import os
 
-# Initialize logger for this module
-logger = setup_logger(__name__)
-
-def query_snowflake(sql: str) -> dict:
-    """
-    Executes a SQL query against Snowflake and returns the results as a JSON object.
-    """
-    logger.debug(f"Executing SQL query: {sql}")
-    try:
-        conn = snowflake.connector.connect(**SNOWFLAKE_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute(sql)
-        df = pd.DataFrame(cursor.fetchall(), columns=[col[0] for col in cursor.description])
-        result = json.loads(df.to_json(orient="records"))
-        logger.debug(f"Query result: {result}")
-        return result
-    except Exception as e:
-        logger.error(f"Error executing query: {e}")
-        raise
-    finally:
-        cursor.close()
-        conn.close()
-
-class StructuredClientDataPlugin:
-    """
-    Plugin to retrieve structured client data from Snowflake.
-    """
-
-    @kernel_function(
-        name="get_static_info",
-        description="Retrieve static information for a client using their client ID."
-    )
-    def get_static_info(self, client_id: Annotated[str, "Unique identifier for the client"]) -> str:
-        logger.info(f"Fetching static info for client_id: {client_id}")
-        sql = f"SELECT * FROM CLIENT_STATIC_INFO WHERE CLIENT_ID = '{client_id}'"
-        data = query_snowflake(sql)
-        return json.dumps(data, indent=2)
-
-    @kernel_function(
-        name="get_client_snapshot_financials",
-        description="Fetch financial snapshot data for a client using their client ID."
-    )
-    def get_client_snapshot_financials(self, client_id: Annotated[str, "Unique identifier for the client"]) -> str:
-        logger.info(f"Fetching financial snapshot for client_id: {client_id}")
-        sql = f"SELECT * FROM CLIENT_FINANCIAL_SNAPSHOT WHERE CLIENT_ID = '{client_id}'"
-        data = query_snowflake(sql)
-        return json.dumps(data, indent=2)
-
-    @kernel_function(
-        name="get_wallet_share",
-        description="Obtain wallet share information for a client using their client ID."
-    )
-    def get_wallet_share(self, client_id: Annotated[str, "Unique identifier for the client"]) -> str:
-        logger.info(f"Fetching wallet share for client_id: {client_id}")
-        sql = f"SELECT * FROM WALLET_SHARE WHERE CLIENT_ID = '{client_id}'"
-        data = query_snowflake(sql)
-        return json.dumps(data, indent=2)
-
-    @kernel_function(
-        name="get_chart_data",
-        description="Retrieve chart data for a client using their client ID."
-    )
-    def get_chart_data(self, client_id: Annotated[str, "Unique identifier for the client"]) -> str:
-        logger.info(f"Fetching chart data for client_id: {client_id}")
-        sql = f"SELECT * FROM CHART_DATA WHERE CLIENT_ID = '{client_id}'"
-        data = query_snowflake(sql)
-        return json.dumps(data, indent=2)
+SNOWFLAKE_CONFIG = {
+    "user": os.getenv("SNOWFLAKE_USER"),
+    "password": os.getenv("SNOWFLAKE_PASSWORD"),
+    "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+    "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
+    "database": os.getenv("SNOWFLAKE_DATABASE"),
+    "schema": os.getenv("SNOWFLAKE_SCHEMA"),
+}
