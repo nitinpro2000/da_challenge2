@@ -1,37 +1,77 @@
-# logger.py
+# plugin.py
 
-import logging
-import sys
+import json
+import pandas as pd
+import snowflake.connector
+from typing import Annotated
+from semantic_kernel.functions import kernel_function
+from config import SNOWFLAKE_CONFIG
+from logger import setup_logger
 
-def setup_logger(name: str) -> logging.Logger:
+# Initialize logger for this module
+logger = setup_logger(__name__)
+
+def query_snowflake(sql: str) -> dict:
     """
-    Sets up and returns a logger with the specified name.
-    Logs are output to both console and a file with a consistent format.
+    Executes a SQL query against Snowflake and returns the results as a JSON object.
     """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.debug(f"Executing SQL query: {sql}")
+    try:
+        conn = snowflake.connector.connect(**SNOWFLAKE_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        df = pd.DataFrame(cursor.fetchall(), columns=[col[0] for col in cursor.description])
+        result = json.loads(df.to_json(orient="records"))
+        logger.debug(f"Query result: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error executing query: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
-    # Prevent adding multiple handlers to the logger
-    if not logger.handlers:
-        # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
+class StructuredClientDataPlugin:
+    """
+    Plugin to retrieve structured client data from Snowflake.
+    """
 
-        # File handler
-        file_handler = logging.FileHandler("structured_client_data.log")
-        file_handler.setLevel(logging.DEBUG)
+    @kernel_function(
+        name="get_static_info",
+        description="Retrieve static information for a client using their client ID."
+    )
+    def get_static_info(self, client_id: Annotated[str, "Unique identifier for the client"]) -> str:
+        logger.info(f"Fetching static info for client_id: {client_id}")
+        sql = f"SELECT * FROM CLIENT_STATIC_INFO WHERE CLIENT_ID = '{client_id}'"
+        data = query_snowflake(sql)
+        return json.dumps(data, indent=2)
 
-        # Formatter
-        formatter = logging.Formatter(
-            fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        )
+    @kernel_function(
+        name="get_client_snapshot_financials",
+        description="Fetch financial snapshot data for a client using their client ID."
+    )
+    def get_client_snapshot_financials(self, client_id: Annotated[str, "Unique identifier for the client"]) -> str:
+        logger.info(f"Fetching financial snapshot for client_id: {client_id}")
+        sql = f"SELECT * FROM CLIENT_FINANCIAL_SNAPSHOT WHERE CLIENT_ID = '{client_id}'"
+        data = query_snowflake(sql)
+        return json.dumps(data, indent=2)
 
-        console_handler.setFormatter(formatter)
-        file_handler.setFormatter(formatter)
+    @kernel_function(
+        name="get_wallet_share",
+        description="Obtain wallet share information for a client using their client ID."
+    )
+    def get_wallet_share(self, client_id: Annotated[str, "Unique identifier for the client"]) -> str:
+        logger.info(f"Fetching wallet share for client_id: {client_id}")
+        sql = f"SELECT * FROM WALLET_SHARE WHERE CLIENT_ID = '{client_id}'"
+        data = query_snowflake(sql)
+        return json.dumps(data, indent=2)
 
-        # Add handlers to the logger
-        logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
-
-    return logger
+    @kernel_function(
+        name="get_chart_data",
+        description="Retrieve chart data for a client using their client ID."
+    )
+    def get_chart_data(self, client_id: Annotated[str, "Unique identifier for the client"]) -> str:
+        logger.info(f"Fetching chart data for client_id: {client_id}")
+        sql = f"SELECT * FROM CHART_DATA WHERE CLIENT_ID = '{client_id}'"
+        data = query_snowflake(sql)
+        return json.dumps(data, indent=2)
