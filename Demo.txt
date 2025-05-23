@@ -1,110 +1,115 @@
-import requests
-import json
+from flask import Flask, request, jsonify
+import logging
+from datetime import datetime
 
-BASE_URL = "http://127.0.0.1:5000/create-new-memo"
-HEADERS = {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer your-token"
-}
+app = Flask(__name__)
 
-def send_request(payload, headers=HEADERS):
-    response = requests.post(BASE_URL, data=json.dumps(payload), headers=headers)
-    print(f"Status Code: {response.status_code}")
-    print("Response:")
-    print(json.dumps(response.json(), indent=2))
-    print("-" * 50)
+# Configure logging
+logging.basicConfig(
+    filename='create_new_memo.log',
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
-# 1. Valid - client_template
-payload1 = {
-    "user_id": "user_001",
-    "template_type": "client_template",
-    "client_name": "Northern Trust Asset Management",
-    "key_areas_for_discussion": ["Equity strategies", "Portfolio allocation"],
-    "key_client_contacts": [
-        {
-            "name": "John Doe",
-            "title": "Portfolio Manager",
-            "company": "Northern Trust"
+@app.route('/create-new-memo', methods=['POST'])
+def create_new_memo():
+    try:
+        token = request.headers.get('Authorization', None)
+        if not token or not token.startswith('Bearer '):
+            logging.warning("Unauthorized access attempt: Missing or invalid token.")
+            return jsonify({
+                "details": None,
+                "errors": [{
+                    "code": "Unauthorized",
+                    "message": "Unauthorized: invalid or missing token"
+                }]
+            }), 401
+
+        data = request.get_json()
+        logging.info(f"Received request: {data}")
+
+        required_common_fields = ['user_id', 'template_type', 'client_name']
+        for field in required_common_fields:
+            if field not in data:
+                msg = f"Missing required field: {field}"
+                logging.error(msg)
+                return jsonify({
+                    "detail": [{"loc": [field], "msg": msg, "type": "missing_field"}]
+                }), 422
+
+        template_type = data['template_type']
+
+        if template_type == 'client_template':
+            required_fields = ['key_areas_for_discussion', 'key_client_contacts']
+            for field in required_fields:
+                if field not in data:
+                    msg = f"Missing required field: {field}"
+                    logging.error(msg)
+                    return jsonify({
+                        "detail": [{"loc": [field], "msg": msg, "type": "missing_field"}]
+                    }), 422
+
+        elif template_type == 'client_memo':
+            memo_required = ['memo_title', 'meeting_details', 'attendees']
+            for field in memo_required:
+                if field not in data:
+                    msg = f"Missing required field: {field}"
+                    logging.error(msg)
+                    return jsonify({
+                        "detail": [{"loc": [field], "msg": msg, "type": "missing_field"}]
+                    }), 422
+
+            meeting_details = data['meeting_details']
+            meeting_required = ['date', 'time', 'in_person', 'purpose', 'key_areas_for_discussion']
+            for field in meeting_required:
+                if field not in meeting_details:
+                    msg = f"Missing meeting_details field: {field}"
+                    logging.error(msg)
+                    return jsonify({
+                        "detail": [{"loc": [f"meeting_details.{field}"], "msg": msg, "type": "missing_field"}]
+                    }), 422
+
+            attendees = data['attendees']
+            if not isinstance(attendees, list) or len(attendees) == 0:
+                msg = "attendees must be a non-empty list"
+                logging.error(msg)
+                return jsonify({
+                    "detail": [{"loc": ["attendees"], "msg": msg, "type": "value_error"}]
+                }), 422
+
+            for i, attendee in enumerate(attendees):
+                if 'client' not in attendee or 'nt' not in attendee:
+                    msg = "Each attendee must have 'client' and 'nt'"
+                    logging.error(msg)
+                    return jsonify({
+                        "detail": [{"loc": [f"attendees[{i}]"], "msg": msg, "type": "missing_field"}]
+                    }), 422
+
+        else:
+            msg = f"Invalid template_type: {template_type}"
+            logging.error(msg)
+            return jsonify({
+                "detail": [{"loc": ["template_type"], "msg": msg, "type": "value_error"}]
+            }), 422
+
+        response = {
+            "template_id": "12345",
+            "client_name": data['client_name'],
+            "status": "processing"
         }
-    ]
-}
-send_request(payload1)
+        logging.info(f"Success: {response}")
+        return jsonify(response), 200
 
-# 2. Valid - client_memo
-payload2 = {
-    "user_id": "user_002",
-    "template_type": "client_memo",
-    "client_name": "Northern Trust Asset Management",
-    "memo_title": "Investment Strategy Meeting",
-    "meeting_details": {
-        "date": "2025-05-14",
-        "time": "14:30:00.000Z",
-        "in_person": True,
-        "purpose": "Review Q2 performance",
-        "key_areas_for_discussion": ["Fixed Income", "Alternative investments"]
-    },
-    "attendees": [
-        {
-            "client": {
-                "name": "Jane Smith",
-                "title": "Chief Investment Officer",
-                "company": "Northern Trust"
-            },
-            "nt": [
-                {
-                    "name": "Raj Mehta",
-                    "title": "Analyst",
-                    "company": "Northern Trust"
-                }
-            ],
-            "consultant": [
-                {
-                    "name": "Liam Turner",
-                    "title": "Strategy Consultant",
-                    "company": "ACME Advisors"
-                }
-            ]
-        }
-    ]
-}
-send_request(payload2)
+    except Exception as e:
+        logging.exception("Internal Server Error")
+        return jsonify({
+            "detail": {
+                "code": "Internal Server Error",
+                "message": "Something went wrong while internal memo creation, please try again."
+            }
+        }), 500
 
-# 3. Error - missing Authorization
-payload3 = payload1
-send_request(payload3, headers={"Content-Type": "application/json"})
 
-# 4. Error - missing required field client_name
-payload4 = {
-    "user_id": "user_004",
-    "template_type": "client_template",
-    "key_areas_for_discussion": ["Risk mitigation"],
-    "key_client_contacts": []
-}
-send_request(payload4)
-
-# 5. Error - invalid template_type
-payload5 = {
-    "user_id": "user_005",
-    "template_type": "unsupported_type",
-    "client_name": "Northern Trust",
-    "key_areas_for_discussion": [],
-    "key_client_contacts": []
-}
-send_request(payload5)
-
-# 6. Error - empty attendees list in client_memo
-payload6 = {
-    "user_id": "user_006",
-    "template_type": "client_memo",
-    "client_name": "Northern Trust",
-    "memo_title": "Empty Attendees Test",
-    "meeting_details": {
-        "date": "2025-05-14",
-        "time": "11:00:00.000Z",
-        "in_person": True,
-        "purpose": "Testing",
-        "key_areas_for_discussion": ["Compliance"]
-    },
-    "attendees": []
-}
-send_request(payload6)
+if __name__ == '__main__':
+    app.run(debug=True)
