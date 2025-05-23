@@ -1,121 +1,110 @@
-from flask import Flask, request, jsonify
-from werkzeug.exceptions import Unauthorized, BadRequest
-import uuid
+import requests
+import json
 
-app = Flask(__name__)
+BASE_URL = "http://127.0.0.1:5000/create-new-memo"
+HEADERS = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer your-token"
+}
 
-@app.route('/create-new-memo', methods=['POST'])
-def create_new_memo():
-    try:
-        data = request.get_json()
+def send_request(payload, headers=HEADERS):
+    response = requests.post(BASE_URL, data=json.dumps(payload), headers=headers)
+    print(f"Status Code: {response.status_code}")
+    print("Response:")
+    print(json.dumps(response.json(), indent=2))
+    print("-" * 50)
 
-        if not data:
-            raise BadRequest("Missing JSON data")
+# 1. Valid - client_template
+payload1 = {
+    "user_id": "user_001",
+    "template_type": "client_template",
+    "client_name": "Northern Trust Asset Management",
+    "key_areas_for_discussion": ["Equity strategies", "Portfolio allocation"],
+    "key_client_contacts": [
+        {
+            "name": "John Doe",
+            "title": "Portfolio Manager",
+            "company": "Northern Trust"
+        }
+    ]
+}
+send_request(payload1)
 
-        # Authorization (dummy logic)
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or auth_header != "Bearer your-token":
-            raise Unauthorized("Unauthorized: invalid or missing token")
+# 2. Valid - client_memo
+payload2 = {
+    "user_id": "user_002",
+    "template_type": "client_memo",
+    "client_name": "Northern Trust Asset Management",
+    "memo_title": "Investment Strategy Meeting",
+    "meeting_details": {
+        "date": "2025-05-14",
+        "time": "14:30:00.000Z",
+        "in_person": True,
+        "purpose": "Review Q2 performance",
+        "key_areas_for_discussion": ["Fixed Income", "Alternative investments"]
+    },
+    "attendees": [
+        {
+            "client": {
+                "name": "Jane Smith",
+                "title": "Chief Investment Officer",
+                "company": "Northern Trust"
+            },
+            "nt": [
+                {
+                    "name": "Raj Mehta",
+                    "title": "Analyst",
+                    "company": "Northern Trust"
+                }
+            ],
+            "consultant": [
+                {
+                    "name": "Liam Turner",
+                    "title": "Strategy Consultant",
+                    "company": "ACME Advisors"
+                }
+            ]
+        }
+    ]
+}
+send_request(payload2)
 
-        # Common required fields
-        required_common_keys = ['user_id', 'template_type', 'client_name']
-        for key in required_common_keys:
-            if key not in data:
-                return validation_error([{
-                    "loc": [key],
-                    "msg": f"Missing required field: {key}",
-                    "type": "value_error.missing"
-                }])
+# 3. Error - missing Authorization
+payload3 = payload1
+send_request(payload3, headers={"Content-Type": "application/json"})
 
-        template_type = data["template_type"]
+# 4. Error - missing required field client_name
+payload4 = {
+    "user_id": "user_004",
+    "template_type": "client_template",
+    "key_areas_for_discussion": ["Risk mitigation"],
+    "key_client_contacts": []
+}
+send_request(payload4)
 
-        if template_type == "client_memo":
-            required_fields = ["memo_title", "meeting_details", "attendees"]
-            for key in required_fields:
-                if key not in data:
-                    return validation_error([{
-                        "loc": [key],
-                        "msg": f"Missing required field in client_memo: {key}",
-                        "type": "value_error.missing"
-                    }])
+# 5. Error - invalid template_type
+payload5 = {
+    "user_id": "user_005",
+    "template_type": "unsupported_type",
+    "client_name": "Northern Trust",
+    "key_areas_for_discussion": [],
+    "key_client_contacts": []
+}
+send_request(payload5)
 
-            meeting = data["meeting_details"]
-            meeting_required = ["date", "time", "in_person", "purpose", "key_areas_for_discussion"]
-            for key in meeting_required:
-                if key not in meeting:
-                    return validation_error([{
-                        "loc": ["meeting_details", key],
-                        "msg": f"Missing field in meeting_details: {key}",
-                        "type": "value_error.missing"
-                    }])
-            # location is optional — no check required
-
-            # Attendees validation
-            if not isinstance(data["attendees"], list) or len(data["attendees"]) == 0:
-                return validation_error([{
-                    "loc": ["attendees"],
-                    "msg": "attendees must be a non-empty list",
-                    "type": "value_error"
-                }])
-
-            for idx, attendee in enumerate(data["attendees"]):
-                for role in ["client", "nt"]:
-                    if role not in attendee:
-                        return validation_error([{
-                            "loc": [f"attendees[{idx}]", role],
-                            "msg": f"Missing required role: {role}",
-                            "type": "value_error.missing"
-                        }])
-                # consultant is optional
-
-        elif template_type == "client_template":
-            required_fields = ["key_areas_for_discussion", "key_client_contacts"]
-            if not all(k in data for k in required_fields):
-                return validation_error([{
-                    "loc": ["client_template"],
-                    "msg": "Missing one or more required fields",
-                    "type": "value_error.structure"
-                }])
-        else:
-            return validation_error([{
-                "loc": ["template_type"],
-                "msg": f"Invalid template_type: {template_type}",
-                "type": "value_error"
-            }])
-
-        # Return success response
-        return jsonify({
-            "template_id": str(uuid.uuid4()),
-            "client_name": data["client_name"],
-            "status": "processing"
-        }), 200
-
-    except Unauthorized as e:
-        return jsonify({
-            "details": None,
-            "errors": [{
-                "code": "Unauthorized",
-                "message": str(e)
-            }]
-        }), 401
-
-    except BadRequest as e:
-        return validation_error([{
-            "loc": ["request"],
-            "msg": str(e),
-            "type": "value_error.request"
-        }])
-
-    except Exception:
-        return jsonify({
-            "detail": {
-                "code": "Internal Server Error",
-                "message": "Something went wrong while internal memo creation, please try again."
-            }
-        }), 500
-
-def validation_error(errors):
-    return jsonify({"detail": errors}), 422
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# 6. Error - empty attendees list in client_memo
+payload6 = {
+    "user_id": "user_006",
+    "template_type": "client_memo",
+    "client_name": "Northern Trust",
+    "memo_title": "Empty Attendees Test",
+    "meeting_details": {
+        "date": "2025-05-14",
+        "time": "11:00:00.000Z",
+        "in_person": True,
+        "purpose": "Testing",
+        "key_areas_for_discussion": ["Compliance"]
+    },
+    "attendees": []
+}
+send_request(payload6)
