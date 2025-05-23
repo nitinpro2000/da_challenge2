@@ -1,12 +1,90 @@
-# config.py
+from flask import Flask, request, jsonify
+from werkzeug.exceptions import Unauthorized, BadRequest
+import uuid
 
-import os
+app = Flask(__name__)
 
-SNOWFLAKE_CONFIG = {
-    "user": os.getenv("SNOWFLAKE_USER"),
-    "password": os.getenv("SNOWFLAKE_PASSWORD"),
-    "account": os.getenv("SNOWFLAKE_ACCOUNT"),
-    "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
-    "database": os.getenv("SNOWFLAKE_DATABASE"),
-    "schema": os.getenv("SNOWFLAKE_SCHEMA"),
-}
+@app.route('/create-new-memo', methods=['POST'])
+def create_new_memo():
+    try:
+        data = request.get_json()
+
+        if not data:
+            raise BadRequest("Missing JSON data")
+
+        # Simulate authorization (replace with real logic if needed)
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or auth_header != "Bearer your-token":
+            raise Unauthorized("Unauthorized: invalid or missing token")
+
+        # Validate required fields
+        required_common_keys = ['user_id', 'template_type', 'client_name']
+        for key in required_common_keys:
+            if key not in data:
+                return validation_error([{
+                    "loc": [key],
+                    "msg": f"Missing required field: {key}",
+                    "type": "value_error.missing"
+                }])
+
+        template_type = data.get("template_type")
+
+        if template_type == "client_memo":
+            required_fields = ["memo_title", "meeting_details", "client", "consultant"]
+            if not all(k in data for k in required_fields):
+                return validation_error([{
+                    "loc": ["client_memo"],
+                    "msg": "Missing one or more required fields",
+                    "type": "value_error.structure"
+                }])
+        elif template_type == "client_template":
+            required_fields = ["key_areas_for_discussion", "key_client_contacts"]
+            if not all(k in data for k in required_fields):
+                return validation_error([{
+                    "loc": ["client_template"],
+                    "msg": "Missing one or more required fields",
+                    "type": "value_error.structure"
+                }])
+        else:
+            return validation_error([{
+                "loc": ["template_type"],
+                "msg": f"Invalid template_type: {template_type}",
+                "type": "value_error"
+            }])
+
+        # Return success response
+        return jsonify({
+            "template_id": str(uuid.uuid4()),
+            "client_name": data["client_name"],
+            "status": "processing"
+        }), 200
+
+    except Unauthorized as e:
+        return jsonify({
+            "details": None,
+            "errors": [{
+                "code": "Unauthorized",
+                "message": str(e)
+            }]
+        }), 401
+
+    except BadRequest as e:
+        return validation_error([{
+            "loc": ["request"],
+            "msg": str(e),
+            "type": "value_error.request"
+        }])
+
+    except Exception:
+        return jsonify({
+            "detail": {
+                "code": "Internal Server Error",
+                "message": "Something went wrong while internal memo creation, please try again."
+            }
+        }), 500
+
+def validation_error(errors):
+    return jsonify({"detail": errors}), 422
+
+if __name__ == '__main__':
+    app.run(debug=True)
