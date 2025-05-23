@@ -1,10 +1,21 @@
-Subject: API Mock Data - Clarification on ntam_client_since & logo
-Hi [Client Name],
-Hope you're having a good week.
-As discussed, I've attached the API mock data for your review.
-We have a couple of points we'd like to clarify to ensure accuracy:
- * ntam_client_since: The current data for this field is in a date format. We need to confirm with your team whether it should remain in date format or be converted to a year format.
- * logo: We need to get clarity on the exact type of data expected for the logo field (e.g., URL, base64 encoded string, etc.).
-Please let us know your preferences on these points.
-Thanks,
-[Your Name]
+import psycopg2
+
+try:
+    conn = psycopg2.connect(
+        host="gai...postgres.database.azure.com",
+        port=5432,
+        database="gai_cle",
+        user="your_username@your_server_name",  # important: include @server-name
+        password="your_password",
+        sslmode="require"
+    )
+
+    cur = conn.cursor()
+    cur.execute("SELECT NOW();")
+    print("Connected successfully, server time:", cur.fetchone())
+
+    cur.close()
+    conn.close()
+
+except Exception as e:
+    print("Connection failed:", e)
