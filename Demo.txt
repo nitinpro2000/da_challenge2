@@ -1,21 +1,25 @@
-import psycopg2
-
-try:
-    conn = psycopg2.connect(
-        host="gai...postgres.database.azure.com",
-        port=5432,
-        database="gai_cle",
-        user="your_username@your_server_name",  # important: include @server-name
-        password="your_password",
-        sslmode="require"
-    )
-
-    cur = conn.cursor()
-    cur.execute("SELECT NOW();")
-    print("Connected successfully, server time:", cur.fetchone())
-
-    cur.close()
-    conn.close()
-
-except Exception as e:
-    print("Connection failed:", e)
+Okay, here are the two emails, formatted correctly for clarity and completeness, based on your input:
+Email 1
+Subject: API Mock Data - Clarification on "Other NTAM Clients"
+Dear Team,
+Please find the attached mock data file for the API endpoints.
+We have one point we'd like to clarify to ensure accuracy:
+ * Other NTAM Clients: We need to confirm with your team on how to fetch this data. Could you please provide guidance on the API or data source for this information?
+Please let us know your thoughts on this.
+Thanks,
+[Your Name]
+Email 2
+Subject: Snowflake Data Mapping & Clarification - [Your Project/Team Name]
+Dear Oksana,
+We have a few questions regarding the data we currently have in Snowflake and would appreciate your help in mapping some of the fields to the corresponding tables or business definitions.
+Could you please assist us with the following:
+1. Client Since Fields
+ * ntam client since, nt client since: We would like to confirm that these fields would contain the inception date (and not the number of relationship years).
+2. Wallet Share Data
+ * client total investable assets
+ * ntam percentage of client investable assets: We could not identify these fields in the sample data tables in Snowflake. Please direct us to the right fields or tables where this data resides.
+3. NTAS Relationship
+ * In the Product Summary section: Please share a sample output of this field and the logic to create it.
+Your insights on these points would be greatly appreciated to help us proceed with the data integration.
+Thank you,
+[Your Name]
