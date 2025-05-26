@@ -1,137 +1,183 @@
-CREATE TABLE users (
-    user_id UUID PRIMARY KEY,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    full_name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
-);
+import uuid
+import json
+import threading
+from datetime import datetime
+import psycopg2
 
+# ----------------------------
+# Simulated content generation
+# ----------------------------
+def generate_content(meeting_details, attendees):
+    """
+    Simulates content generation using meeting details and attendees.
+    Replace with actual logic like an LLM call or external API.
+    """
+    import time
+    time.sleep(5)  # Simulate processing time
+    return {
+        "summary": "Generated summary for Q2 performance meeting.",
+        "status": "Completed"
+    }
 
-INSERT INTO users (user_id, username, password_hash, email, full_name, created_at, updated_at) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'nitin_p', 'hashedpassnitin', 'nitin.prodduturi@example.com', 'Nitin Prodduturi', '2025-05-25 09:30:00+05:30', '2025-05-25 09:30:00+05:30'),
-('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'prateek_g', 'hashedpassprateek', 'prateek.goyal@example.com', 'Prateek Goyal', '2025-05-25 11:00:00+05:30', '2025-05-26 10:45:00+05:30'),
-('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', 'delvin_s', 'hashedpassdelvin', 'delvin.saji@example.com', 'Delvin Saji', '2025-05-24 16:15:00+05:30', '2025-05-24 16:15:00+05:30'),
-('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'admin_user', 'hashedpassadmin', 'admin@example.com', 'System Administrator', '2025-05-26 08:00:00+05:30', '2025-05-26 08:00:00+05:30');
+# --------------------------------------
+# Background updater for memo processing
+# --------------------------------------
+def update_memo_record(memo_id, meeting_details, attendees, conn_params):
+    """
+    Runs in background to generate content and update the memo.
+    Updates processing_status to 'Completed' or 'Error'.
+    """
+    try:
+        # Generate content
+        content = generate_content(meeting_details, attendees)
 
+        # Connect and update memo
+        conn = psycopg2.connect(**conn_params)
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE cledev.memos
+            SET generated_content = %s,
+                processing_status = 'Completed',
+                updated_at = NOW(),
+                error_message = NULL
+            WHERE memo_id = %s
+        """, (json.dumps(content), str(memo_id)))
+        conn.commit()
+        cursor.close()
+        conn.close()
 
-CREATE TABLE memos (
-    memo_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(user_id),
-    client_name_input VARCHAR(255) NOT NULL,
-    client_id_received VARCHAR(255),
-    memo_title VARCHAR(255) NOT NULL,
-    template_type VARCHAR(255),
-    processing_status VARCHAR(20),
-    meeting_summary_input JSONB,
-    client_profile_inputs JSONB,
-    generated_content JSONB,
-    user_edits JSONB,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    viewed_at TIMESTAMP WITH TIME ZONE,
-    error_message TEXT,
-    current_version INTEGER,
-    user_response BOOLEAN,
-    is_active BOOLEAN
-);
+    except Exception as e:
+        # On error, update status and store error message
+        conn = psycopg2.connect(**conn_params)
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE cledev.memos
+            SET processing_status = 'Error',
+                updated_at = NOW(),
+                error_message = %s
+            WHERE memo_id = %s
+        """, (str(e), str(memo_id)))
+        conn.commit()
+        cursor.close()
+        conn.close()
 
-INSERT INTO memos (
-    memo_id, user_id, client_name_input, client_id_received, memo_title,
-    template_type, processing_status, meeting_summary_input, client_profile_inputs,
-    generated_content, user_edits, created_at, updated_at, viewed_at,
-    error_message, current_version, user_response, is_active
-) VALUES
-(
-    '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d', -- memo_id 1
-    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', -- Nitin Prodduturi's user_id
-    'Alpha Corp Solutions',
-    'CLIENT001',
-    'Quarterly Performance Briefing',
-    'briefing_memo',
-    'Completed',
-    '{"date": "2025-05-20", "time": "14:00", "location": "Online", "attendees": ["John Doe", "Jane Smith"], "purpose": "Q1 Performance Review"}',
-    NULL, -- No client profile inputs for a briefing memo
-    '{"overview": "Strong Q1 performance. Key metrics exceeded targets.", "recommendations": ["Expand market reach", "Invest in R&D"]}',
-    NULL, -- No user edits yet
-    '2025-05-20 15:00:00+05:30',
-    '2025-05-20 15:35:00+05:30',
-    '2025-05-20 15:45:00+05:30',
-    NULL,
-    1,
-    TRUE,
-    TRUE
-),
-(
-    '2e3f4g5h-6i7j-8k9l-0m1n-2o3p4q5r6s7t', -- memo_id 2
-    'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', -- Prateek Goyal's user_id
-    'Beta Innovations',
-    NULL, -- client_id_received is NULL as lookup might have failed
-    'New Client Profile Request',
-    'client_profile',
-    'Draft',
-    NULL, -- Not a briefing memo, so no summary input
-    '{"key_areas": ["Software Development", "Cloud Solutions"], "contact_person": "Emily White", "industry": "Tech"}',
-    NULL, -- Content not yet generated
-    NULL,
-    '2025-05-26 10:00:00+05:30',
-    '2025-05-26 10:00:00+05:30',
-    NULL,
-    NULL,
-    1,
-    NULL, -- User hasn't responded yet
-    TRUE
-),
-(
-    '3f4g5h6i-7j8k-9l0m-1n2o-3p4q5r6s7t8u', -- memo_id 3
-    'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', -- Delvin Saji's user_id
-    'Gamma Logistics',
-    'GMLX005',
-    'Logistics Optimization Report',
-    'analysis_report',
-    'Error',
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    '2025-05-25 18:00:00+05:30',
-    '2025-05-25 18:05:00+05:30',
-    NULL,
-    'Failed to process large dataset: Timeout error.',
-    1,
-    FALSE, -- Assume user disapproved or couldn't use it due to error
-    TRUE
-),
-(
-    '4g5h6i7j-8k9l-0m1n-2o3p-4q5r6s7t8u9v', -- memo_id 4
-    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', -- Another memo by Nitin Prodduturi
-    'Delta Marketing',
-    'DMAR010',
-    'Marketing Campaign Outline',
-    'campaign_plan',
-    'Processing',
-    NULL,
-    NULL,
-    NULL, -- Content still being generated
-    NULL,
-    '2025-05-26 11:30:00+05:30',
-    '2025-05-26 11:30:00+05:30',
-    NULL,
-    NULL,
-    1,
-    NULL,
-    TRUE
-);
+# -------------------------
+# Main insert memo function
+# -------------------------
+def insert_memo(request_json, conn_params):
+    """
+    Inserts a new memo into cledev.memos with 'Processing' status.
+    Triggers background thread to generate content.
+    """
+    # Extract fields
+    user_id = request_json.get("userId")  # e.g., "user_002"
+    client_name = request_json.get("client_name")
+    memo_title = request_json.get("memo_title")
+    template_type = request_json.get("template_type")
+    meeting_details = request_json.get("meeting_details")
+    attendees = request_json.get("attendees")
 
+    # Generate unique memo ID and timestamps
+    memo_id = uuid.uuid4()
+    created_at = updated_at = datetime.utcnow()
 
-CREATE TABLE memos_versions (
-    version_id UUID PRIMARY KEY,
-    memo_id UUID NOT NULL REFERENCES memos(memo_id),
-    version_number INTEGER NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_by_user_id UUID REFERENCES users(user_id),
-    change_description TEXT,
-    generated_content_snapshot JSONB,
-    user_edits_snapshot JSONB
-);
+    # Connect to DB and insert initial record
+    conn = psycopg2.connect(**conn_params)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO cledev.memos (
+            memo_id, user_id, client_name_input, memo_title, template_type,
+            processing_status, meeting_details_input, client_profile_inputs,
+            generated_content, user_edits, created_at, updated_at,
+            last_openend_at, error_message, current_version, user_approval, regeneration_comments
+        )
+        VALUES (
+            %s, %s, %s, %s, %s,
+            'Processing', %s, NULL,
+            NULL, NULL, %s, %s,
+            NULL, NULL, 1, NULL, NULL
+        )
+    """, (
+        str(memo_id),
+        str(uuid.UUID(user_id.split("_")[1].zfill(32))),  # Adjust based on real UUID logic
+        client_name, memo_title, template_type,
+        json.dumps({"meeting_details": meeting_details, "attendees": attendees}),
+        created_at, updated_at
+    ))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    # Start background processing
+    thread = threading.Thread(
+        target=update_memo_record,
+        args=(memo_id, meeting_details, attendees, conn_params)
+    )
+    thread.start()
+
+    # Return immediate response
+    return {
+        "status": "success",
+        "message": "Memo inserted and processing started.",
+        "memo_id": str(memo_id)
+    }
+
+# -------------------------
+# Example usage (optional)
+# -------------------------
+if __name__ == "__main__":
+    # Sample input JSON
+    request_json = {
+        "userId": "user_002",
+        "template_type": "client_memo",
+        "client_name": "Northern Trust Asset Management",
+        "memo_title": "Investment Strategy Meeting",
+        "meeting_details": {
+            "date": "2025-05-14",
+            "time": "14:30:00.000Z",
+            "in_person": True,
+            "purpose": "Review Q2 performance",
+            "location": "United States",
+            "key_areas_for_discussion": [
+                "Fixed Income",
+                "Alternative investments"
+            ]
+        },
+        "attendees": [
+            {
+                "client": {
+                    "name": "Nitin P",
+                    "title": "Analyst",
+                    "company": "Northern Trust"
+                }
+            },
+            {
+                "NT": {
+                    "name": "Raj K",
+                    "title": "Analyst",
+                    "company": "Northern Trust"
+                }
+            },
+            {
+                "consultant": [
+                    {
+                        "name": "Delvin Saji",
+                        "title": "Strategy Consultant",
+                        "company": "ACME Advisors"
+                    }
+                ]
+            }
+        ]
+    }
+
+    # Replace with your PostgreSQL DB credentials
+    conn_params = {
+        'dbname': 'your_db',
+        'user': 'your_user',
+        'password': 'your_password',
+        'host': 'localhost',
+        'port': '5432'
+    }
+
+    result = insert_memo(request_json, conn_params)
+    print(json.dumps(result, indent=2))
