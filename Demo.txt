@@ -16,3 +16,110 @@ INSERT INTO users (user_id, username, password_hash, email, full_name, created_a
 ('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'admin_user', 'hashedpassadmin', 'admin@example.com', 'System Administrator', '2025-05-26 08:00:00+05:30', '2025-05-26 08:00:00+05:30');
 
 
+CREATE TABLE memos (
+    memo_id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    client_name_input VARCHAR(255) NOT NULL,
+    client_id_received VARCHAR(255),
+    memo_title VARCHAR(255) NOT NULL,
+    template_type VARCHAR(255),
+    processing_status VARCHAR(20),
+    meeting_summary_input JSONB,
+    client_profile_inputs JSONB,
+    generated_content JSONB,
+    user_edits JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    viewed_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    current_version INTEGER,
+    user_response BOOLEAN,
+    is_active BOOLEAN
+);
+
+INSERT INTO memos (
+    memo_id, user_id, client_name_input, client_id_received, memo_title,
+    template_type, processing_status, meeting_summary_input, client_profile_inputs,
+    generated_content, user_edits, created_at, updated_at, viewed_at,
+    error_message, current_version, user_response, is_active
+) VALUES
+(
+    '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d', -- memo_id 1
+    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', -- Nitin Prodduturi's user_id
+    'Alpha Corp Solutions',
+    'CLIENT001',
+    'Quarterly Performance Briefing',
+    'briefing_memo',
+    'Completed',
+    '{"date": "2025-05-20", "time": "14:00", "location": "Online", "attendees": ["John Doe", "Jane Smith"], "purpose": "Q1 Performance Review"}',
+    NULL, -- No client profile inputs for a briefing memo
+    '{"overview": "Strong Q1 performance. Key metrics exceeded targets.", "recommendations": ["Expand market reach", "Invest in R&D"]}',
+    NULL, -- No user edits yet
+    '2025-05-20 15:00:00+05:30',
+    '2025-05-20 15:35:00+05:30',
+    '2025-05-20 15:45:00+05:30',
+    NULL,
+    1,
+    TRUE,
+    TRUE
+),
+(
+    '2e3f4g5h-6i7j-8k9l-0m1n-2o3p4q5r6s7t', -- memo_id 2
+    'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', -- Prateek Goyal's user_id
+    'Beta Innovations',
+    NULL, -- client_id_received is NULL as lookup might have failed
+    'New Client Profile Request',
+    'client_profile',
+    'Draft',
+    NULL, -- Not a briefing memo, so no summary input
+    '{"key_areas": ["Software Development", "Cloud Solutions"], "contact_person": "Emily White", "industry": "Tech"}',
+    NULL, -- Content not yet generated
+    NULL,
+    '2025-05-26 10:00:00+05:30',
+    '2025-05-26 10:00:00+05:30',
+    NULL,
+    NULL,
+    1,
+    NULL, -- User hasn't responded yet
+    TRUE
+),
+(
+    '3f4g5h6i-7j8k-9l0m-1n2o-3p4q5r6s7t8u', -- memo_id 3
+    'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', -- Delvin Saji's user_id
+    'Gamma Logistics',
+    'GMLX005',
+    'Logistics Optimization Report',
+    'analysis_report',
+    'Error',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    '2025-05-25 18:00:00+05:30',
+    '2025-05-25 18:05:00+05:30',
+    NULL,
+    'Failed to process large dataset: Timeout error.',
+    1,
+    FALSE, -- Assume user disapproved or couldn't use it due to error
+    TRUE
+),
+(
+    '4g5h6i7j-8k9l-0m1n-2o3p-4q5r6s7t8u9v', -- memo_id 4
+    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', -- Another memo by Nitin Prodduturi
+    'Delta Marketing',
+    'DMAR010',
+    'Marketing Campaign Outline',
+    'campaign_plan',
+    'Processing',
+    NULL,
+    NULL,
+    NULL, -- Content still being generated
+    NULL,
+    '2025-05-26 11:30:00+05:30',
+    '2025-05-26 11:30:00+05:30',
+    NULL,
+    NULL,
+    1,
+    NULL,
+    TRUE
+);
