@@ -123,3 +123,15 @@ INSERT INTO memos (
     NULL,
     TRUE
 );
+
+
+CREATE TABLE memos_versions (
+    version_id UUID PRIMARY KEY,
+    memo_id UUID NOT NULL REFERENCES memos(memo_id),
+    version_number INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_by_user_id UUID REFERENCES users(user_id),
+    change_description TEXT,
+    generated_content_snapshot JSONB,
+    user_edits_snapshot JSONB
+);
