@@ -1,55 +1,89 @@
-from flask import Blueprint, jsonify, request
-from db import get_db_connection
-import logging
+import psycopg2
+import json
+from datetime import datetime
 
-get_memos_bp = Blueprint('get_memos_bp', __name__)
-
-@get_memos_bp.route('/get-memos', methods=['GET'])
-def get_memos():
+def fetch_recent_memos(conn_params, limit=2):
     try:
-        conn = get_db_connection()
+        conn = psycopg2.connect(**conn_params)
         cursor = conn.cursor()
 
-        query = """
-            SELECT
-                memo_id,
-                processing_status,
-                user_approval,
-                template_type,
-                client_name_input,
-                updated_at
+        cursor.execute(f'''
+            SELECT memo_id, processing_status, template_type, client_name_input,
+                   updated_at, meeting_details_input, client_profile_inputs,
+                   user_edits
             FROM cledev.memos
-            ORDER BY updated_at DESC;
-        """
+            ORDER BY updated_at DESC
+            LIMIT %s
+        ''', (limit,))
 
-        logging.info("Executing memo fetch SQL:\n%s", query)
-
-        cursor.execute(query)
         rows = cursor.fetchall()
-
-        # Get column names for mapping
-        colnames = [desc[0] for desc in cursor.description]
-
-        memos = []
-        for row in rows:
-            memo = dict(zip(colnames, row))
-            memos.append({
-                "memo_id": str(memo["memo_id"]),
-                "process_status": memo["processing_status"],
-                "user_status": "completed" if memo["user_approval"] else "draft",
-                "template_type": memo["template_type"],
-                "client_name": memo["client_name_input"],
-                "last_modified_date_time": memo["updated_at"].isoformat().replace("+00:00", "Z")
-            })
-
         cursor.close()
         conn.close()
 
-        return jsonify({"memos": memos}), 200
+        memos = []
+
+        for row in rows:
+            (
+                memo_id, processing_status, template_type, client_name,
+                updated_at, meeting_details_input, client_profile_inputs,
+                user_edits
+            ) = row
+
+            memo_json = {
+                "memo_id": str(memo_id),
+                "process_status": processing_status,
+                "user_status": user_edits.get("status") if user_edits else "draft",
+                "template_type": template_type,
+                "client_name": client_name,
+                "last_modified_date_time": updated_at.isoformat() + "Z"
+            }
+
+            if template_type == "client_memo":
+                try:
+                    details = meeting_details_input.get("meeting_details", {})
+                    attendees = meeting_details_input.get("attendees", [])
+                    memo_json["meeting_details"] = {
+                        "date": details.get("date"),
+                        "time": details.get("time", "")[:8]
+                    }
+                    # Split attendees
+                    memo_json["client_attendees"] = []
+                    memo_json["nt_attendees"] = []
+                    memo_json["consultant_attendees"] = []
+
+                    for person in attendees:
+                        if "client" in person:
+                            memo_json["client_attendees"].append(person["client"])
+                        elif "NT" in person:
+                            memo_json["nt_attendees"].append(person["NT"])
+                        elif "consultant" in person:
+                            memo_json["consultant_attendees"].extend(person["consultant"])
+                except Exception as e:
+                    print(f"Error processing client_memo details: {e}")
+
+            elif template_type in ("client_template", "client_profile"):
+                try:
+                    memo_json["key_client_contacts"] = client_profile_inputs.get("key_client_contacts", [])
+                    memo_json["key_area_for_discussion"] = client_profile_inputs.get("key_area_for_discussion", "")
+                except Exception as e:
+                    print(f"Error processing client_template details: {e}")
+
+            memos.append(memo_json)
+
+        return {"memos": memos}
 
     except Exception as e:
-        logging.error(f"Error fetching memos: {e}")
-        return jsonify({
-            "status": "error",
-            "message": "Failed to fetch memos"
-        }), 500
+        return {"error": str(e)}
+
+# Example use
+if __name__ == "__main__":
+    conn_params = {
+        "host": "localhost",
+        "port": 5432,
+        "dbname": "your_db",
+        "user": "your_user",
+        "password": "your_password"
+    }
+
+    response = fetch_recent_memos(conn_params)
+    print(json.dumps(response, indent=2))
