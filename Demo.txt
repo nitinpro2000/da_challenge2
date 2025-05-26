@@ -1,89 +1,66 @@
-import psycopg2
+def categorize_attendees(attendees_list):
+    """
+    Categorize attendees based on the company name.
+    - NT Attendees: If company contains 'Northern Trust'
+    - Consultant Attendees: If company contains 'Consult'
+    - Client Attendees: All others
+    """
+    client_attendees = []
+    nt_attendees = []
+    consultant_attendees = []
+
+    for attendee in attendees_list:
+        company = attendee.get("company", "").lower()
+        if "northern trust" in company:
+            nt_attendees.append(attendee)
+        elif "consult" in company:
+            consultant_attendees.append(attendee)
+        else:
+            client_attendees.append(attendee)
+
+    return client_attendees, nt_attendees, consultant_attendees
+
+# Example input JSON
+input_json = {
+    "nt": [
+        {
+            "name": "Patricia Anderson",
+            "title": "Managing Director",
+            "company": "Northern Trust"
+        },
+        {
+            "name": "Rachel Kim",
+            "title": "Portfolio Manager, Fixed Income",
+            "company": "Northern Trust"
+        },
+        {
+            "name": "Jase Auby",
+            "title": "Chief Investment Officer",
+            "company": "Texas Teachers Retirement System"
+        },
+        {
+            "name": "Jerry Albright",
+            "title": "Chief Financial Officer",
+            "company": "Texas Teachers Retirement System"
+        },
+        {
+            "name": "Steven Foresti",
+            "title": "Senior Consultant",
+            "company": "Aon Investment Consulting"
+        }
+    ]
+}
+
+# Extract attendees and categorize them
+all_attendees = input_json.get("nt", [])
+client_attendees, nt_attendees, consultant_attendees = categorize_attendees(all_attendees)
+
+# Optional: Print or return the result
+result = {
+    "client_attendees": client_attendees,
+    "nt_attendees": nt_attendees,
+    "consultant_attendees": consultant_attendees
+}
+
 import json
-from datetime import datetime
-
-def fetch_recent_memos(conn_params, limit=2):
-    try:
-        conn = psycopg2.connect(**conn_params)
-        cursor = conn.cursor()
-
-        cursor.execute(f'''
-            SELECT memo_id, processing_status, template_type, client_name_input,
-                   updated_at, meeting_details_input, client_profile_inputs,
-                   user_edits
-            FROM cledev.memos
-            ORDER BY updated_at DESC
-            LIMIT %s
-        ''', (limit,))
-
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-
-        memos = []
-
-        for row in rows:
-            (
-                memo_id, processing_status, template_type, client_name,
-                updated_at, meeting_details_input, client_profile_inputs,
-                user_edits
-            ) = row
-
-            memo_json = {
-                "memo_id": str(memo_id),
-                "process_status": processing_status,
-                "user_status": user_edits.get("status") if user_edits else "draft",
-                "template_type": template_type,
-                "client_name": client_name,
-                "last_modified_date_time": updated_at.isoformat() + "Z"
-            }
-
-            if template_type == "client_memo":
-                try:
-                    details = meeting_details_input.get("meeting_details", {})
-                    attendees = meeting_details_input.get("attendees", [])
-                    memo_json["meeting_details"] = {
-                        "date": details.get("date"),
-                        "time": details.get("time", "")[:8]
-                    }
-                    # Split attendees
-                    memo_json["client_attendees"] = []
-                    memo_json["nt_attendees"] = []
-                    memo_json["consultant_attendees"] = []
-
-                    for person in attendees:
-                        if "client" in person:
-                            memo_json["client_attendees"].append(person["client"])
-                        elif "NT" in person:
-                            memo_json["nt_attendees"].append(person["NT"])
-                        elif "consultant" in person:
-                            memo_json["consultant_attendees"].extend(person["consultant"])
-                except Exception as e:
-                    print(f"Error processing client_memo details: {e}")
-
-            elif template_type in ("client_template", "client_profile"):
-                try:
-                    memo_json["key_client_contacts"] = client_profile_inputs.get("key_client_contacts", [])
-                    memo_json["key_area_for_discussion"] = client_profile_inputs.get("key_area_for_discussion", "")
-                except Exception as e:
-                    print(f"Error processing client_template details: {e}")
-
-            memos.append(memo_json)
-
-        return {"memos": memos}
-
-    except Exception as e:
-        return {"error": str(e)}
-
-# Example use
-if __name__ == "__main__":
-    conn_params = {
-        "host": "localhost",
-        "port": 5432,
-        "dbname": "your_db",
-        "user": "your_user",
-        "password": "your_password"
-    }
-
-    response = fetch_recent_memos(conn_params)
-    print(json.dumps(response, indent=2))
+print(json.dumps(result, indent=2))
