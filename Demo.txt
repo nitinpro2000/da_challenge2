@@ -1,81 +1,3 @@
-import uuid
-import json
-import threading
-from datetime import datetime
-import logging
-from db_connection import get_db_connection
-
-# ----------------------
-# Configure logging
-# ----------------------
-logging.basicConfig(
-    filename='memo_processor.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-def generate_content(meeting_details, attendees):
-    import time
-    time.sleep(5)
-    return {
-        "summary": "Generated summary for Q2 performance meeting.",
-        "status": "Completed"
-    }
-
-def update_memo_record(memo_id, user_id, meeting_details, attendees):
-    try:
-        logging.info(f"Started background processing for memo_id: {memo_id}")
-        content = generate_content(meeting_details, attendees)
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            UPDATE cledev.memos
-            SET generated_content = %s,
-                processing_status = 'Completed',
-                updated_at = NOW(),
-                error_message = NULL
-            WHERE memo_id = %s
-        """, (json.dumps(content), str(memo_id)))
-
-        version_id = uuid.uuid4()
-        cursor.execute("""
-            INSERT INTO memos_versions (
-                version_id, memo_id, version_number, created_at,
-                created_by_user_id, change_description,
-                generated_content_snapshot, user_edits_snapshot
-            ) VALUES (%s, %s, %s, NOW(), %s, %s, %s, NULL)
-        """, (
-            str(version_id), str(memo_id), 1, str(user_id),
-            'Initial version from automated content generation.',
-            json.dumps(content)
-        ))
-
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        logging.info(f"Successfully completed processing for memo_id: {memo_id}")
-
-    except Exception as e:
-        logging.error(f"Error processing memo_id {memo_id}: {e}")
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE cledev.memos
-                SET processing_status = 'Error',
-                    updated_at = NOW(),
-                    error_message = %s
-                WHERE memo_id = %s
-            """, (str(e), str(memo_id)))
-            conn.commit()
-            cursor.close()
-            conn.close()
-        except Exception as db_error:
-            logging.critical(f"Failed to update error status in DB for memo_id {memo_id}: {db_error}")
-
 def insert_memo(request_json):
     try:
         user_id_str = request_json.get("userId")
@@ -88,33 +10,43 @@ def insert_memo(request_json):
 
         memo_id = uuid.uuid4()
         created_at = updated_at = datetime.utcnow()
+        meeting_details_json = json.dumps({
+            "meeting_details": meeting_details,
+            "attendees": attendees
+        })
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
+        # Escape single quotes to avoid SQL errors
+        def sql_escape(s):
+            return s.replace("'", "''") if isinstance(s, str) else s
+
+        # Format the full SQL
+        memo_insert_sql = f"""
             INSERT INTO cledev.memos (
                 memo_id, user_id, client_name_input, memo_title, template_type,
                 processing_status, meeting_details_input, client_profile_inputs,
                 generated_content, user_edits, created_at, updated_at,
                 last_openend_at, error_message, current_version, user_approval, regeneration_comments
-            )
-            VALUES (
-                %s, %s, %s, %s, %s,
-                'Processing', %s, NULL,
-                NULL, NULL, %s, %s,
+            ) VALUES (
+                '{memo_id}', '{user_uuid}', '{sql_escape(client_name)}', '{sql_escape(memo_title)}', '{sql_escape(template_type)}',
+                'Processing', '{sql_escape(meeting_details_json)}', NULL,
+                NULL, NULL, '{created_at.isoformat()}', '{updated_at.isoformat()}',
                 NULL, NULL, 1, NULL, NULL
-            )
-        """, (
-            str(memo_id), user_uuid, client_name, memo_title, template_type,
-            json.dumps({"meeting_details": meeting_details, "attendees": attendees}),
-            created_at, updated_at
-        ))
+            );
+        """
+
+        # Print/log the fully constructed SQL
+        logging.info("Executing raw SQL:\n%s", memo_insert_sql)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(memo_insert_sql)  # ← Using raw SQL directly
         conn.commit()
         cursor.close()
         conn.close()
 
         logging.info(f"Inserted new memo with ID: {memo_id}")
 
+        # Start async background processing
         thread = threading.Thread(
             target=update_memo_record,
             args=(memo_id, user_uuid, meeting_details, attendees)
@@ -133,50 +65,3 @@ def insert_memo(request_json):
             "status": "error",
             "message": str(e)
         }
-
-# Example run (optional)
-if __name__ == "__main__":
-    request_json = {
-        "userId": "user_002",
-        "template_type": "client_memo",
-        "client_name": "Northern Trust Asset Management",
-        "memo_title": "Investment Strategy Meeting",
-        "meeting_details": {
-            "date": "2025-05-14",
-            "time": "14:30:00.000Z",
-            "in_person": True,
-            "purpose": "Review Q2 performance",
-            "location": "United States",
-            "key_areas_for_discussion": [
-                "Fixed Income",
-                "Alternative investments"
-            ]
-        },
-        "attendees": [
-            {
-                "client": {
-                    "name": "Nitin P",
-                    "title": "Analyst",
-                    "company": "Northern Trust"
-                }
-            },
-            {
-                "NT": {
-                    "name": "Raj K",
-                    "title": "Analyst",
-                    "company": "Northern Trust"
-                }
-            },
-            {
-                "consultant": [
-                    {
-                        "name": "Delvin Saji",
-                        "title": "Strategy Consultant",
-                        "company": "ACME Advisors"
-                    }
-                ]
-            }
-        ]
-    }
-
-    print(json.dumps(insert_memo(request_json), indent=2))
