@@ -1,67 +1,55 @@
-def insert_memo(request_json):
+from flask import Blueprint, jsonify, request
+from db import get_db_connection
+import logging
+
+get_memos_bp = Blueprint('get_memos_bp', __name__)
+
+@get_memos_bp.route('/get-memos', methods=['GET'])
+def get_memos():
     try:
-        user_id_str = request_json.get("userId")
-        user_uuid = str(uuid.UUID(user_id_str.split("_")[1].zfill(32)))
-        client_name = request_json.get("client_name")
-        memo_title = request_json.get("memo_title")
-        template_type = request_json.get("template_type")
-        meeting_details = request_json.get("meeting_details")
-        attendees = request_json.get("attendees")
-
-        memo_id = uuid.uuid4()
-        created_at = updated_at = datetime.utcnow()
-        meeting_details_json = json.dumps({
-            "meeting_details": meeting_details,
-            "attendees": attendees
-        })
-
-        # Escape single quotes to avoid SQL errors
-        def sql_escape(s):
-            return s.replace("'", "''") if isinstance(s, str) else s
-
-        # Format the full SQL
-        memo_insert_sql = f"""
-            INSERT INTO cledev.memos (
-                memo_id, user_id, client_name_input, memo_title, template_type,
-                processing_status, meeting_details_input, client_profile_inputs,
-                generated_content, user_edits, created_at, updated_at,
-                last_openend_at, error_message, current_version, user_approval, regeneration_comments
-            ) VALUES (
-                '{memo_id}', '{user_uuid}', '{sql_escape(client_name)}', '{sql_escape(memo_title)}', '{sql_escape(template_type)}',
-                'Processing', '{sql_escape(meeting_details_json)}', NULL,
-                NULL, NULL, '{created_at.isoformat()}', '{updated_at.isoformat()}',
-                NULL, NULL, 1, NULL, NULL
-            );
-        """
-
-        # Print/log the fully constructed SQL
-        logging.info("Executing raw SQL:\n%s", memo_insert_sql)
-
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(memo_insert_sql)  # ← Using raw SQL directly
-        conn.commit()
+
+        query = """
+            SELECT
+                memo_id,
+                processing_status,
+                user_approval,
+                template_type,
+                client_name_input,
+                updated_at
+            FROM cledev.memos
+            ORDER BY updated_at DESC;
+        """
+
+        logging.info("Executing memo fetch SQL:\n%s", query)
+
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        # Get column names for mapping
+        colnames = [desc[0] for desc in cursor.description]
+
+        memos = []
+        for row in rows:
+            memo = dict(zip(colnames, row))
+            memos.append({
+                "memo_id": str(memo["memo_id"]),
+                "process_status": memo["processing_status"],
+                "user_status": "completed" if memo["user_approval"] else "draft",
+                "template_type": memo["template_type"],
+                "client_name": memo["client_name_input"],
+                "last_modified_date_time": memo["updated_at"].isoformat().replace("+00:00", "Z")
+            })
+
         cursor.close()
         conn.close()
 
-        logging.info(f"Inserted new memo with ID: {memo_id}")
-
-        # Start async background processing
-        thread = threading.Thread(
-            target=update_memo_record,
-            args=(memo_id, user_uuid, meeting_details, attendees)
-        )
-        thread.start()
-
-        return {
-            "status": "success",
-            "message": "Memo inserted and processing started.",
-            "memo_id": str(memo_id)
-        }
+        return jsonify({"memos": memos}), 200
 
     except Exception as e:
-        logging.error(f"Failed to insert memo: {e}")
-        return {
+        logging.error(f"Error fetching memos: {e}")
+        return jsonify({
             "status": "error",
-            "message": str(e)
-        }
+            "message": "Failed to fetch memos"
+        }), 500
