@@ -1,99 +1,60 @@
-import threading
-import logging # Using logging for setup_logger
+# Assuming this is in a file like 'src/api/create_memo/create_memo_validations.py'
 
-# Placeholder for modules imported from src.api.create_memo
-# In a real project, these would be separate files/modules.
+from src.utils.logger import setup_logger # Placeholder for logger import
+from flask import jsonify # Assuming Flask is used, based on the import
 
-def setup_logger(name: str):
+logger = setup_logger(__name__) # Logger initialization
+
+class CreateMemoValidations:
     """
-    Configures and returns a logger instance for the given name.
-    This function sets up logging for the module, including defining
-    log level and handlers.
+    Handles the validation logic for requests to create new memos.
 
-    Args:
-        name: The name of the logger (typically __name__ of the module).
+    This class is responsible for ensuring that the incoming data for
+    memo creation meets all predefined criteria and constraints
+    (e.g., required fields, data types, format, length).
+    It processes the raw request data and identifies any validation errors.
+    """
 
-    Returns:
-        A configured logging.Logger instance.
-    """
-    pass # Implementation details for logger setup would go here
-
-# --- Assume these are in 'src/api/create_memo/create_memo_validations.py' ---
-class CreateMemoValidator:
-    """
-    A class responsible for validating the data required to create a new memo.
-    It would contain methods to check the correctness and completeness of
-    incoming request data before processing.
-    """
-    def validate(self, data: dict) -> dict:
+    def __init__(self, data):
         """
-        Validates the input data dictionary for memo creation.
+        Initializes the CreateMemoValidations instance with the data to be validated.
 
         Args:
-            data: A dictionary containing the memo's attributes (e.g., title, content).
+            data (dict): The dictionary containing the raw request data
+                         submitted for memo creation.
+        """
+        self.data = data
+
+    def validate_create_memo_request(self):
+        """
+        Validates the structure and content of the data provided for a new memo.
+
+        This method performs a series of checks on 'self.data' to ensure
+        it conforms to the expected schema for memo creation.
+        It identifies missing required fields, incorrect data types,
+        invalid formats, or other business rule violations.
 
         Returns:
-            A dictionary of errors if validation fails, otherwise an empty dictionary.
+            list: A list of dictionaries, where each dictionary represents
+                  a validation error. An empty list indicates no validation errors.
+                  Each error dictionary typically contains keys like 'field' and 'message'.
         """
-        pass # Validation logic would go here
+        # ... (Validation logic would be implemented here) ...
+        pass # Placeholder for the method body
 
-# --- Assume these are in 'src/api/create_memo/create_memo.py' ---
-class MemoCreator:
-    """
-    A class encapsulating the business logic for creating a memo.
-    This would interact with a database or external service to persist
-    the memo data.
-    """
-    def create(self, memo_data: dict):
-        """
-        Processes and persists the new memo data.
-
-        Args:
-            memo_data: A dictionary containing the validated data for the new memo.
-
-        Returns:
-            A representation of the newly created memo (e.g., its ID and status).
-        """
-        pass # Memo creation (e.g., database interaction) logic would go here
-
-
-# --- Main API file (e.g., 'create_new_memo_api.py') ---
-
-# Instantiate logger as seen in the image
-logger = setup_logger(__name__)
-
-def validation_error(errors: dict):
+def validation_error(errors):
     """
     A helper function to format and return validation errors,
     typically with an HTTP 422 Unprocessable Entity status code.
 
     Args:
-        errors: A dictionary containing details of the validation failures.
+        errors (list): A list of dictionaries containing details about
+                       the validation failures. Each dictionary should
+                       describe a specific error (e.g., {'field': 'title', 'message': 'Title is required'}).
 
     Returns:
-        A formatted error response (e.g., a JSON response suitable for an API).
+        tuple: A Flask response tuple (JSON response, HTTP status code)
+               formatted as a JSON object with a 'detail' key holding the list of errors.
     """
-    # This function would likely return a web framework's response object
-    # e.g., return jsonify({"detail": errors}), 422
-    pass
-
-def create_new_memo_request(request):
-    """
-    The main API endpoint function responsible for handling requests
-    to create a new memo.
-
-    This function would typically perform the following steps:
-    1. Parse the incoming 'request' object to extract memo data.
-    2. Validate the extracted data using `CreateMemoValidator`.
-    3. If validation fails, call `validation_error` to return appropriate errors.
-    4. If validation passes, use `MemoCreator` to persist the memo.
-    5. Return a success response upon successful memo creation.
-
-    Args:
-        request: The incoming request object from the web framework (e.g., Flask, FastAPI).
-
-    Returns:
-        A response object indicating success or failure, with appropriate data and status code.
-    """
-    pass # Main API logic for memo creation would go here
+    return jsonify({"detail": errors}), 422
 
