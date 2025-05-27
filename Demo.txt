@@ -1,138 +1,64 @@
-import uuid  # Imported in the image snippet
-import json  # Imported in the image snippet
-from datetime import datetime  # Imported in the image snippet
-# from src.utils.logger import setup_logger  # Imported in the image snippet
-# from src.utils.postgres import get_db_connection # Imported in the image snippet
-import time # Imported in the image snippet
+from fastapi import FastAPI, Request, HTTPException, status
+from fastapi.responses import JSONResponse
+from dotenv import load_dotenv # From python-dotenv library
+import os # For accessing environment variables
 
-# Placeholder for setup_logger and get_db_connection as their implementations are not shown
-def setup_logger(name):
-    """Placeholder for a logger setup function."""
-    import logging
-    logger = logging.getLogger(name)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-    return logger
+# Import the APIRouters for your different API sections
+from src.api.create_new_memo_api import router as create_memo_router
+# from src.api.list_memos import router as list_memos_router # Placeholder for other modules
+# from src.api.get_memo_data import router as get_memo_data_router # Placeholder for other modules
 
-def get_db_connection():
-    """Placeholder for a function to get a database connection."""
-    # In a real application, this would return a database connection object (e.g., psycopg2 connection)
-    print("Simulating database connection...")
-    class MockConnection:
-        def cursor(self):
-            return self
-        def execute(self, query, params=None):
-            print(f"Executing query: {query} with params: {params}")
-        def commit(self):
-            print("Committing transaction.")
-        def close(self):
-            print("Closing connection.")
-    return MockConnection()
+# --- Import actual functions/classes for other endpoints ---
+# Assuming these would also be FastAPI routers or functions
+# from src.api.list_memos import fetch_recent_memos # This was used directly in Flask
+# from src.api.get_memo_data import fetch_memo_data # This was used directly in Flask
 
 
-logger = setup_logger(__name__)
+load_dotenv() # Load environment variables from .env file
 
-class CreateNewMemo:
+app = FastAPI(
+    title="Memo Management API",
+    description="API for managing memos, including creation, listing, and content retrieval.",
+    version="1.0.0"
+)
+
+# Include the routers from different API files
+app.include_router(create_memo_router)
+# app.include_router(list_memos_router, prefix="/list_memos", tags=["Memos"])
+# app.include_router(get_memo_data_router, prefix="/memo_data", tags=["Memos"])
+
+
+# Replicating other Flask routes in FastAPI
+# These functions would likely be moved into their own FastAPI router files
+# similar to create_new_memo_api.py for better organization.
+
+@app.get("/list_memos")
+async def list_memos():
     """
-    Manages the lifecycle and operations for creating, generating content for,
-    and updating memo records within the system.
-
-    This class serves as a service layer or data access object (DAO)
-    for memo entities, providing methods to interact with a PostgreSQL
-    database and potentially integrate with content generation mechanisms.
-    It encapsulates the business logic related to memo persistence and modification.
+    Retrieves a list of all memos.
     """
+    # This would call a service to fetch all memos
+    # Example: memos_service = MemoService(); return await memos_service.get_all_memos()
+    return {"message": "List all memos endpoint (placeholder)"}
 
-    def __init__(self):
-        """
-        Initializes a new instance of the CreateNewMemo class.
+@app.get("/list_recent_memos")
+async def list_recent_memos():
+    """
+    Retrieves a list of recently created or modified memos.
+    """
+    # This would call a service to fetch recent memos
+    # Example: return await fetch_recent_memos() # Assuming fetch_recent_memos is an async function
+    return {"message": "List recent memos endpoint (placeholder)"}
 
-        This constructor sets up any necessary internal state or dependencies
-        required for memo operations, such as database connection configurations
-        or service clients.
-        """
-        pass
+@app.get("/get_memo_content/{memo_id}")
+async def get_memo_content(memo_id: str):
+    """
+    Retrieves the full content of a specific memo by its ID.
+    """
+    # This would call a service to fetch memo data by ID
+    # Example: return await fetch_memo_data(memo_id) # Assuming fetch_memo_data is an async function
+    return {"message": f"Get content for memo ID: {memo_id} (placeholder)"}
 
-    def generate_content_update_memo_record(self, memo_id: str, user_id: str, details: dict):
-        """
-        Generates new content based on provided details and then updates an
-        existing memo record in the database with this content.
-
-        This method orchestrates a two-step process: first, it processes
-        the `details` to produce or derive memo content (potentially calling
-        `self.generate_content`). Second, it invokes `self.update_memo_record`
-        to persist this newly generated content, associating it with the
-        specified memo and user.
-
-        Args:
-            memo_id (str): The unique identifier of the memo to be updated.
-            user_id (str): The ID of the user performing the update, for auditing or authorization.
-            details (dict): A dictionary containing parameters or raw data
-                            from which the new memo content will be generated.
-                            The structure depends on the content generation logic.
-        """
-        pass
-
-    def generate_content(self, details: dict):
-        """
-        Generates or processes content based on the provided input details.
-
-        This method is responsible for the core logic of creating memo content.
-        It might involve:
-        - Applying templates.
-        - Processing raw text.
-        - Interacting with AI models for content generation.
-        - Transforming input data into a structured memo body.
-
-        Args:
-            details (dict): A dictionary containing the necessary input data or
-                            parameters for content generation.
-
-        Returns:
-            str: The generated or processed string content for the memo.
-                 Returns None or raises an error if content generation fails.
-        """
-        pass
-
-    def update_memo_record(self, memo_id: str, user_id: str, content: str):
-        """
-        Updates the content of an existing memo record in the database.
-
-        This method connects to the database, constructs and executes an
-        SQL UPDATE query to modify the 'content' field for the memo
-        identified by `memo_id`. It typically also updates a 'last_modified'
-        timestamp and potentially records the `user_id` performing the update.
-
-        Args:
-            memo_id (str): The unique identifier of the memo to be updated.
-            user_id (str): The ID of the user performing the update. Used for auditing.
-            content (str): The new string content to be stored for the memo.
-        """
-        pass
-
-    def insert_memo(self, request_json: dict):
-        """
-        Inserts a new memo record into the database based on the provided JSON data.
-
-        This method is responsible for the initial creation of a memo.
-        It parses the `request_json`, extracts relevant memo attributes
-        (e.g., title, content, author, timestamps), establishes a database
-        connection, and executes an SQL INSERT query to store the new memo.
-        It typically generates a unique ID for the new memo.
-
-        Args:
-            request_json (dict): A dictionary representing the JSON payload
-                                 from an incoming request, containing all
-                                 necessary data to create a new memo.
-
-        Returns:
-            dict: A dictionary representing the newly created memo record,
-                  typically including its generated ID and creation status.
-                  Returns None or raises an exception on failure.
-        """
-        pass
+# You'll need to run this with Uvicorn:
+# uvicorn src.api.api:app --reload
 
