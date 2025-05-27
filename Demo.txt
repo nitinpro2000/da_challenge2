@@ -1,66 +1,99 @@
-def categorize_attendees(attendees_list):
+import threading
+import logging # Using logging for setup_logger
+
+# Placeholder for modules imported from src.api.create_memo
+# In a real project, these would be separate files/modules.
+
+def setup_logger(name: str):
     """
-    Categorize attendees based on the company name.
-    - NT Attendees: If company contains 'Northern Trust'
-    - Consultant Attendees: If company contains 'Consult'
-    - Client Attendees: All others
+    Configures and returns a logger instance for the given name.
+    This function sets up logging for the module, including defining
+    log level and handlers.
+
+    Args:
+        name: The name of the logger (typically __name__ of the module).
+
+    Returns:
+        A configured logging.Logger instance.
     """
-    client_attendees = []
-    nt_attendees = []
-    consultant_attendees = []
+    pass # Implementation details for logger setup would go here
 
-    for attendee in attendees_list:
-        company = attendee.get("company", "").lower()
-        if "northern trust" in company:
-            nt_attendees.append(attendee)
-        elif "consult" in company:
-            consultant_attendees.append(attendee)
-        else:
-            client_attendees.append(attendee)
+# --- Assume these are in 'src/api/create_memo/create_memo_validations.py' ---
+class CreateMemoValidator:
+    """
+    A class responsible for validating the data required to create a new memo.
+    It would contain methods to check the correctness and completeness of
+    incoming request data before processing.
+    """
+    def validate(self, data: dict) -> dict:
+        """
+        Validates the input data dictionary for memo creation.
 
-    return client_attendees, nt_attendees, consultant_attendees
+        Args:
+            data: A dictionary containing the memo's attributes (e.g., title, content).
 
-# Example input JSON
-input_json = {
-    "nt": [
-        {
-            "name": "Patricia Anderson",
-            "title": "Managing Director",
-            "company": "Northern Trust"
-        },
-        {
-            "name": "Rachel Kim",
-            "title": "Portfolio Manager, Fixed Income",
-            "company": "Northern Trust"
-        },
-        {
-            "name": "Jase Auby",
-            "title": "Chief Investment Officer",
-            "company": "Texas Teachers Retirement System"
-        },
-        {
-            "name": "Jerry Albright",
-            "title": "Chief Financial Officer",
-            "company": "Texas Teachers Retirement System"
-        },
-        {
-            "name": "Steven Foresti",
-            "title": "Senior Consultant",
-            "company": "Aon Investment Consulting"
-        }
-    ]
-}
+        Returns:
+            A dictionary of errors if validation fails, otherwise an empty dictionary.
+        """
+        pass # Validation logic would go here
 
-# Extract attendees and categorize them
-all_attendees = input_json.get("nt", [])
-client_attendees, nt_attendees, consultant_attendees = categorize_attendees(all_attendees)
+# --- Assume these are in 'src/api/create_memo/create_memo.py' ---
+class MemoCreator:
+    """
+    A class encapsulating the business logic for creating a memo.
+    This would interact with a database or external service to persist
+    the memo data.
+    """
+    def create(self, memo_data: dict):
+        """
+        Processes and persists the new memo data.
 
-# Optional: Print or return the result
-result = {
-    "client_attendees": client_attendees,
-    "nt_attendees": nt_attendees,
-    "consultant_attendees": consultant_attendees
-}
+        Args:
+            memo_data: A dictionary containing the validated data for the new memo.
 
-import json
-print(json.dumps(result, indent=2))
+        Returns:
+            A representation of the newly created memo (e.g., its ID and status).
+        """
+        pass # Memo creation (e.g., database interaction) logic would go here
+
+
+# --- Main API file (e.g., 'create_new_memo_api.py') ---
+
+# Instantiate logger as seen in the image
+logger = setup_logger(__name__)
+
+def validation_error(errors: dict):
+    """
+    A helper function to format and return validation errors,
+    typically with an HTTP 422 Unprocessable Entity status code.
+
+    Args:
+        errors: A dictionary containing details of the validation failures.
+
+    Returns:
+        A formatted error response (e.g., a JSON response suitable for an API).
+    """
+    # This function would likely return a web framework's response object
+    # e.g., return jsonify({"detail": errors}), 422
+    pass
+
+def create_new_memo_request(request):
+    """
+    The main API endpoint function responsible for handling requests
+    to create a new memo.
+
+    This function would typically perform the following steps:
+    1. Parse the incoming 'request' object to extract memo data.
+    2. Validate the extracted data using `CreateMemoValidator`.
+    3. If validation fails, call `validation_error` to return appropriate errors.
+    4. If validation passes, use `MemoCreator` to persist the memo.
+    5. Return a success response upon successful memo creation.
+
+    Args:
+        request: The incoming request object from the web framework (e.g., Flask, FastAPI).
+
+    Returns:
+        A response object indicating success or failure, with appropriate data and status code.
+    """
+    pass # Main API logic for memo creation would go here
+
