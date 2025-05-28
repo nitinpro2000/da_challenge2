@@ -1,75 +1,35 @@
+import json
 import asyncpg
+from werkzeug.exceptions import BadRequest
 from fastapi.responses import JSONResponse
-from src.utils.postgres import async_db_connection_url
 from src.utils.logger import setup_logger
-from src.exceptions import BadRequest, NotFound
+from src.utils.postgres import async_db_connection_url
 
 logger = setup_logger(__name__)
 
-class FetchMemoData:
+class ListMemos:
     """
-    A class to handle retrieval of memo data from the PostgreSQL database.
+    A class to handle retrieval of memo records from a PostgreSQL database
+    for a specific user.
+
+    This class provides asynchronous access to memos tied to a given user ID,
+    useful in APIs or services that need to display or process user-specific memo data.
     """
 
-    async def fetch_memo_data(self, memo_id: str) -> dict:
+    async def fetch_memos(self, user_id: str) -> JSONResponse:
         """
-        Asynchronously fetch memo details from the database using the provided memo ID.
+        Asynchronously fetches all memos associated with the specified user ID.
 
         Args:
-            memo_id (str): Unique identifier for the memo.
+            user_id (str): The unique identifier of the user whose memos are to be retrieved.
 
         Returns:
-            dict: A dictionary containing memo details such as:
-                  - memo_id
-                  - processing_status
-                  - template_id
-                  - updated_at
-                  - created_at
-                  - last_opened_at
-                  - generated_content
+            JSONResponse: A JSON response containing a list of memos with relevant metadata.
 
         Raises:
-            BadRequest: If memo_id is not provided.
-            NotFound: If no memo is found for the given ID.
-            RuntimeError: If an unexpected error occurs while querying the database.
+            BadRequest: If the user_id is missing or no records are found.
+            Exception: For any unexpected server/database errors.
         """
+        conn = None
         try:
-            logger.info(f"Received request to fetch memo with ID: {memo_id}")
-
-            if not memo_id:
-                raise BadRequest("Missing memo_id data")
-
-            # Establish asynchronous DB connection
-            conn = await asyncpg.connect(async_db_connection_url)
-
-            # Fetch memo record from the database
-            row = await conn.fetchrow("""
-                SELECT memo_id,
-                       processing_status,
-                       template_id,
-                       updated_at,
-                       created_at,
-                       last_opened_at,
-                       generated_content
-                FROM cledev.memos
-                WHERE memo_id = $1
-                ORDER BY updated_at DESC
-                LIMIT 1
-            """, memo_id)
-
-            await conn.close()
-
-            if not row:
-                raise NotFound(f"No memo found with memo_id: {memo_id}")
-
-            memo_data = dict(row)
-            logger.info(f"Fetched memo data successfully for memo_id: {memo_id}")
-            return memo_data
-
-        except (BadRequest, NotFound) as e:
-            logger.error(f"Client error: {e}")
-            raise
-
-        except Exception as e:
-            logger.exception("Internal server error while fetching memo data")
-            raise RuntimeError("Failed to fetch memo data") from e
+            logger.info(f"Received request to fetch memos for user_id: {user_id}")
