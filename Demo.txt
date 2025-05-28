@@ -1,35 +1,6 @@
-import json
-import asyncpg
-from werkzeug.exceptions import BadRequest
-from fastapi.responses import JSONResponse
-from src.utils.logger import setup_logger
-from src.utils.postgres import async_db_connection_url
+from fastapi import HTTPException, status
 
-logger = setup_logger(__name__)
-
-class ListMemos:
-    """
-    A class to handle retrieval of memo records from a PostgreSQL database
-    for a specific user.
-
-    This class provides asynchronous access to memos tied to a given user ID,
-    useful in APIs or services that need to display or process user-specific memo data.
-    """
-
-    async def fetch_memos(self, user_id: str) -> JSONResponse:
-        """
-        Asynchronously fetches all memos associated with the specified user ID.
-
-        Args:
-            user_id (str): The unique identifier of the user whose memos are to be retrieved.
-
-        Returns:
-            JSONResponse: A JSON response containing a list of memos with relevant metadata.
-
-        Raises:
-            BadRequest: If the user_id is missing or no records are found.
-            Exception: For any unexpected server/database errors.
-        """
-        conn = None
-        try:
-            logger.info(f"Received request to fetch memos for user_id: {user_id}")
+raise HTTPException(
+    status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+    detail="This HTTP method is not allowed for the requested resource"
+)
