@@ -1,76 +1,75 @@
 import asyncpg
+from fastapi.responses import JSONResponse
+from src.utils.postgres import async_db_connection_url
+from src.utils.logger import setup_logger
+from src.exceptions import BadRequest, NotFound
 
-class PostgresDB:
-    def __init__(self, db_url: str):
-        self.db_url = db_url
+logger = setup_logger(__name__)
 
-    async def _connect(self):
-        return await asyncpg.connect(self.db_url)
+class FetchMemoData:
+    """
+    A class to handle retrieval of memo data from the PostgreSQL database.
+    """
 
-    async def insert_user(self, name: str, age: int):
-        conn = await self._connect()
+    async def fetch_memo_data(self, memo_id: str) -> dict:
+        """
+        Asynchronously fetch memo details from the database using the provided memo ID.
+
+        Args:
+            memo_id (str): Unique identifier for the memo.
+
+        Returns:
+            dict: A dictionary containing memo details such as:
+                  - memo_id
+                  - processing_status
+                  - template_id
+                  - updated_at
+                  - created_at
+                  - last_opened_at
+                  - generated_content
+
+        Raises:
+            BadRequest: If memo_id is not provided.
+            NotFound: If no memo is found for the given ID.
+            RuntimeError: If an unexpected error occurs while querying the database.
+        """
         try:
-            await conn.execute(
-                "INSERT INTO users (name, age) VALUES ($1, $2)",
-                name, age
-            )
-        finally:
+            logger.info(f"Received request to fetch memo with ID: {memo_id}")
+
+            if not memo_id:
+                raise BadRequest("Missing memo_id data")
+
+            # Establish asynchronous DB connection
+            conn = await asyncpg.connect(async_db_connection_url)
+
+            # Fetch memo record from the database
+            row = await conn.fetchrow("""
+                SELECT memo_id,
+                       processing_status,
+                       template_id,
+                       updated_at,
+                       created_at,
+                       last_opened_at,
+                       generated_content
+                FROM cledev.memos
+                WHERE memo_id = $1
+                ORDER BY updated_at DESC
+                LIMIT 1
+            """, memo_id)
+
             await conn.close()
 
-    async def update_user_name(self, user_id: int, new_name: str):
-        conn = await self._connect()
-        try:
-            await conn.execute(
-                "UPDATE users SET name = $1 WHERE id = $2",
-                new_name, user_id
-            )
-        finally:
-            await conn.close()
+            if not row:
+                raise NotFound(f"No memo found with memo_id: {memo_id}")
 
-    async def select_user_by_id(self, user_id: int):
-        conn = await self._connect()
-        try:
-            row = await conn.fetchrow(
-                "SELECT id, name, age FROM users WHERE id = $1",
-                user_id
-            )
-            if row:
-                return dict(row)
-            else:
-                return None
-        finally:
-            await conn.close()
+            memo_data = dict(row)
+            logger.info(f"Fetched memo data successfully for memo_id: {memo_id}")
+            return memo_data
 
+        except (BadRequest, NotFound) as e:
+            logger.error(f"Client error: {e}")
+            raise
 
-from fastapi import FastAPI, HTTPException
-from database import PostgresDB
-
-app = FastAPI()
-
-db = PostgresDB("postgresql://user:password@localhost:5432/mydatabase")
-
-@app.post("/insert/")
-async def insert_user(name: str, age: int):
-    try:
-        await db.insert_user(name, age)
-        return {"message": "User inserted"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.put("/update/")
-async def update_user(user_id: int, name: str):
-    try:
-        await db.update_user_name(user_id, name)
-        return {"message": "User updated"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/user/{user_id}")
-async def get_user(user_id: int):
-    try:
-        user = await db.select_user_by_id(user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            logger.exception("Internal server error while fetching memo data")
+            raise RuntimeError("Failed to fetch memo data") from e
