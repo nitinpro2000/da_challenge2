@@ -1,29 +1,76 @@
-# memo.py
+import asyncpg
 
-import uuid
-import datetime
-import json
+class PostgresDB:
+    def __init__(self, db_url: str):
+        self.db_url = db_url
 
-class Memo:
-    def __init__(self, request_json):
-        self.memo_id = uuid.uuid4()
-        self.user_id = request_json.get("user_id")
-        self.client_name = request_json.get("client_name")
-        self.template_type = request_json.get("template_type")
-        self.updated_at = datetime.datetime.now()
+    async def _connect(self):
+        return await asyncpg.connect(self.db_url)
 
-        self.memo_title = None
-        self.meeting_details_json = None
-        self.client_details_json = None
+    async def insert_user(self, name: str, age: int):
+        conn = await self._connect()
+        try:
+            await conn.execute(
+                "INSERT INTO users (name, age) VALUES ($1, $2)",
+                name, age
+            )
+        finally:
+            await conn.close()
 
-        if self.template_type == "client_memo":
-            self.memo_title = request_json.get("memo_title")
-            meeting_details = request_json.get("meeting_details")
-            self.meeting_details_json = json.dumps(meeting_details)
-        else:
-            key_areas = request_json.get("key_areas_for_discussion")
-            key_contact = request_json.get("client_key_contact")
-            self.client_details_json = json.dumps({
-                "key_areas_for_discussion": key_areas,
-                "key_client_contacts": key_contact
-            })
+    async def update_user_name(self, user_id: int, new_name: str):
+        conn = await self._connect()
+        try:
+            await conn.execute(
+                "UPDATE users SET name = $1 WHERE id = $2",
+                new_name, user_id
+            )
+        finally:
+            await conn.close()
+
+    async def select_user_by_id(self, user_id: int):
+        conn = await self._connect()
+        try:
+            row = await conn.fetchrow(
+                "SELECT id, name, age FROM users WHERE id = $1",
+                user_id
+            )
+            if row:
+                return dict(row)
+            else:
+                return None
+        finally:
+            await conn.close()
+
+
+from fastapi import FastAPI, HTTPException
+from database import PostgresDB
+
+app = FastAPI()
+
+db = PostgresDB("postgresql://user:password@localhost:5432/mydatabase")
+
+@app.post("/insert/")
+async def insert_user(name: str, age: int):
+    try:
+        await db.insert_user(name, age)
+        return {"message": "User inserted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/update/")
+async def update_user(user_id: int, name: str):
+    try:
+        await db.update_user_name(user_id, name)
+        return {"message": "User updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/user/{user_id}")
+async def get_user(user_id: int):
+    try:
+        user = await db.select_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
