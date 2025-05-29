@@ -1,25 +1,32 @@
-# Use the official Python 3.12 image
-FROM python:3.12-slim
+Here's a clear and professional message you can send to your team member:
 
-# Set environment variables
-ENV APP_ENV=production \
-    APP_DEBUG=False \
-    APP_NAME=MyFastAPIApp
+---
 
-# Set working directory
-WORKDIR /app
+Hi \[Team Member's Name],
 
-# Copy requirements (if you have any)
-COPY requirements.txt .
+I wanted to clarify a couple of behavior points related to memo creation and retrieval:
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+1. **During Memo Creation:**
+   After a user clicks "Create Memo", if `get_memo` is called before the backend process completes, should we:
 
-# Copy the FastAPI app
-COPY api.py .
+   * Return an error message indicating the memo is not ready yet, or
+   * Return partial memo data with the `output_content` omitted and `status` set to `"processing"`?
 
-# Expose a specific port (e.g., 8080)
-EXPOSE 8080
+   Personally, I think returning partial data with a `"processing"` status is more informative for the client and aligns better with async processing patterns.
 
-# Run the FastAPI app using uvicorn
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
+2. **When No Memos Exist for a User:**
+   For the `list_memos` endpoint, if a user hasn’t created any memos yet, should we:
+
+   * Return an error (e.g., 404 with a message like "No memos found"), or
+   * Simply return an empty JSON object `{}` (or an empty array `[]`) with a 200 OK status?
+
+   I’d suggest returning an empty response with 200 OK to keep it restful and avoid using 404 for valid but empty resource lists.
+
+Let me know your thoughts so we can align implementation accordingly.
+
+Best,
+\[Your Name]
+
+---
+
+Let me know if you want a more casual tone or want to send this over Slack instead.
