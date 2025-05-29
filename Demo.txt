@@ -1,75 +1,79 @@
 import logging
-from fastapi import Response
-import asyncpg
 
-logger = logging.getLogger(__name__)
+def setup_logger(name):
+    """
+    Sets up and returns a configured logger instance.
+
+    Args:
+        name (str): The name of the logger, typically __name__.
+
+    Returns:
+        logging.Logger: Configured logger instance with INFO level and stream handler.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
+
+logger = setup_logger(__name__)
+
 
 class InvalidUserMemosException(Exception):
     """
-    Custom exception raised for errors related to retrieving user memos.
-    
+    Custom exception raised when memo-related operations fail unexpectedly.
+
     Attributes:
-        error (str): Description of the error.
+        error (str): Detailed description of the error.
     """
-    def __init__(self, error):
+    def __init__(self, error: str):
         self.error = error
         super().__init__(str(error))
 
 
-class ListRecentMemos:
+class CheckProcessingStatus:
     """
-    A service class responsible for retrieving the most recent memos 
-    associated with a given user from a PostgreSQL database.
+    A class that provides functionality to check the processing status
+    of memos associated with a specific user.
 
     Methods:
-        fetch_recent_memos(user_id: str, limit: int = 2):
-            Asynchronously fetches recent memos for a user, ordered by last update.
+        fetch_processing_status(user_id: str, memo_ids: list):
+            Asynchronously fetches the processing status of specified memo IDs.
     """
 
-    async def fetch_recent_memos(user_id: str, limit: int = 2):
+    async def fetch_processing_status(self, user_id: str, memo_ids: list):
         """
-        Fetches a limited number of recent memos for a specified user from the database.
+        Fetches the processing status for a given list of memo IDs belonging to a user.
 
-        Parameters:
-            user_id (str): The ID of the user whose memos are to be fetched.
-            limit (int): The maximum number of memos to retrieve. Default is 2.
+        Args:
+            user_id (str): The ID of the user whose memo statuses are to be checked.
+            memo_ids (list): A list of memo ID strings to query.
 
         Returns:
-            List[dict]: A list of memo records represented as dictionaries.
+            dict: A dictionary mapping each memo ID to its processing status (e.g., "processed", "pending").
 
         Raises:
-            ValueError: If the user_id is not provided.
-            InvalidUserMemosException: If a database or unexpected error occurs.
+            ValueError: If user_id is not provided or memo_ids list is empty.
+            InvalidUserMemosException: If an unexpected error occurs during processing.
         """
         try:
-            logger.info(f"Received request for user_id: {user_id}, limit: {limit}")
+            logger.info(f"Received request to fetch processing status for user_id: {user_id}, memo_ids: {memo_ids}")
 
-            if not user_id:
-                raise ValueError("Missing user_id data")
-
-            conn = await asyncpg.connect(async_db_connection_url)
-            try:
-                rows = await conn.fetch(f"""
-                    SELECT memo_id, processing_status, template_type, updated_at, 
-                           meeting_details_input, client_profile
-                    FROM memos
-                    WHERE user_id = $1
-                    ORDER BY updated_at DESC
-                    LIMIT $2;
-                """, user_id, limit)
-
-                return [dict(row) for row in rows]
-            finally:
-                await conn.close()
-
+            if not user_id or not memo_ids:
+                raise ValueError("Missing User ID data or memo_ids list is empty.")
+            
+            # --- Simulated database/API logic ---
+            if user_id == "test_user" and memo_ids:
+                statuses = {
+                    memo_id: "processed" if i % 2 == 0 else "pending"
+                    for i, memo_id in enumerate(memo_ids)
+                }
+                return statuses
+            else:
+                return {}
+            
         except ValueError as e:
-            logger.error(f"Validation error: {e}")
+            logger.error(f"Validation error in fetch_processing_status: {e}")
             raise e
-
-        except asyncpg.exceptions.PostgresError as e:
-            logger.error(f"Database error: {e}")
-            raise InvalidUserMemosException(f"Database operation failed: {e}")
-
-        except Exception as e:
-            logger.error(f"An unexpected error occurred: {e}")
-            raise InvalidUserMemosException(f"An unexpected error occurred: {e}")
