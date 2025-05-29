@@ -1,79 +1,25 @@
-import logging
+# Use the official Python 3.12 image
+FROM python:3.12-slim
 
-def setup_logger(name):
-    """
-    Sets up and returns a configured logger instance.
+# Set environment variables
+ENV APP_ENV=production \
+    APP_DEBUG=False \
+    APP_NAME=MyFastAPIApp
 
-    Args:
-        name (str): The name of the logger, typically __name__.
+# Set working directory
+WORKDIR /app
 
-    Returns:
-        logging.Logger: Configured logger instance with INFO level and stream handler.
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
+# Copy requirements (if you have any)
+COPY requirements.txt .
 
-logger = setup_logger(__name__)
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy the FastAPI app
+COPY api.py .
 
-class InvalidUserMemosException(Exception):
-    """
-    Custom exception raised when memo-related operations fail unexpectedly.
+# Expose a specific port (e.g., 8080)
+EXPOSE 8080
 
-    Attributes:
-        error (str): Detailed description of the error.
-    """
-    def __init__(self, error: str):
-        self.error = error
-        super().__init__(str(error))
-
-
-class CheckProcessingStatus:
-    """
-    A class that provides functionality to check the processing status
-    of memos associated with a specific user.
-
-    Methods:
-        fetch_processing_status(user_id: str, memo_ids: list):
-            Asynchronously fetches the processing status of specified memo IDs.
-    """
-
-    async def fetch_processing_status(self, user_id: str, memo_ids: list):
-        """
-        Fetches the processing status for a given list of memo IDs belonging to a user.
-
-        Args:
-            user_id (str): The ID of the user whose memo statuses are to be checked.
-            memo_ids (list): A list of memo ID strings to query.
-
-        Returns:
-            dict: A dictionary mapping each memo ID to its processing status (e.g., "processed", "pending").
-
-        Raises:
-            ValueError: If user_id is not provided or memo_ids list is empty.
-            InvalidUserMemosException: If an unexpected error occurs during processing.
-        """
-        try:
-            logger.info(f"Received request to fetch processing status for user_id: {user_id}, memo_ids: {memo_ids}")
-
-            if not user_id or not memo_ids:
-                raise ValueError("Missing User ID data or memo_ids list is empty.")
-            
-            # --- Simulated database/API logic ---
-            if user_id == "test_user" and memo_ids:
-                statuses = {
-                    memo_id: "processed" if i % 2 == 0 else "pending"
-                    for i, memo_id in enumerate(memo_ids)
-                }
-                return statuses
-            else:
-                return {}
-            
-        except ValueError as e:
-            logger.error(f"Validation error in fetch_processing_status: {e}")
-            raise e
+# Run the FastAPI app using uvicorn
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
