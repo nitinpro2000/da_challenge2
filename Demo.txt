@@ -1,86 +1,17 @@
-import os
-import psycopg2
-import openai
+# 1. Clone the repository
+git clone https://github.com/your-username/your-repo.git
+cd your-repo
 
-# Azure OpenAI Configuration
-openai.api_type = "azure"
-openai.api_base = os.getenv("AZURE_OPENAI_ENDPOINT")
-openai.api_key = os.getenv("AZURE_OPENAI_API_KEY")
-openai.api_version = "2023-05-15"  # Adjust if needed
-deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+# 2. Checkout to dev branch
+git checkout dev
 
-# PostgreSQL connection details
-DB_PARAMS = {
-    "host": "localhost",
-    "port": 5432,
-    "dbname": "your_db_name",
-    "user": "your_user",
-    "password": "your_password"
-}
+# 3. (Optional) Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate        # On Linux/macOS
+venv\Scripts\activate           # On Windows
 
-texts = [
-    "Apple is a fruit",
-    "Car is a vehicle",
-    "Python is a programming language"
-]
+# 4. Install dependencies
+pip install -r requirements.txt
 
-def get_embedding(text):
-    response = openai.Embedding.create(
-        input=text,
-        engine=deployment_name
-    )
-    return response['data'][0]['embedding']
-
-def main():
-    conn = psycopg2.connect(**DB_PARAMS)
-    cur = conn.cursor()
-
-    # Create pgvector extension if not exists
-    try:
-        cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-        print("[✓] pgvector extension is available.")
-    except Exception as e:
-        print("[✗] pgvector extension not available:", e)
-        return
-
-    # Drop & create table
-    cur.execute("DROP TABLE IF EXISTS documents;")
-    cur.execute("""
-        CREATE TABLE documents (
-            id SERIAL PRIMARY KEY,
-            content TEXT,
-            embedding VECTOR(1536)
-        );
-    """)
-    print("[✓] Table created.")
-
-    # Insert sample data
-    for text in texts:
-        embedding = get_embedding(text)
-        cur.execute(
-            "INSERT INTO documents (content, embedding) VALUES (%s, %s)",
-            (text, embedding)
-        )
-    conn.commit()
-    print("[✓] Sample data inserted.")
-
-    # Perform vector search
-    query = "programming"
-    query_embedding = get_embedding(query)
-
-    cur.execute("""
-        SELECT content, embedding <-> %s AS distance
-        FROM documents
-        ORDER BY embedding <-> %s
-        LIMIT 3;
-    """, (query_embedding, query_embedding))
-
-    print(f"\nTop matches for query '{query}':")
-    for row in cur.fetchall():
-        print(f" - {row[0]} (distance={row[1]:.4f})")
-
-    cur.close()
-    conn.close()
-
-if __name__ == "__main__":
-    main()
+# 5. Run FastAPI app (assuming your app is in api.py with app = FastAPI())
+uvicorn api:app --host 0.0.0.0 --port 8080 --reload
