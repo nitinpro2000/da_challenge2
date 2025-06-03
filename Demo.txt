@@ -1,21 +1,9 @@
-import json
+from datetime import datetime
+import pytz
 
-def categorize_contacts(contact_data):
-    clients = []
-    consultants = []
+# Define Central Time
+central = pytz.timezone("America/Chicago")
+now_ct = datetime.now(central)
 
-    for contact in contact_data:
-        name = contact.get("contact_name")
-        ctype = contact.get("contact_type")
-
-        if ctype == "Client":
-            clients.append(name)
-        elif ctype == "Consultant":
-            consultants.append(name)
-
-    result = {
-        "client_contacts": clients,
-        "consultant_contacts": consultants
-    }
-
-    return json.dumps(result, indent=2)
+# Optional: convert to UTC before storing (recommended)
+now_utc = now_ct.astimezone(pytz.UTC)
