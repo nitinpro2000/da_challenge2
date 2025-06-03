@@ -1,32 +1,52 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from webdriver_manager.chrome import ChromeDriverManager
-import time
-from urllib.parse import urlparse
+import logging
+from fastapi.responses import JSONResponse
+from src.utils.logger import setup_logger
+from src.utils.snowflake_connector import SnowflakeConnector
 
-# Target URL
-START_URL = "https://finance.yahoo.com/quote/TSLA/"
+logger = setup_logger(__name__)
 
-# Configure Selenium with headless Chrome
-options = Options()
-#options.add_argument("--headless")
-options.add_argument("--disable-gpu")
-options.add_argument("--no-sandbox")
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+class ListClientNames:
+    """
+    A class responsible for retrieving a list of client names from a Snowflake database.
 
-# Open the search page
-driver.get(START_URL)
-html = driver.page_source
-with open("output.html", "w", encoding="utf-8") as f:
-    f.write(html)
+    Methods:
+    --------
+    fetch_client_names():
+        Asynchronously fetches client names from a configured Snowflake table and returns the result as a JSON response.
+    """
 
-driver.quit()
+    async def fetch_client_names(self):
+        """
+        Asynchronously fetches a list of client names from the Snowflake database.
 
-# Output the found URLs
-print("\nFound article URLs:")
-# for url in sorted(urls):
-#     print(url)
+        Establishes a connection to Snowflake, switches to the appropriate warehouse,
+        executes a SELECT query to retrieve client names from a specified table, and returns
+        the results in a FastAPI-compatible JSON response.
+
+        Returns:
+        --------
+        JSONResponse
+            A FastAPI JSONResponse containing either a success message or error details.
+        """
+        try:
+            logger.info("Received request for fetching client names")
+
+            cls = SnowflakeConnector()
+            conn = cls.get_connection()
+
+            conn.execute("USE WAREHOUSE ACD_SERVICE_WH")
+            conn.execute(
+                """
+                SELECT CLIENT_NAME
+                FROM YOUR_TABLE_NAME_HERE  -- Replace with your actual table name
+                """
+            )
+            # To fetch the data:
+            # client_names = conn.fetchall()
+            # return JSONResponse(content={"client_names": client_names})
+
+            return JSONResponse(content={"message": "Client names fetched successfully (placeholder)"})
+
+        except Exception as e:
+            logger.error(f"Error fetching client names: {e}")
+            return JSONResponse(content={"error": str(e)}, status_code=500)
