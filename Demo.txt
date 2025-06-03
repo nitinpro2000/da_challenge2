@@ -1,72 +1,21 @@
-import logging
-from werkzeug.exceptions import BadRequest
-from fastapi.responses import JSONResponse
-from src.utils.logger import setup_logger
-from src.utils.snowflake_connector import SnowflakeConnector
+import json
 
-logger = setup_logger(__name__)
+def categorize_contacts(contact_data):
+    clients = []
+    consultants = []
 
+    for contact in contact_data:
+        name = contact.get("contact_name")
+        ctype = contact.get("contact_type")
 
-class ListClientContacts:
-    """
-    A class responsible for retrieving contact information of clients from a Snowflake database.
+        if ctype == "Client":
+            clients.append(name)
+        elif ctype == "Consultant":
+            consultants.append(name)
 
-    Methods:
-    --------
-    fetch_client_contacts(client_name: str):
-        Asynchronously fetches contact details for the specified client and returns them in a JSON response.
-    """
+    result = {
+        "client_contacts": clients,
+        "consultant_contacts": consultants
+    }
 
-    async def fetch_client_contacts(self, client_name: str):
-        """
-        Asynchronously fetches contact details for a given client from the Snowflake database.
-
-        Validates the provided client name, establishes a Snowflake connection, and executes a SQL query
-        to retrieve client contact information. Returns the result as a FastAPI JSONResponse.
-
-        Args:
-        -----
-        client_name (str): The name of the client for which contact information is to be retrieved.
-
-        Returns:
-        --------
-        JSONResponse:
-            A JSON response containing either the fetched contact information or an error message.
-
-        Raises:
-        -------
-        BadRequest:
-            If the client_name is not provided.
-        Exception:
-            For any other errors encountered during database interaction.
-        """
-        try:
-            logger.info(f"Received request for listing contacts for client: {client_name}")
-
-            if not client_name:
-                raise BadRequest("Missing client_name data")
-
-            cls = SnowflakeConnector()
-            conn = cls.get_connection()
-
-            conn.execute("USE WAREHOUSE ACD_SERVICE_WH")
-            conn.execute(
-                f"""
-                SELECT CLIENT_NAME, CONTACT_PERSON, CONTACT_EMAIL, CONTACT_PHONE
-                FROM YOUR_CLIENT_CONTACTS_TABLE  -- Replace with your actual table name
-                WHERE CLIENT_NAME = '{client_name}'
-                """
-            )
-            # To actually fetch the data:
-            # client_contacts = conn.fetchall()
-            # return JSONResponse(content={"client_contacts": client_contacts})
-
-            return JSONResponse(content={"message": f"Client contacts fetched successfully for {client_name} (placeholder)"})
-
-        except BadRequest as e:
-            logger.warning(f"Bad Request: {e}")
-            return JSONResponse(content={"error": str(e)}, status_code=400)
-
-        except Exception as e:
-            logger.error(f"Error fetching client contacts for {client_name}: {e}")
-            return JSONResponse(content={"error": str(e)}, status_code=500)
+    return json.dumps(result, indent=2)
