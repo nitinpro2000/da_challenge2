@@ -1,9 +1,11 @@
-from datetime import datetime
-import pytz
-
-# Define Central Time
-central = pytz.timezone("America/Chicago")
-now_ct = datetime.now(central)
-
-# Optional: convert to UTC before storing (recommended)
-now_utc = now_ct.astimezone(pytz.UTC)
+SELECT 
+    column_name, 
+    data_type, 
+    character_maximum_length, 
+    is_nullable, 
+    column_default
+FROM 
+    information_schema.columns
+WHERE 
+    table_name = 'your_table_name' 
+    AND table_schema = 'your_schema_name'; -- Optional
