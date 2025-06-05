@@ -1,52 +1,7 @@
-import uuid
-import json
-
-async def update_memo_record(self, content, conn):
-    # Step 1: Update the memo with new generated content
-    await conn.execute("""
-        UPDATE cledev.memos
-        SET generated_content = $1,
-            processing_status = 'Completed',
-            updated_at = NOW(),
-            error_message = NULL
-        WHERE memo_id = $2
-    """, json.dumps(content), str(self.memo_id))
-
-    # Step 2: Fetch updated content from memos
-    updated_row = await conn.fetchrow("""
-        SELECT generated_content
-        FROM cledev.memos
-        WHERE memo_id = $1
-    """, str(self.memo_id))
-
-    updated_content = updated_row['generated_content']
-
-    # Step 3: Get latest version number and increment
-    result = await conn.fetchval("""
-        SELECT MAX(version_number)
-        FROM cledev.memos_versions
-        WHERE memo_id = $1
-    """, str(self.memo_id))
-
-    next_version_number = (result or 0) + 1  # If no versions, start with 1
-
-    # Step 4: Insert into memos_versions
-    version_id = uuid.uuid4()
-    await conn.execute("""
-        INSERT INTO cledev.memos_versions (
-            version_id,
-            memo_id,
-            version_number,
-            created_at,
-            created_by_user_id,
-            change_description,
-            generated_content_snapshot,
-            user_edits_snapshot
-        ) VALUES ($1, $2, $3, NOW(), $4, $5, $6, NULL)
-    """,
-    str(version_id),
-    str(self.memo_id),
-    next_version_number,
-    str(self.user_id),
-    'New version after automated content update.',
-    json.dumps(updated_content))
+query = """
+        SELECT EXISTS (
+            SELECT 1 FROM cledev.memos WHERE memo_id = $1
+        )
+    """
+    result = await conn.fetchval(query, memo_id)
+    return result
