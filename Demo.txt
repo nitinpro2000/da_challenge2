@@ -1,8 +1,98 @@
-async def get_jsonb_key_value(conn, memo_id: str, jsonb_key: str) -> str:
-    query = f"""
-        SELECT output_content ->> $1 AS value
-        FROM cledev.memos
-        WHERE memo_id = $2
-    """
-    result = await conn.fetchval(query, jsonb_key, memo_id)
-    return result
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.dml.color import RGBColor
+
+# Create a presentation object
+prs = Presentation()
+title_slide_layout = prs.slide_layouts[0]
+content_slide_layout = prs.slide_layouts[1]
+
+# Add title slide
+slide = prs.slides.add_slide(title_slide_layout)
+title = slide.shapes.title
+subtitle = slide.placeholders[1]
+title.text = "API Pseudocode & Flow Description"
+subtitle.text = "JWT Auth | PostgreSQL | Logging | Error Handling"
+
+# Define API section data
+api_sections = [
+    ("Common Step: JWT Authentication", [
+        "Extract JWT token from Authorization header.",
+        "Validate token (signature, expiry). Return 401 if invalid.",
+        "Extract user_id and permissions from token claims.",
+        "Log authentication success with user_id and timestamp."
+    ]),
+    ("Create Memo API", [
+        "Authenticate request (JWT).",
+        "Receive and validate input: user_id, client_name, content_inputs.",
+        "Insert record in memos table with status='Processing'.",
+        "Trigger content generation logic asynchronously.",
+        "Update memo with generated content and mark status='Completed'.",
+        "Return memo_id, client_name, and status.",
+        "Log each step and handle validation (400) and server errors (500)."
+    ]),
+    ("Check Processing Status API", [
+        "Authenticate request (JWT).",
+        "Receive user_id and memo_ids.",
+        "Validate input types and ownership.",
+        "Query memos table for processing status.",
+        "Return processing status in JSON format.",
+        "Log input and output; handle 400 and 500 errors."
+    ]),
+    ("Get Memo Data API", [
+        "Authenticate request (JWT).",
+        "Receive memo_id and validate user ownership.",
+        "Fetch memo from database.",
+        "Update last_opened_at timestamp.",
+        "Return memo content.",
+        "Handle 404 for not found and log retrieval."
+    ]),
+    ("List Memos API", [
+        "Authenticate request (JWT).",
+        "Validate user_id matches token.",
+        "Query memos table for all memos of user.",
+        "Return memo list with metadata.",
+        "Log and handle errors gracefully."
+    ]),
+    ("List Recent Memos API", [
+        "Authenticate request (JWT).",
+        "Query for most recently updated 2 memos for the user.",
+        "Return the memo list in descending updated order.",
+        "Log and handle database failures."
+    ]),
+    ("Get Client Names API", [
+        "Authenticate request (JWT).",
+        "Query Snowflake for distinct client names.",
+        "Return result as JSON.",
+        "Handle Snowflake connectivity issues and log request."
+    ]),
+    ("Get Client Contacts API", [
+        "Authenticate request (JWT).",
+        "Receive client_name and validate.",
+        "Query Snowflake for contacts with type External or External Consultant.",
+        "Return contact list.",
+        "Log client_name request and handle failures."
+    ]),
+    ("Update Memo Content API", [
+        "Authenticate request (JWT).",
+        "Receive memo_id, section_name, updated_content.",
+        "Validate section is editable and user has access.",
+        "Update memo in PostgreSQL and insert into versions table.",
+        "Return updated section with success status.",
+        "Log each change and handle validation and DB failures."
+    ])
+]
+
+# Add content slides
+for title_text, bullet_points in api_sections:
+    slide = prs.slides.add_slide(content_slide_layout)
+    title = slide.shapes.title
+    content = slide.placeholders[1]
+    title.text = title_text
+    content.text = "\n".join(f"- {point}" for point in bullet_points)
+
+# Save the presentation
+pptx_path = "/mnt/data/API_SudoCode_Description_PPT.pptx"
+prs.save(pptx_path)
+pptx_path
