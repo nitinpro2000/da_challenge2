@@ -1,7 +1,8 @@
-query = """
-        SELECT EXISTS (
-            SELECT 1 FROM cledev.memos WHERE memo_id = $1
-        )
+async def get_jsonb_key_value(conn, memo_id: str, jsonb_key: str) -> str:
+    query = f"""
+        SELECT output_content ->> $1 AS value
+        FROM cledev.memos
+        WHERE memo_id = $2
     """
-    result = await conn.fetchval(query, memo_id)
+    result = await conn.fetchval(query, jsonb_key, memo_id)
     return result
