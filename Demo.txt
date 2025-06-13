@@ -1,84 +1,131 @@
 import asyncio
 import asyncpg
 import logging
-from typing import List
+from typing import List, Dict
 from openai import AzureOpenAI
 
-# Configure logging
+# Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Azure OpenAI client setup
+# Azure OpenAI client
 openai_client = AzureOpenAI(
     api_key="YOUR_AZURE_OPENAI_KEY",
     api_version="2023-05-15",
     azure_endpoint="https://YOUR-RESOURCE-NAME.openai.azure.com/"
 )
 
-# PostgreSQL RAG Retriever
+
 class PostgresRAGRetriever:
+    """
+    Class for retrieving similar text chunks using pgvector and filtering by client and section.
+    """
+
     def __init__(self, db_config: dict):
         self.db_config = db_config
 
     async def _get_connection(self):
         return await asyncpg.connect(**self.db_config)
 
-    async def fetch_similar_chunks(self, table: str, embedding: List[float], client_name: str, section: str = None, top_k: int = 5) -> List[str]:
+    async def fetch_similar_chunks(
+        self,
+        table: str,
+        embedding: List[float],
+        client_name: str,
+        section_values: List[str] = None,
+        apply_section_filter: bool = False,
+        top_k: int = 5
+    ) -> List[str]:
         async with await self._get_connection() as conn:
-            if section:
+            if apply_section_filter and section_values:
                 query = f"""
                     SELECT content FROM {table}
-                    WHERE client_name = $1 AND section = $2
+                    WHERE client_name = $1 AND section = ANY($2::text[])
                     ORDER BY embedding <-> $3
-                    LIMIT {top_k}
+                    LIMIT $4
                 """
-                records = await conn.fetch(query, client_name, section, embedding)
+                logging.info(f"Querying {table} with section filter: {section_values}")
+                records = await conn.fetch(query, client_name, section_values, embedding, top_k)
             else:
                 query = f"""
                     SELECT content FROM {table}
                     WHERE client_name = $1
                     ORDER BY embedding <-> $2
-                    LIMIT {top_k}
+                    LIMIT $3
                 """
-                records = await conn.fetch(query, client_name, embedding)
+                logging.info(f"Querying {table} with only client_name")
+                records = await conn.fetch(query, client_name, embedding, top_k)
             return [r["content"] for r in records]
 
-    async def fetch_combined_chunks(self, tables: List[str], embedding: List[float], client_name: str, section: str = None, top_k: int = 5) -> List[str]:
-        chunks = []
-        for table in tables:
-            result = await self.fetch_similar_chunks(table, embedding, client_name, section, top_k)
-            chunks.extend(result)
-        return chunks
+    async def fetch_combined_chunks(
+        self,
+        tables: List[Dict],
+        embedding: List[float],
+        client_name: str,
+        top_k: int = 5
+    ) -> List[str]:
+        """
+        Fetch chunks from all tables relevant to the section.
+        """
+        all_chunks = []
+        for table_info in tables:
+            table = table_info["name"]
+            apply_section = table_info.get("filter_section", False)
+            section_values = table_info.get("section_values", [])
+            chunks = await self.fetch_similar_chunks(
+                table=table,
+                embedding=embedding,
+                client_name=client_name,
+                section_values=section_values,
+                apply_section_filter=apply_section,
+                top_k=top_k
+            )
+            all_chunks.extend(chunks)
+        return all_chunks
 
 
-# LLM Prompt Builder and Invoker
 class SectionRegenerator:
+    """
+    Main class for regenerating a section using RAG context and Azure OpenAI.
+    """
+
     def __init__(self):
         self.section_table_map = {
-            "client_overview": ["clients", "profiles"],
-            "next_best_actions": ["actions", "history"],
-            "client_contacts": ["contacts"],
-            "company_news": ["news"],
-            "industry_news": ["industry_news"]
+            "client_overview": [
+                {"name": "clients", "filter_section": True, "section_values": ["client_news", "client_summary"]},
+                {"name": "profiles", "filter_section": False}
+            ],
+            "next_best_actions": [
+                {"name": "actions", "filter_section": False},
+                {"name": "history", "filter_section": False}
+            ],
+            "client_contacts": [
+                {"name": "contacts", "filter_section": True, "section_values": ["client_contacts"]}
+            ],
+            "company_news": [
+                {"name": "news", "filter_section": True, "section_values": ["company_news"]}
+            ],
+            "industry_news": [
+                {"name": "industry_news", "filter_section": True, "section_values": ["industry_news"]}
+            ]
         }
-        self.section_with_filter = {"client_contacts", "company_news", "industry_news"}
 
     def build_prompt(self, section: str, new_prompt: str, previous_content: str, rag_chunks: List[str]) -> str:
+        """
+        Build a prompt including context, new prompt, and prior content.
+        """
         context = "\n\n".join(rag_chunks) if rag_chunks else "[No RAG context found]"
         previous = previous_content if previous_content else "[No previous content]"
-
-        prompt = (
+        return (
             f"You are regenerating the '{section.replace('_', ' ')}' section for a client.\n\n"
             f"--- CONTEXT FROM DATABASE ---\n{context}\n\n"
             f"--- NEW INSTRUCTIONS ---\n{new_prompt}\n\n"
-            f"Make sure all points from the prompt are addressed clearly.\n\n"
-            f"--- PREVIOUS CONTENT ---\n{previous}\n\n"
-            f"Regenerate the section accordingly."
+            f"Ensure that all points from the input prompt are included clearly and concisely.\n\n"
+            f"--- PREVIOUS GENERATED CONTENT ---\n{previous}\n"
         )
-        return prompt
 
     def call_azure_llm(self, prompt: str) -> str:
         """
-        Calls Azure OpenAI model with the constructed prompt.
+        Call Azure OpenAI chat completion model with the generated prompt.
         """
         logging.info("Calling Azure OpenAI model...")
         response = openai_client.chat.completions.create(
@@ -98,34 +145,42 @@ class SectionRegenerator:
         previous_content: str,
         client_name: str
     ) -> str:
+        """
+        Regenerates a section with new instructions and previous content.
+        """
         retriever = PostgresRAGRetriever(db_config)
         tables = self.section_table_map.get(section, [])
-        section_filter = section if section in self.section_with_filter else None
+        rag_chunks = await retriever.fetch_combined_chunks(
+            tables=tables,
+            embedding=embedding,
+            client_name=client_name,
+            top_k=5
+        )
+        full_prompt = self.build_prompt(section, new_prompt, previous_content, rag_chunks)
+        return self.call_azure_llm(full_prompt)
 
-        rag_chunks = await retriever.fetch_combined_chunks(tables, embedding, client_name, section_filter)
-        prompt = self.build_prompt(section, new_prompt, previous_content, rag_chunks)
-        return self.call_azure_llm(prompt)
 
-
-# --- Example usage ---
+# --------------------------
+# Example usage (standalone)
+# --------------------------
 if __name__ == "__main__":
     db_config = {
         "user": "your_user",
-        "password": "your_pass",
-        "database": "your_db",
+        "password": "your_password",
+        "database": "your_database",
         "host": "localhost",
         "port": 5432
     }
 
-    section = "company_news"  # Example section to regenerate
+    section = "client_overview"
     client_name = "Acme Corp"
-    new_prompt = "Summarize recent announcements, key business deals, and new product launches."
-    previous_content = "No recent news available previously."
-    dummy_embedding = [0.1] * 1536  # Replace with actual embedding for the new prompt
+    new_prompt = "Provide a summary of the client's key business areas and strategic direction."
+    previous_content = "Acme Corp has been focusing on cloud migration for logistics."
+    dummy_embedding = [0.01] * 1536  # Replace with actual embedding vector
 
-    async def run():
-        regenerator = SectionRegenerator()
-        result = await regenerator.regenerate_section(
+    async def main():
+        generator = SectionRegenerator()
+        result = await generator.regenerate_section(
             db_config=db_config,
             section=section,
             embedding=dummy_embedding,
@@ -133,6 +188,6 @@ if __name__ == "__main__":
             previous_content=previous_content,
             client_name=client_name
         )
-        print(f"\n--- Regenerated Section: {section} ---\n{result}\n")
+        print(f"\n--- Regenerated '{section}' ---\n{result}")
 
-    asyncio.run(run())
+    asyncio.run(main())
