@@ -1,6 +1,123 @@
-TENANT_ID = "your-tenant-id"
-CLIENT_ID = "your-client-id"
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-JWKS_URL = f"{AUTHORITY}/discovery/v2.0/keys"
-ISSUER = f"{AUTHORITY}/v2.0"
-AUDIENCE = CLIENT_ID
+import logging
+from typing import Dict
+
+# Setup logging configuration
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+class LLMContentRegenerator:
+    """
+    Regenerates LLM content for predefined memo sections using updated prompts,
+    and includes previous content for continuity/context.
+    """
+
+    def __init__(self):
+        self.sections = [
+            "client_overview",
+            "client_contacts",
+            "next_best_actions",
+            "company_news",
+            "industry_news"
+        ]
+
+    def build_combined_prompt(self, section: str, new_prompt: str, previous_content: str) -> str:
+        """
+        Combines the new prompt with previous content into a final LLM prompt.
+
+        Args:
+            section (str): Section name.
+            new_prompt (str): The new user-provided prompt.
+            previous_content (str): Previously generated content for context.
+
+        Returns:
+            str: Combined prompt for LLM generation.
+        """
+        prompt = (
+            f"You are regenerating the '{section.replace('_', ' ')}' section.\n"
+            f"Please ensure the regenerated content covers all the key points from the new prompt below.\n"
+            f"If helpful, also refer to the previously generated content for context or continuity.\n\n"
+            f"--- NEW PROMPT ---\n{new_prompt}\n\n"
+            f"--- PREVIOUSLY GENERATED CONTENT ---\n{previous_content if previous_content else '[None]'}"
+        )
+        logging.debug("Constructed prompt for section '%s':\n%s", section, prompt)
+        return prompt
+
+    def generate_content(self, prompt: str) -> str:
+        """
+        Simulates an LLM call. Replace with your actual LLM API implementation.
+
+        Args:
+            prompt (str): The input prompt to send to the LLM.
+
+        Returns:
+            str: Simulated/generated content.
+        """
+        logging.info("Generating content using LLM...")
+        # Replace with real LLM call, e.g., OpenAI API
+        return f"[Generated Content]\n{prompt}"
+
+    def regenerate_section(self, section: str, new_prompt: str, previous_content: str = "") -> str:
+        """
+        Regenerate content for a given section using a new prompt and prior content.
+
+        Args:
+            section (str): The section name.
+            new_prompt (str): New prompt for LLM.
+            previous_content (str): Previously generated content.
+
+        Returns:
+            str: New LLM-generated content.
+        """
+        logging.info("Starting regeneration for section: %s", section)
+        full_prompt = self.build_combined_prompt(section, new_prompt, previous_content)
+        new_output = self.generate_content(full_prompt)
+        logging.info("Completed regeneration for section: %s", section)
+        return new_output
+
+    def regenerate_all_sections(self, new_prompts: Dict[str, str], previous_contents: Dict[str, str]) -> Dict[str, str]:
+        """
+        Regenerate all memo sections with respective prompts and prior content.
+
+        Args:
+            new_prompts (Dict[str, str]): Dictionary of section -> new prompt.
+            previous_contents (Dict[str, str]): Dictionary of section -> previous content.
+
+        Returns:
+            Dict[str, str]: Dictionary of section -> regenerated content.
+        """
+        regenerated = {}
+        for section in self.sections:
+            new_prompt = new_prompts.get(section, "")
+            prev_content = previous_contents.get(section, "")
+            if not new_prompt:
+                logging.warning("No new prompt provided for section: %s", section)
+                continue
+            regenerated[section] = self.regenerate_section(section, new_prompt, prev_content)
+        return regenerated
+
+
+# Example usage
+if __name__ == "__main__":
+    regenerator = LLMContentRegenerator()
+
+    # Provide your actual prompts and previous content
+    new_prompts = {
+        "client_overview": "Include company’s market presence, product line, and current strategic goals.",
+        "client_contacts": "Include decision-makers, procurement heads, and communication leads.",
+        "next_best_actions": "Suggest strategic follow-ups, personalized demos, and product updates.",
+        "company_news": "Summarize recent earnings announcements, partnerships, or acquisitions.",
+        "industry_news": "Highlight regulatory changes, market growth trends, and top competitor moves."
+    }
+
+    previous_contents = {
+        "client_overview": "Company is known for cloud solutions and is expanding in the APAC market.",
+        "client_contacts": "John Doe (CTO), Jane Smith (Procurement Manager)",
+        "next_best_actions": "Schedule meeting, send product brochure.",
+        "company_news": "Recently acquired a fintech startup.",
+        "industry_news": "AI integration is growing in financial services."
+    }
+
+    results = regenerator.regenerate_all_sections(new_prompts, previous_contents)
+
+    for section, output in results.items():
+        print(f"\n--- {section.upper()} ---\n{output}\n")
