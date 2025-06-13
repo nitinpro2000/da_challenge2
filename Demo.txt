@@ -1,123 +1,138 @@
+import asyncio
+import asyncpg
 import logging
-from typing import Dict
+from typing import List
+from openai import AzureOpenAI
 
-# Setup logging configuration
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+# Azure OpenAI client setup
+openai_client = AzureOpenAI(
+    api_key="YOUR_AZURE_OPENAI_KEY",
+    api_version="2023-05-15",
+    azure_endpoint="https://YOUR-RESOURCE-NAME.openai.azure.com/"
+)
+
+# PostgreSQL RAG Retriever
+class PostgresRAGRetriever:
+    def __init__(self, db_config: dict):
+        self.db_config = db_config
+
+    async def _get_connection(self):
+        return await asyncpg.connect(**self.db_config)
+
+    async def fetch_similar_chunks(self, table: str, embedding: List[float], client_name: str, section: str = None, top_k: int = 5) -> List[str]:
+        async with await self._get_connection() as conn:
+            if section:
+                query = f"""
+                    SELECT content FROM {table}
+                    WHERE client_name = $1 AND section = $2
+                    ORDER BY embedding <-> $3
+                    LIMIT {top_k}
+                """
+                records = await conn.fetch(query, client_name, section, embedding)
+            else:
+                query = f"""
+                    SELECT content FROM {table}
+                    WHERE client_name = $1
+                    ORDER BY embedding <-> $2
+                    LIMIT {top_k}
+                """
+                records = await conn.fetch(query, client_name, embedding)
+            return [r["content"] for r in records]
+
+    async def fetch_combined_chunks(self, tables: List[str], embedding: List[float], client_name: str, section: str = None, top_k: int = 5) -> List[str]:
+        chunks = []
+        for table in tables:
+            result = await self.fetch_similar_chunks(table, embedding, client_name, section, top_k)
+            chunks.extend(result)
+        return chunks
 
 
-class LLMContentRegenerator:
-    """
-    Regenerates LLM content for predefined memo sections using updated prompts,
-    and includes previous content for continuity/context.
-    """
-
+# LLM Prompt Builder and Invoker
+class SectionRegenerator:
     def __init__(self):
-        self.sections = [
-            "client_overview",
-            "client_contacts",
-            "next_best_actions",
-            "company_news",
-            "industry_news"
-        ]
+        self.section_table_map = {
+            "client_overview": ["clients", "profiles"],
+            "next_best_actions": ["actions", "history"],
+            "client_contacts": ["contacts"],
+            "company_news": ["news"],
+            "industry_news": ["industry_news"]
+        }
+        self.section_with_filter = {"client_contacts", "company_news", "industry_news"}
 
-    def build_combined_prompt(self, section: str, new_prompt: str, previous_content: str) -> str:
-        """
-        Combines the new prompt with previous content into a final LLM prompt.
+    def build_prompt(self, section: str, new_prompt: str, previous_content: str, rag_chunks: List[str]) -> str:
+        context = "\n\n".join(rag_chunks) if rag_chunks else "[No RAG context found]"
+        previous = previous_content if previous_content else "[No previous content]"
 
-        Args:
-            section (str): Section name.
-            new_prompt (str): The new user-provided prompt.
-            previous_content (str): Previously generated content for context.
-
-        Returns:
-            str: Combined prompt for LLM generation.
-        """
         prompt = (
-            f"You are regenerating the '{section.replace('_', ' ')}' section.\n"
-            f"Please ensure the regenerated content covers all the key points from the new prompt below.\n"
-            f"If helpful, also refer to the previously generated content for context or continuity.\n\n"
-            f"--- NEW PROMPT ---\n{new_prompt}\n\n"
-            f"--- PREVIOUSLY GENERATED CONTENT ---\n{previous_content if previous_content else '[None]'}"
+            f"You are regenerating the '{section.replace('_', ' ')}' section for a client.\n\n"
+            f"--- CONTEXT FROM DATABASE ---\n{context}\n\n"
+            f"--- NEW INSTRUCTIONS ---\n{new_prompt}\n\n"
+            f"Make sure all points from the prompt are addressed clearly.\n\n"
+            f"--- PREVIOUS CONTENT ---\n{previous}\n\n"
+            f"Regenerate the section accordingly."
         )
-        logging.debug("Constructed prompt for section '%s':\n%s", section, prompt)
         return prompt
 
-    def generate_content(self, prompt: str) -> str:
+    def call_azure_llm(self, prompt: str) -> str:
         """
-        Simulates an LLM call. Replace with your actual LLM API implementation.
-
-        Args:
-            prompt (str): The input prompt to send to the LLM.
-
-        Returns:
-            str: Simulated/generated content.
+        Calls Azure OpenAI model with the constructed prompt.
         """
-        logging.info("Generating content using LLM...")
-        # Replace with real LLM call, e.g., OpenAI API
-        return f"[Generated Content]\n{prompt}"
+        logging.info("Calling Azure OpenAI model...")
+        response = openai_client.chat.completions.create(
+            model="gpt-35-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=800
+        )
+        return response.choices[0].message.content.strip()
 
-    def regenerate_section(self, section: str, new_prompt: str, previous_content: str = "") -> str:
-        """
-        Regenerate content for a given section using a new prompt and prior content.
+    async def regenerate_section(
+        self,
+        db_config: dict,
+        section: str,
+        embedding: List[float],
+        new_prompt: str,
+        previous_content: str,
+        client_name: str
+    ) -> str:
+        retriever = PostgresRAGRetriever(db_config)
+        tables = self.section_table_map.get(section, [])
+        section_filter = section if section in self.section_with_filter else None
 
-        Args:
-            section (str): The section name.
-            new_prompt (str): New prompt for LLM.
-            previous_content (str): Previously generated content.
-
-        Returns:
-            str: New LLM-generated content.
-        """
-        logging.info("Starting regeneration for section: %s", section)
-        full_prompt = self.build_combined_prompt(section, new_prompt, previous_content)
-        new_output = self.generate_content(full_prompt)
-        logging.info("Completed regeneration for section: %s", section)
-        return new_output
-
-    def regenerate_all_sections(self, new_prompts: Dict[str, str], previous_contents: Dict[str, str]) -> Dict[str, str]:
-        """
-        Regenerate all memo sections with respective prompts and prior content.
-
-        Args:
-            new_prompts (Dict[str, str]): Dictionary of section -> new prompt.
-            previous_contents (Dict[str, str]): Dictionary of section -> previous content.
-
-        Returns:
-            Dict[str, str]: Dictionary of section -> regenerated content.
-        """
-        regenerated = {}
-        for section in self.sections:
-            new_prompt = new_prompts.get(section, "")
-            prev_content = previous_contents.get(section, "")
-            if not new_prompt:
-                logging.warning("No new prompt provided for section: %s", section)
-                continue
-            regenerated[section] = self.regenerate_section(section, new_prompt, prev_content)
-        return regenerated
+        rag_chunks = await retriever.fetch_combined_chunks(tables, embedding, client_name, section_filter)
+        prompt = self.build_prompt(section, new_prompt, previous_content, rag_chunks)
+        return self.call_azure_llm(prompt)
 
 
-# Example usage
+# --- Example usage ---
 if __name__ == "__main__":
-    regenerator = LLMContentRegenerator()
-
-    # Provide your actual prompts and previous content
-    new_prompts = {
-        "client_overview": "Include company’s market presence, product line, and current strategic goals.",
-        "client_contacts": "Include decision-makers, procurement heads, and communication leads.",
-        "next_best_actions": "Suggest strategic follow-ups, personalized demos, and product updates.",
-        "company_news": "Summarize recent earnings announcements, partnerships, or acquisitions.",
-        "industry_news": "Highlight regulatory changes, market growth trends, and top competitor moves."
+    db_config = {
+        "user": "your_user",
+        "password": "your_pass",
+        "database": "your_db",
+        "host": "localhost",
+        "port": 5432
     }
 
-    previous_contents = {
-        "client_overview": "Company is known for cloud solutions and is expanding in the APAC market.",
-        "client_contacts": "John Doe (CTO), Jane Smith (Procurement Manager)",
-        "next_best_actions": "Schedule meeting, send product brochure.",
-        "company_news": "Recently acquired a fintech startup.",
-        "industry_news": "AI integration is growing in financial services."
-    }
+    section = "company_news"  # Example section to regenerate
+    client_name = "Acme Corp"
+    new_prompt = "Summarize recent announcements, key business deals, and new product launches."
+    previous_content = "No recent news available previously."
+    dummy_embedding = [0.1] * 1536  # Replace with actual embedding for the new prompt
 
-    results = regenerator.regenerate_all_sections(new_prompts, previous_contents)
+    async def run():
+        regenerator = SectionRegenerator()
+        result = await regenerator.regenerate_section(
+            db_config=db_config,
+            section=section,
+            embedding=dummy_embedding,
+            new_prompt=new_prompt,
+            previous_content=previous_content,
+            client_name=client_name
+        )
+        print(f"\n--- Regenerated Section: {section} ---\n{result}\n")
 
-    for section, output in results.items():
-        print(f"\n--- {section.upper()} ---\n{output}\n")
+    asyncio.run(run())
