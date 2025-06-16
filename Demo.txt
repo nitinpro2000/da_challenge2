@@ -1,119 +1,42 @@
-from typing import Dict
-from pydantic import BaseModel, ValidationError, validator
-import logging
-from semantic_kernel import Kernel
-from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+from typing import Dict, List, Any
 
-# Logging setup
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+def update_client_overview_and_nba(
+    sources_dict: Dict[str, List[Dict[str, Any]]],
+    decision_flags: Dict[str, bool]
+) -> None:
+    for section_key in ["client overview", "next_best_actions"]:
+        if section_key not in sources_dict:
+            continue
 
-# Pydantic model to validate "yes"/"no" responses
-class YesNoResponse(BaseModel):
-    response: str
+        if not decision_flags.get("call_reports", True) and section_key in sources_dict:
+            # Remove cle_dev.documents if call reports is False
+            sources_dict[section_key] = [
+                row for row in sources_dict[section_key]
+                if row["name"] != "cle_dev.documents"
+            ]
 
-    @validator("response")
-    def validate_yes_no(cls, v):
-        v_lower = v.lower().strip()
-        if v_lower not in {"yes", "no"}:
-            raise ValueError("Response must be 'yes' or 'no'")
-        return v_lower
+        new_rows = []
+        for row in sources_dict[section_key]:
+            # If filtering by section
+            if row.get("filter_section", False):
+                original_values = row.get("section_values", [])
+                # Remove section values based on which content is disabled
+                allowed = []
+                for val in original_values:
+                    val_key = val.replace(" ", "_").lower()  # e.g., "company_news"
+                    if decision_flags.get(val_key, True):
+                        allowed.append(val)
 
-    def to_bool(self) -> bool:
-        return self.response == "yes"
+                if allowed:
+                    row["section_values"] = allowed
+                    new_rows.append(row)
+                # If no section values remain, skip row
+            else:
+                # No section filtering, just keep the row
+                new_rows.append(row)
 
-# Semantic Kernel initialization with Azure OpenAI
-def initialize_sk_kernel(
-    endpoint: str,
-    api_key: str,
-    deployment_name: str,
-    api_version: str = "2023-05-15"
-) -> Kernel:
-    kernel = Kernel()
-    kernel.add_chat_service(
-        "azure-gpt",
-        AzureChatCompletion(
-            deployment_name=deployment_name,
-            endpoint=endpoint,
-            api_key=api_key,
-            api_version=api_version,
-        )
-    )
-    return kernel
-
-# Function to check if company news is needed
-def should_use_company_news(user_prompt: str, sk_kernel: Kernel) -> bool:
-    prompt = (
-        "You are an intelligent assistant helping to decide if company-specific recent news is necessary "
-        "to respond to a user's query.\n"
-        "Company news includes press releases, financial results, partnerships, leadership changes, "
-        "product launches, or business strategies of the specific client.\n"
-        "Only respond with 'yes' or 'no'. No additional text.\n\n"
-        f"User query: {user_prompt}"
-    )
-    result = sk_kernel.invoke(prompt).strip()
-    try:
-        return YesNoResponse(response=result).to_bool()
-    except ValidationError:
-        logger.error(f"Invalid response for company news: {result}")
-        return False
-
-# Function to check if industry news is needed
-def should_use_industry_news(user_prompt: str, sk_kernel: Kernel) -> bool:
-    prompt = (
-        "You are an intelligent assistant helping to decide if industry-wide news or trends are needed "
-        "to respond to a user's query.\n"
-        "Industry news includes regulations, competitor activity, economic trends, or sector technologies.\n"
-        "Only respond with 'yes' or 'no'. No extra text.\n\n"
-        f"User query: {user_prompt}"
-    )
-    result = sk_kernel.invoke(prompt).strip()
-    try:
-        return YesNoResponse(response=result).to_bool()
-    except ValidationError:
-        logger.error(f"Invalid response for industry news: {result}")
-        return False
-
-# Function to check if call reports are needed
-def should_use_call_reports(user_prompt: str, sk_kernel: Kernel) -> bool:
-    prompt = (
-        "You are an intelligent assistant helping to determine if previous call reports or meeting summaries "
-        "with the client are necessary to fulfill a user's query.\n"
-        "Call reports may include client discussions, meeting notes, follow-ups, or strategy context.\n"
-        "Only respond with 'yes' or 'no'.\n\n"
-        f"User query: {user_prompt}"
-    )
-    result = sk_kernel.invoke(prompt).strip()
-    try:
-        return YesNoResponse(response=result).to_bool()
-    except ValidationError:
-        logger.error(f"Invalid response for call reports: {result}")
-        return False
-
-# Aggregate decision-making function
-def decide_required_sources(user_prompt: str, sk_kernel: Kernel) -> Dict[str, bool]:
-    return {
-        "company_news": should_use_company_news(user_prompt, sk_kernel),
-        "industry_news": should_use_industry_news(user_prompt, sk_kernel),
-        "call_reports": should_use_call_reports(user_prompt, sk_kernel),
-    }
-
-# Example usage
-if __name__ == "__main__":
-    # Replace these with your actual Azure OpenAI settings
-    AZURE_OPENAI_ENDPOINT = "https://your-endpoint.openai.azure.com/"
-    AZURE_OPENAI_KEY = "your-api-key"
-    DEPLOYMENT_NAME = "your-deployment-name"
-
-    # Initialize Semantic Kernel
-    kernel = initialize_sk_kernel(
-        endpoint=AZURE_OPENAI_ENDPOINT,
-        api_key=AZURE_OPENAI_KEY,
-        deployment_name=DEPLOYMENT_NAME
-    )
-
-    # Example prompt
-    prompt = "Summarize the client's recent interactions and mention any new developments in their company or industry."
-
-    result = decide_required_sources(prompt, kernel)
-    print("Data sources required:", result)
+        # If no rows left, remove entire section
+        if new_rows:
+            sources_dict[section_key] = new_rows
+        else:
+            del sources_dict[section_key]
