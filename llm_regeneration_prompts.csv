@@ -1,0 +1,29 @@
+Prompt Category,Example Prompt
+Rewriting,Rephrase the content in a professional tone.
+Rewriting,Simplify the language for a general audience.
+Rewriting,Use bullet points instead of paragraphs.
+Add Missing Info,Include the company’s ESG goals.
+Add Missing Info,Mention their expansion into the APAC region.
+Tone & Style,Make the section sound more optimistic and forward-looking.
+Tone & Style,Change the tone to formal and analytical.
+Audience Targeting,Rewrite this for a sales team briefing.
+Audience Targeting,Adapt the content for an internal strategy newsletter.
+Summarize/Expand,Shorten the section to under 100 words.
+Summarize/Expand,Expand on their strategic initiatives.
+Client Overview,Highlight the client’s digital transformation journey.
+Client Overview,Include a snapshot of their leadership and org structure.
+Next Best Actions,Add a follow-up based on recent interaction history.
+Next Best Actions,Include rationale for each suggested next step.
+Client Contacts,Show only decision-makers in the contacts list.
+Client Contacts,Highlight recent interactions with each contact.
+Company News,Only include news from the last 30 days.
+Company News,Highlight the most impactful headlines.
+Industry News,Emphasize news relevant to the client’s sector.
+Industry News,Add regulatory updates affecting the industry.
+Formatting,Use Markdown for formatting.
+Formatting,Use numbered lists for each item.
+Error Correction,Correct any outdated financial information.
+Error Correction,This section is unclear—rewrite it to clarify the main point.
+Data Inclusion,Add revenue numbers from FY23.
+Data Inclusion,Include market share comparison with competitors.
+Multi-action,"Add ESG, fix tone, remove news older than 2 months."
