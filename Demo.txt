@@ -1,1 +1,1 @@
-If the user prompt requests to edit the current logic, redraft the existing content, simplify, shorten, or change formatting of existing content, then respond with "NO" 
+If the user asks to make changes to a particular section, then apply those changes only to the specified section. All other sections must remain exactly as they were in the previous content, with no modifications.
