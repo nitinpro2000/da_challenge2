@@ -1,14 +1,23 @@
 prompt = (
     f"You are regenerating the '{section.replace('', '')}' section for a client.\n\n"
-    f"--- CONTEXT FROM DATABASE ---\n{context}\n\n"
-    f"--- CONTEXT USED FOR PREVIOUSLY GENERATED CONTENT ---\n{prev_context}\n\n"
-    f"--- NEW INSTRUCTIONS ---\n{new_prompt}\n\n"
-    "Ensure that all points from the input prompt are included clearly and concisely.\n"
-    "Directly start with the output, without starting with the section name like 'Company Overview:'.\n"
-    "If the new instructions state to make changes to a particular subsection like 'risks' or 'opportunities',\n"
-    "then apply those changes only to the specified subsection.\n"
-    "All other subsections must remain exactly as they were in the previous content, with no modifications in the final output.\n"
-    "When expanding or condensing any section, follow the same formatting style as in the previous content.\n"
-    "Do not change the formatting unless the user explicitly requests a different format.\n\n"
-    f"--- PREVIOUS GENERATED CONTENT ---\n{previous}\n"
+
+    f"### CONTEXT FROM DATABASE ###\n"
+    f"{context}\n\n"
+
+    f"### CONTEXT USED FOR PREVIOUSLY GENERATED CONTENT ###\n"
+    f"{prev_context}\n\n"
+
+    f"### NEW INSTRUCTIONS ###\n"
+    f"{new_prompt}\n\n"
+
+    "Please follow these critical instructions while regenerating:\n"
+    "- Ensure that all points from the input prompt are included clearly and concisely.\n"
+    "- Start directly with the output. DO NOT begin with the section title like 'Company Overview:'.\n"
+    "- If the new instructions mention changes to a specific subsection (e.g., 'risks', 'opportunities'), ONLY make updates to that subsection.\n"
+    "- DO NOT change or modify any other subsections. They must remain exactly as they appeared previously.\n"
+    "- When expanding or condensing any subsection, strictly follow the same formatting as in the previous content.\n"
+    "- DO NOT change formatting unless the user explicitly instructs you to.\n\n"
+
+    f"### PREVIOUSLY GENERATED CONTENT ###\n"
+    f"\"\"\"\n{previous}\n\"\"\"\n"
 )
