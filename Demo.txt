@@ -1,32 +1,30 @@
 import re
 
-text = """
-Auto-Owners Insurance is a prominent insurance provider managing a $13 billion portfolio, primarily in-house, with
-selective outsourcing to external managers for strategies like small-cap and structured investments. [11] \n - NTAM
-maintained a strong relationship with Auto-Owners by emphasizing service efficiency and customer commitment. Positiv
-client feedback highlights satisfaction with specific team members and NT’s responsiveness, including adjustments t
-fees to retain the custody business despite competitive pressures. [7][8][9] \n - The client is focused on yield-
-enhancing strategies within conservative parameters, increasing private equity exposure from 1.5% to 3%, and
-prioritizing inflation protection, recently adding $130MM in inflation-protected securities to meet a 5% allocatio
-target. They have also expressed openness to outsourcing life company assets but are navigating internal politica
-challenges. [12][13][11] \n\n### Risks \n - Interest in transitioning to a more efficient account-opening process
-requires follow-up to ensure alignment with the client's expectations. [14] \n - Select areas like opportunistic
-residential and European commercial real estate represent gaps in NTAM expertise, which could limit NT’s role in
-providing holistic solutions. [16] \n\n### Opportunities \n - Scheduling focused discussions on NTGI’s small-cap
-structured strategies and Target Date capabilities could deepen the client relationship and address their strategio
-needs. \n - Developing tailored investment ideas, such as private equity strategies and inflation-protected securitie
-directly aligns with the client’s objectives and could secure additional business.
-"""
+def extract_unique_citations(text):
+    """
+    Extracts unique citation numbers from a given string.
+    Only considers numeric citations like [1], [2], etc.
 
-# Split the text by newline characters to process line by line
-lines = text.strip().split('\n')
+    Args:
+        text (str): Input string containing citations.
 
-bullet_points = []
-for line in lines:
-    # Use a regular expression to find lines starting with ' - ' or similar bullet patterns
-    match = re.match(r'^\s*[-*•]\s*(.*)', line)
-    if match:
-        bullet_points.append(match.group(1).strip())
+    Returns:
+        List[int]: Sorted list of unique citation numbers.
+    """
+    citations = re.findall(r'\[(\d+)\]', text)
+    return sorted(set(map(int, citations)))
 
-for bullet in bullet_points:
-    print(bullet)
+def get_citation_ids_from_text(text, citation_dict):
+    """
+    Returns citation IDs from a citation dictionary based on citations found in text.
+
+    Args:
+        text (str): Input text with citation numbers like [1], [2]
+        citation_dict (dict): Mapping from citation number as string to citation ID
+
+    Returns:
+        List[str]: List of citation IDs present in the text
+    """
+    citation_numbers = extract_unique_citations(text)
+    citation_ids = [citation_dict[str(num)] for num in citation_numbers if str(num) in citation_dict]
+    return citation_ids
