@@ -1,30 +1,14 @@
-import re
-
-def extract_unique_citations(text):
-    """
-    Extracts unique citation numbers from a given string.
-    Only considers numeric citations like [1], [2], etc.
-
-    Args:
-        text (str): Input string containing citations.
-
-    Returns:
-        List[int]: Sorted list of unique citation numbers.
-    """
-    citations = re.findall(r'\[(\d+)\]', text)
-    return sorted(set(map(int, citations)))
-
-def get_citation_ids_from_text(text, citation_dict):
-    """
-    Returns citation IDs from a citation dictionary based on citations found in text.
-
-    Args:
-        text (str): Input text with citation numbers like [1], [2]
-        citation_dict (dict): Mapping from citation number as string to citation ID
-
-    Returns:
-        List[str]: List of citation IDs present in the text
-    """
-    citation_numbers = extract_unique_citations(text)
-    citation_ids = [citation_dict[str(num)] for num in citation_numbers if str(num) in citation_dict]
-    return citation_ids
+prompt = (
+    f"You are regenerating the '{section.replace('', '')}' section for a client.\n\n"
+    f"--- CONTEXT FROM DATABASE ---\n{context}\n\n"
+    f"--- CONTEXT USED FOR PREVIOUSLY GENERATED CONTENT ---\n{prev_context}\n\n"
+    f"--- NEW INSTRUCTIONS ---\n{new_prompt}\n\n"
+    "Ensure that all points from the input prompt are included clearly and concisely.\n"
+    "Directly start with the output, without starting with the section name like 'Company Overview:'.\n"
+    "If the new instructions state to make changes to a particular subsection like 'risks' or 'opportunities',\n"
+    "then apply those changes only to the specified subsection.\n"
+    "All other subsections must remain exactly as they were in the previous content, with no modifications in the final output.\n"
+    "When expanding or condensing any section, follow the same formatting style as in the previous content.\n"
+    "Do not change the formatting unless the user explicitly requests a different format.\n\n"
+    f"--- PREVIOUS GENERATED CONTENT ---\n{previous}\n"
+)
