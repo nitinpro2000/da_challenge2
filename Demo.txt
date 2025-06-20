@@ -11,3 +11,30 @@ CREATE TABLE text_chunks (
     inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (client_name, chunk_id)
 );
+
+
+import asyncio
+import asyncpg
+import pandas as pd
+
+async def export_to_excel():
+    conn = await asyncpg.connect(
+        user='your_username',
+        password='your_password',
+        database='your_database',
+        host='localhost'
+    )
+
+    rows = await conn.fetch('SELECT * FROM your_table_name')
+    await conn.close()
+
+    # Convert to list of dicts
+    data = [dict(row) for row in rows]
+
+    # Convert to DataFrame and write to Excel
+    df = pd.DataFrame(data)
+    df.to_excel("output_async.xlsx", index=False, engine='openpyxl')
+    print("Excel file created successfully (async).")
+
+# Run async function
+asyncio.run(export_to_excel())
