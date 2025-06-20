@@ -1,97 +1,13 @@
-import asyncpg
-import textwrap
-from uuid import uuid4
-from datetime import datetime
-import aiohttp
+CREATE EXTENSION IF NOT EXISTS vector;
 
-class VectorDBHandler:
-    def __init__(self, azure_config: dict):
-        self.pool = None
-        self.azure_deployment = azure_config['deployment']
-        self.azure_api_key = azure_config['api_key']
-        self.azure_endpoint = azure_config['endpoint']
-        self.azure_api_version = azure_config.get('api_version', '2023-05-15')
-
-    async def connect(self, db_config: dict):
-        self.pool = await asyncpg.create_pool(**db_config)
-
-    async def close(self):
-        if self.pool:
-            await self.pool.close()
-
-    def _chunk_text(self, text: str, article_id: str):
-        words = text.split()
-        word_count = len(words)
-        chunks = []
-
-        if word_count < 100:
-            chunks.append({"chunk_id": article_id, "text": text})
-        elif word_count > 1000:
-            prefix = str(uuid4())[:8]
-            wrapped = textwrap.wrap(text, 1000)
-            for i, chunk in enumerate(wrapped):
-                chunks.append({"chunk_id": f"{prefix}_{i+1}", "text": chunk})
-        else:
-            chunks.append({"chunk_id": article_id, "text": text})
-        return chunks
-
-    async def _embed_text(self, text: str):
-        url = f"{self.azure_endpoint}/openai/deployments/{self.azure_deployment}/embeddings?api-version={self.azure_api_version}"
-        headers = {
-            "Content-Type": "application/json",
-            "api-key": self.azure_api_key
-        }
-        body = {
-            "input": text
-        }
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=body) as response:
-                if response.status != 200:
-                    raise Exception(f"Azure OpenAI error: {await response.text()}")
-                data = await response.json()
-                return data['data'][0]['embedding']
-
-    async def insert_chunks(self, client_name: str, text: str, text_type: str, url: str):
-        article_id = str(uuid4())
-        chunks = self._chunk_text(text, article_id)
-
-        async with self.pool.acquire() as conn:
-            for chunk in chunks:
-                embedding = await self._embed_text(chunk["text"])
-                await conn.execute("""
-                    INSERT INTO text_chunks (
-                        client_name, article_id, chunk_id, chunk_text,
-                        embedding, text_type, url, inserted_at
-                    )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                """, client_name, article_id, chunk["chunk_id"],
-                     chunk["text"], embedding, text_type, url, datetime.utcnow())
-
-        print(f"Inserted {len(chunks)} chunks for client '{client_name}' with article ID: {article_id}")
-        return article_id
-
-    async def search_chunks(self, client_name: str, query_text: str, top_k: int = 5):
-        embedding = await self._embed_text(query_text)
-        async with self.pool.acquire() as conn:
-            rows = await conn.fetch("""
-                SELECT chunk_id, chunk_text, text_type, url,
-                       1 - (embedding <=> $1) AS similarity
-                FROM text_chunks
-                WHERE client_name = $2
-                ORDER BY embedding <=> $1
-                LIMIT $3
-            """, embedding, client_name, top_k)
-        for row in rows:
-            print(f"\nChunk ID: {row['chunk_id']}\nSimilarity: {row['similarity']:.4f}")
-            print(f"Type: {row['text_type']} | URL: {row['url']}")
-            print(f"Text Preview: {row['chunk_text'][:300]}...\n")
-
-    async def delete_chunks(self, client_name: str, text_type: str):
-        async with self.pool.acquire() as conn:
-            result = await conn.execute("""
-                DELETE FROM text_chunks
-                WHERE client_name = $1 AND text_type = $2
-            """, client_name, text_type)
-        print(f"Deleted records for client: {client_name} and type: {text_type}")
-        return result
+CREATE TABLE text_chunks (
+    client_name TEXT NOT NULL,
+    article_id TEXT NOT NULL,
+    chunk_id TEXT NOT NULL,
+    chunk_text TEXT NOT NULL,
+    embedding VECTOR(1536),
+    text_type TEXT,
+    url TEXT,
+    inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (client_name, chunk_id)
+);
