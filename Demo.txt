@@ -1,40 +1,184 @@
-CREATE EXTENSION IF NOT EXISTS vector;
+Here’s a detailed breakdown of **Feature Description** and **Acceptance Criteria** for each of the listed Azure DevOps board features. These descriptions are suitable for setting up **User Stories** or **Tasks** in Azure DevOps and ensuring traceability, clarity, and measurable deliverables.
 
-CREATE TABLE text_chunks (
-    client_name TEXT NOT NULL,
-    article_id TEXT NOT NULL,
-    chunk_id TEXT NOT NULL,
-    chunk_text TEXT NOT NULL,
-    embedding VECTOR(1536),
-    text_type TEXT,
-    url TEXT,
-    inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (client_name, chunk_id)
-);
+---
 
+### 1. **ExternalInfoAgent**
 
-import asyncio
-import asyncpg
-import pandas as pd
+**Feature Description:**
+This agent is responsible for gathering relevant external data (e.g., from the web, APIs, or databases) based on user queries or document context. It enriches the memo generation process by providing up-to-date and verifiable information.
 
-async def export_to_excel():
-    conn = await asyncpg.connect(
-        user='your_username',
-        password='your_password',
-        database='your_database',
-        host='localhost'
-    )
+**Acceptance Criteria:**
 
-    rows = await conn.fetch('SELECT * FROM your_table_name')
-    await conn.close()
+* Should accept input keywords or context from other agents.
+* Should call predefined external APIs or search services (e.g., Bing, SerpAPI, or custom crawlers).
+* Must parse and return structured data (JSON format) with metadata (e.g., source URL, date).
+* Must log all requests and responses.
+* Should handle timeouts and failures gracefully with retry logic.
 
-    # Convert to list of dicts
-    data = [dict(row) for row in rows]
+---
 
-    # Convert to DataFrame and write to Excel
-    df = pd.DataFrame(data)
-    df.to_excel("output_async.xlsx", index=False, engine='openpyxl')
-    print("Excel file created successfully (async).")
+### 2. **Writer Agent**
 
-# Run async function
-asyncio.run(export_to_excel())
+**Feature Description:**
+Generates sections of memos, reports, or documents using LLMs (OpenAI/GPT). It receives refined prompts and returns coherent, structured text based on client context and external information.
+
+**Acceptance Criteria:**
+
+* Must accept prompt + structured context and return generated text.
+* Should follow specified tone, format, and word count limits.
+* Integration with Prompt Refinement & Guardrails layer.
+* Must include section-wise response logging.
+* Should redact or exclude sensitive data if configured.
+
+---
+
+### 3. **Application Database Setup in Postgres SQL**
+
+**Feature Description:**
+Design and implement the database schema in PostgreSQL to store client data, embeddings, memo metadata, agent outputs, and audit logs.
+
+**Acceptance Criteria:**
+
+* Schema supports vector search (via pgvector extension).
+* Must include tables: clients, documents, memos, call\_reports, agents\_log.
+* Support soft deletes and audit columns (created\_at, updated\_at).
+* Should seed with sample data and enable asyncpg or SQLAlchemy connection.
+* Proper indexing for performance.
+
+---
+
+### 4. **Client Data Hub Agent**
+
+**Feature Description:**
+Acts as the aggregator and pre-processor for all structured/unstructured client data (e.g., CRM data, historical memos, call logs). Prepares context for Writer and FactCheck agents.
+
+**Acceptance Criteria:**
+
+* Should connect to client data sources (e.g., APIs or databases).
+* Preprocess raw data into a uniform structure (JSON).
+* Must cache data where applicable for performance.
+* Provide summaries or tagged metadata to downstream agents.
+* Log each retrieval instance with timestamp and client ID.
+
+---
+
+### 5. **Memo Management - API Development**
+
+**Feature Description:**
+Create REST APIs for creating, reading, updating, and deleting memos, including tracking processing status and allowing external system integrations.
+
+**Acceptance Criteria:**
+
+* APIs include: Create Memo, List Memos, Get Memo by ID, Update Memo, Delete Memo, Check Processing Status.
+* Follow OpenAPI/Swagger standards.
+* All inputs validated and secured (e.g., JWT).
+* Should include pagination, filters, and sorting for listing.
+* Error handling and response codes are consistent.
+
+---
+
+### 6. **Project Setup (Repo, Basic CI, Config Management)**
+
+**Feature Description:**
+Initial setup of the code repository, CI pipelines, and configuration management for all environments (dev, test, prod).
+
+**Acceptance Criteria:**
+
+* Repository created in Azure Repos or GitHub.
+* CI pipeline using Azure Pipelines for linting, testing, and packaging.
+* Configuration files (.env, secrets, etc.) stored securely.
+* README.md includes setup instructions.
+* Feature branch strategy defined and enforced.
+
+---
+
+### 7. **Call Reports Fetch and RAG Agent**
+
+**Feature Description:**
+Fetches client call transcripts from external sources and uses RAG (Retrieval Augmented Generation) to create insights and summaries.
+
+**Acceptance Criteria:**
+
+* Able to connect and fetch call reports (e.g., from Salesforce, Twilio).
+* Preprocesses and chunks transcripts.
+* Uses vector search to retrieve relevant context.
+* LLM generates summaries with references to source points.
+* Outputs stored in database with linkage to original call report.
+
+---
+
+### 8. **Control Agent Orchestration**
+
+**Feature Description:**
+Central orchestrator that controls flow between agents (e.g., ExternalInfoAgent → WriterAgent → FactCheckAgent), maintains context, and handles retry or error routing.
+
+**Acceptance Criteria:**
+
+* Maintains a shared memory or state object across agents.
+* Should handle step-level failures with fallbacks or retries.
+* Sequence and branching logic must be defined (e.g., YAML or FSM-based).
+* Logs execution trace for each agent call per memo.
+* Provides APIs to trigger or monitor orchestration runs.
+
+---
+
+### 9. **Writer Agent - Prompt Refinement and Guardrails**
+
+**Feature Description:**
+Refines input prompts for the Writer Agent by applying rules (e.g., simplify, remove sensitive info, enforce tone) and ensures guardrails like profanity filtering and completeness.
+
+**Acceptance Criteria:**
+
+* Applies prompt transformations based on section and context.
+* Adds guardrail checks like banned phrases, completeness validation.
+* Prompts should be tested against a ruleset and pass validation before being sent to LLM.
+* Logs raw and refined prompts for audits.
+
+---
+
+### 10. **FactCheck Agent**
+
+**Feature Description:**
+Validates LLM-generated text using retrieved external information or previously stored knowledge, highlights inconsistencies, and optionally suggests corrections.
+
+**Acceptance Criteria:**
+
+* Accepts LLM output and reference context.
+* Flags unsupported claims or hallucinations.
+* Returns a list of checked facts with pass/fail/confidence status.
+* Should not block memo creation but flag concerns.
+* Stores result in DB for audit and feedback loops.
+
+---
+
+### 11. **Testing**
+
+**Feature Description:**
+Covers unit testing, integration testing, and E2E tests for all modules including API, agents, and database.
+
+**Acceptance Criteria:**
+
+* Minimum 80% unit test coverage for core functions.
+* CI pipeline should fail on test failure.
+* Tests must include: API, DB models, agent logic, edge cases.
+* Use mocking for LLM calls and external APIs.
+* Generate test reports (JUnit format).
+
+---
+
+### 12. **Edit, Redraft, DB Updation Logic**
+
+**Feature Description:**
+Allows users to edit generated memo sections, trigger re-generation (redraft) via prompt adjustment, and update the memo and embedding in the DB accordingly.
+
+**Acceptance Criteria:**
+
+* Editable sections on UI or via API.
+* Regeneration uses latest context and prompt.
+* Updates original memo and replaces embeddings in vector store.
+* Must keep edit history or audit trail.
+* Validate regenerated content before DB write.
+
+---
+
+If you'd like, I can format all of this into an **Azure DevOps importable CSV** or **markdown table** for direct use in the board — just let me know!
