@@ -1,83 +1,21 @@
-Here’s the simplified **User Story** and **Acceptance Criteria** for the weekly extraction of **company website data**, focusing only on the essential fields you've listed.
+-- Enable pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
 
----
-
-### **User Story: Weekly Company Website Page Extraction and Embedding**
-
-**As a** Data Engineer / System,
-**I want** to extract and store web pages from company websites every week,
-**So that** I can maintain an up-to-date, searchable, and semantically enriched repository of company-related content.
-
----
-
-### **Description:**
-
-Each week, the system extracts key web pages from official company websites. The text content of these pages is stored alongside metadata and embedded using a semantic model to support intelligent search, classification, and downstream ML applications.
-
----
-
-### **Fields to Capture:**
-
-| Field Name              | Description                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `company_websites_data` | Reference ID or batch/job identifier grouping the extracted data for a company |
-| `company_name`          | Name of the company                                                            |
-| `URL`                   | URL of the specific web page extracted                                         |
-| `date_of_extraction`    | Date when the web page was scraped                                             |
-| `page_content`          | Cleaned text content of the page                                               |
-| `page_embedding`        | Semantic embedding vector generated from `page_content`                        |
-
----
-
-### **Acceptance Criteria:**
-
-#### ✅ **AC1: Weekly Job Execution**
-
-* The system must run automatically once every week to extract pages from all tracked company websites.
-* Completion must be logged with a summary of URLs extracted per company.
-
-#### ✅ **AC2: Field Population**
-
-* Each stored record must include:
-
-  * `company_name`
-  * `URL`
-  * `date_of_extraction` (equal to job run date)
-  * `page_content` (minimum 100 characters)
-  * `page_embedding` (valid dimensionality e.g., 1536)
-
-#### ✅ **AC3: No Duplicate URLs**
-
-* Duplicate `URL`s for the same `company_name` within the same week must not be stored.
-* Composite uniqueness should be enforced using `(company_name, URL, date_of_extraction)`.
-
-#### ✅ **AC4: Embedding Generation**
-
-* Each `page_content` must be processed to generate a `page_embedding` using a preselected embedding model (e.g., Azure OpenAI).
-* Embedding must be stored in a vector-compatible DB for semantic search.
-
-#### ✅ **AC5: Data Validity**
-
-* Pages with missing `page_content` or failed embedding must be logged and excluded from storage.
-* If a company yields no valid pages, an alert or log entry must be generated.
-
-#### ✅ **AC6: Storage Format and Indexing**
-
-* Records must be stored in a structured and queryable database (e.g., PostgreSQL with pgvector or Azure Cognitive Search).
-* Indexes must be available on `company_name`, `date_of_extraction`, and optionally `URL`.
-
-#### ✅ **AC7: Logging and Monitoring**
-
-* System must log:
-
-  * Number of pages extracted per company
-  * Number of embeddings generated
-  * Any URLs that failed to extract or embed
-
-#### ✅ **AC8: Manual Trigger Option**
-
-* Admins must be able to re-run extraction for a specific company or URL list manually.
-
----
-
-Let me know if you'd like a database schema, Python code, or API contract to go along with this!
+-- Create the table
+CREATE TABLE historical_news_data (
+    article_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_name TEXT NOT NULL,
+    industry_name TEXT,
+    type_of_article TEXT,
+    article_url TEXT,
+    article_search_term TEXT,
+    article_title TEXT,
+    article_date DATE,
+    article_text TEXT,
+    article_summary TEXT,
+    date_of_extraction DATE DEFAULT CURRENT_DATE,
+    relevance_score REAL,
+    article_embedding VECTOR(1536),
+    article_summary_embedding VECTOR(1536),
+    inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
