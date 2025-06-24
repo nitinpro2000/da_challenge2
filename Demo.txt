@@ -1,15 +1,15 @@
-Here's a breakdown for the "Integrating and testing the code for news extraction using DuckDuckGo in NTAM cloud" story:
-Story: Integrate and Test DuckDuckGo News Extraction in NTAM Cloud
-As a [Role - e.g., Data Scientist, Backend Developer, Information Analyst]
-I want to integrate and test the news extraction code using DuckDuckGo in the NTAM cloud environment
-So that [Benefit - e.g., we can reliably collect up-to-date news articles for analysis, our data sources are expanded, our cloud-based data pipeline is enriched]
+Here's a breakdown for the "Update Snowflake Network Configuration in Python Connection Code" user story:
+Story: Update Snowflake Network Configuration in Python Connection Code for NTAM Cloud
+As a [Role - e.g., Data Engineer, Python Developer, DevOps Engineer]
+I want to update the Snowflake Python connection code with the new NTAM cloud network configuration
+So that [Benefit - e.g., our applications in NTAM cloud can securely and reliably connect to Snowflake, we adhere to NTAM cloud's network policies, we ensure data egress/ingress compliance]
 Description:
- * This story involves integrating a Python-based news extraction script that leverages the DuckDuckGo search API's news backend. The goal is to programmatically retrieve relevant news articles based on specified keywords or queries.
- * The code will be deployed and run within the NTAM cloud environment, ensuring it can scale and operate reliably. This includes setting up necessary dependencies, configurations, and environment variables.
- * Thorough testing will be conducted to validate the news extraction process, covering data accuracy, performance, error handling, and cloud environment compatibility.
- * The integration aims to establish a robust and automated mechanism for continuously feeding news data into our data processing pipelines within NTAM cloud.
+ * This story involves modifying the existing Python code responsible for establishing connections to Snowflake. The primary change will be to incorporate new network configuration parameters specifically required for connectivity from the NTAM cloud environment.
+ * This may include specifying proxy settings, private endpoint configurations, or whitelisting necessary IP ranges if the NTAM cloud employs strict network security policies for outbound connections.
+ * The updated code will be thoroughly tested within the NTAM cloud environment to ensure successful, secure, and reliable connectivity to Snowflake without manual intervention.
+ * The objective is to ensure all Python applications or services deployed in NTAM cloud can seamlessly and compliantly interact with Snowflake, leveraging the optimized and secure network path.
 Acceptance Criteria:
- * Successful News Extraction: The deployed code can successfully connect to the DuckDuckGo API, execute news searches for predefined queries, and extract relevant news article metadata (e.g., title, URL, snippet, publication date) into a structured format (e.g., JSON, CSV).
- * Cloud Deployment & Execution: The news extraction code is successfully deployed as a runnable service/job within the NTAM cloud environment (e.g., as a Cloud Function, containerized application, or scheduled task) and executes reliably as scheduled or on demand.
- * Data Quality & Error Handling: Extracted news data is validated for correctness and completeness, and the system gracefully handles API rate limits, network errors, or malformed responses, with appropriate logging and alerts.
- * Performance & Scalability: The news extraction process completes within acceptable timeframes and demonstrates the ability to scale to handle increased query volumes or data extraction needs within NTAM cloud's resource allocation.
+ * Successful Snowflake Connection: The updated Python connection code, when executed from within the NTAM cloud environment, can successfully establish a secure connection to Snowflake, allowing for basic operations (e.g., executing a SELECT 1 query).
+ * Network Configuration Applied: All specified NTAM cloud-specific network configuration parameters (e.g., proxy addresses, private endpoint configurations, explicit hostnames) are correctly implemented and utilized by the Python connection.
+ * Secure & Compliant Connectivity: The connection to Snowflake from NTAM cloud adheres to all defined NTAM cloud network security policies and compliance requirements, ensuring data transfer is secure and within permitted network paths.
+ * No Regression & Validation: The updated code does not introduce any regressions to existing Snowflake functionalities or connections from other authorized environments, and its functionality is validated through automated tests in the NTAM cloud setup.
