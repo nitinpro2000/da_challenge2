@@ -1,57 +1,44 @@
-<rail version="0.1">
-    <input>
-        <Text name="prompt"/>
-    </input>
-    <output>
-        <Text name="content">
-            <Check input="content" type="pii" on_fail="exception"/>
-        </Text>
-    </output>
-    <prompt>
-        Use the following prompt to generate content.
-    </prompt>
-</rail>
+import os, openai
+openai.api_type = "azure"
+openai.api_base = os.getenv("AZURE_OPENAI_API_BASE")
+openai.api_key = os.getenv("AZURE_OPENAI_API_KEY")
+openai.api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2023-05-15")
 
 
-from guardrails import Guard
+from nemoguardrails import RailsConfig, LLMRails
 
-guard = Guard.from_pydantic(output_class=dict)
-guard.add_check("content", "pii", on_fail="exception")
+config = RailsConfig.from_content({
+    "models": [
+        {
+            "type": "main",
+            "engine": "azure",
+            "model": "<your_deployment_name>"
+        }
+    ],
+    "rails": {
+        "output": {
+            "flows": ["self check output"]
+        },
+        "config": {
+            "sensitive_data_detection": {
+                "output": {
+                    "entities": ["EMAIL_ADDRESS", "PHONE_NUMBER"]
+                }
+            }
+        }
+    }
+})
 
+rails = LLMRails(config)
 
-from guardrails import Guard
+from functools import wraps
 
-# Load the rail (change if you want to use Python-based config)
-guard = Guard.from_rail("pii_guard.rail")
-
-# General wrapper
-def with_guardrails(func):
+def guarded(func):
+    @wraps(func)
     def wrapper(prompt: str, *args, **kwargs):
-        # Call the original function
-        content = func(prompt, *args, **kwargs)
-
-        # Validate content with guardrails
-        try:
-            validated = guard(prompt=prompt, content=content)
-            return validated["content"]
-        except Exception as e:
-            print(f"[Guardrails] Blocked output from '{func.__name__}':", str(e))
-            return "⚠️ Content blocked due to PII or policy violation."
+        raw = func(prompt, *args, **kwargs)
+        # Run through Guardrails
+        result = rails.generate(messages=[{"role": "user", "content": prompt}],
+                                raw_llm_output=raw)
+        return result["content"]
     return wrapper
-
-@with_guardrails
-def generate_news_summary(prompt: str) -> str:
-    return f"Breaking news: CEO's number is 9876543210."
-
-@with_guardrails
-def generate_client_report(prompt: str) -> str:
-    return f"Client John Doe lives at 123 Main Street."
-
-@with_guardrails
-def generate_industry_insights(prompt: str) -> str:
-    return f"The retail industry shows strong growth."
-
-# Use the wrapped functions
-print(generate_news_summary("Summarize today's company news."))
-print(generate_client_report("Give full client details."))
-print(generate_industry_insights("What's happening in retail?"))
