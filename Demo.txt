@@ -1,184 +1,90 @@
-Here’s a detailed breakdown of **Feature Description** and **Acceptance Criteria** for each of the listed Azure DevOps board features. These descriptions are suitable for setting up **User Stories** or **Tasks** in Azure DevOps and ensuring traceability, clarity, and measurable deliverables.
+Here’s a detailed **User Story Description** and **Acceptance Criteria** for handling **Weekly Historical News Data Extraction** with the given fields.
 
 ---
 
-### 1. **ExternalInfoAgent**
+### **User Story: Weekly Historical News Data Extraction**
 
-**Feature Description:**
-This agent is responsible for gathering relevant external data (e.g., from the web, APIs, or databases) based on user queries or document context. It enriches the memo generation process by providing up-to-date and verifiable information.
-
-**Acceptance Criteria:**
-
-* Should accept input keywords or context from other agents.
-* Should call predefined external APIs or search services (e.g., Bing, SerpAPI, or custom crawlers).
-* Must parse and return structured data (JSON format) with metadata (e.g., source URL, date).
-* Must log all requests and responses.
-* Should handle timeouts and failures gracefully with retry logic.
+**As a** Data Engineer / System,
+**I want** to extract, process, and store historical news articles on a weekly basis,
+**So that** I can enable downstream systems and models (like LLMs or analytics tools) to retrieve relevant information about companies and industries based on their relevance and context.
 
 ---
 
-### 2. **Writer Agent**
+### **Description:**
 
-**Feature Description:**
-Generates sections of memos, reports, or documents using LLMs (OpenAI/GPT). It receives refined prompts and returns coherent, structured text based on client context and external information.
-
-**Acceptance Criteria:**
-
-* Must accept prompt + structured context and return generated text.
-* Should follow specified tone, format, and word count limits.
-* Integration with Prompt Refinement & Guardrails layer.
-* Must include section-wise response logging.
-* Should redact or exclude sensitive data if configured.
+This feature focuses on the scheduled weekly ingestion and enrichment of historical news data. Each news article will be associated with metadata such as the company name, industry name, and other relevant information. Articles are scored and embedded using AI models to support semantic search, classification, and retrieval tasks.
 
 ---
 
-### 3. **Application Database Setup in Postgres SQL**
+### **Fields to be captured per article:**
 
-**Feature Description:**
-Design and implement the database schema in PostgreSQL to store client data, embeddings, memo metadata, agent outputs, and audit logs.
-
-**Acceptance Criteria:**
-
-* Schema supports vector search (via pgvector extension).
-* Must include tables: clients, documents, memos, call\_reports, agents\_log.
-* Support soft deletes and audit columns (created\_at, updated\_at).
-* Should seed with sample data and enable asyncpg or SQLAlchemy connection.
-* Proper indexing for performance.
-
----
-
-### 4. **Client Data Hub Agent**
-
-**Feature Description:**
-Acts as the aggregator and pre-processor for all structured/unstructured client data (e.g., CRM data, historical memos, call logs). Prepares context for Writer and FactCheck agents.
-
-**Acceptance Criteria:**
-
-* Should connect to client data sources (e.g., APIs or databases).
-* Preprocess raw data into a uniform structure (JSON).
-* Must cache data where applicable for performance.
-* Provide summaries or tagged metadata to downstream agents.
-* Log each retrieval instance with timestamp and client ID.
+| Field Name            | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| `company_name`        | The name of the company the article is related to                          |
+| `industry_name`       | The name of the industry the company belongs to                            |
+| `type_of_article`     | Type/category of article (e.g., news, opinion, press release)              |
+| `article_id`          | Unique identifier for the article                                          |
+| `article_URL`         | Source URL of the article                                                  |
+| `article_search_term` | The search keyword(s) used to discover this article                        |
+| `article_title`       | Title of the article                                                       |
+| `article_date`        | The published date of the article                                          |
+| `article_text`        | Full text content of the article                                           |
+| `date_of_extraction`  | The date the article was extracted into the system                         |
+| `relevance_score`     | Score indicating relevance to company or topic (0 to 1 or a defined scale) |
+| `article_embedding`   | Vector representation of article text for semantic search                  |
 
 ---
 
-### 5. **Memo Management - API Development**
+### **Acceptance Criteria:**
 
-**Feature Description:**
-Create REST APIs for creating, reading, updating, and deleting memos, including tracking processing status and allowing external system integrations.
+#### ✅ **AC1: Weekly Scheduled Job**
 
-**Acceptance Criteria:**
+* The system must run a job every week to extract new historical articles.
+* Job must complete within defined SLA (e.g., < 2 hours for 10,000 articles).
 
-* APIs include: Create Memo, List Memos, Get Memo by ID, Update Memo, Delete Memo, Check Processing Status.
-* Follow OpenAPI/Swagger standards.
-* All inputs validated and secured (e.g., JWT).
-* Should include pagination, filters, and sorting for listing.
-* Error handling and response codes are consistent.
+#### ✅ **AC2: Metadata Extraction**
 
----
+* Each article must include:
 
-### 6. **Project Setup (Repo, Basic CI, Config Management)**
+  * `company_name`
+  * `industry_name`
+  * `type_of_article`
+  * `article_id` (UUID or hash)
+  * `article_URL`
+  * `article_search_term`
+  * `article_title`
+  * `article_date`
+  * `article_text`
+  * `date_of_extraction` (must be the current date)
 
-**Feature Description:**
-Initial setup of the code repository, CI pipelines, and configuration management for all environments (dev, test, prod).
+#### ✅ **AC3: Uniqueness Check**
 
-**Acceptance Criteria:**
+* The system must avoid inserting duplicate articles (`article_id` must be unique).
+* If duplicate found, it should log and skip or update based on policy.
 
-* Repository created in Azure Repos or GitHub.
-* CI pipeline using Azure Pipelines for linting, testing, and packaging.
-* Configuration files (.env, secrets, etc.) stored securely.
-* README.md includes setup instructions.
-* Feature branch strategy defined and enforced.
+#### ✅ **AC4: Relevance Scoring**
 
----
+* Each article must be evaluated and assigned a `relevance_score` using predefined business or ML logic.
+* Articles below a relevance threshold (e.g., score < 0.4) should be flagged or excluded if configured.
 
-### 7. **Call Reports Fetch and RAG Agent**
+#### ✅ **AC5: Embedding Generation**
 
-**Feature Description:**
-Fetches client call transcripts from external sources and uses RAG (Retrieval Augmented Generation) to create insights and summaries.
+* For each article, generate a semantic embedding using a predefined model (e.g., Azure OpenAI).
+* `article_embedding` must be stored in a vector-compatible database (e.g., pgvector or Azure AI Search).
 
-**Acceptance Criteria:**
+#### ✅ **AC6: Queryable Format**
 
-* Able to connect and fetch call reports (e.g., from Salesforce, Twilio).
-* Preprocesses and chunks transcripts.
-* Uses vector search to retrieve relevant context.
-* LLM generates summaries with references to source points.
-* Outputs stored in database with linkage to original call report.
+* The data must be stored in a structured format (e.g., Postgres, Parquet, etc.) with indexing to support downstream queries by company, date, industry, or relevance.
 
----
+#### ✅ **AC7: Logging and Monitoring**
 
-### 8. **Control Agent Orchestration**
+* Log success, failures, skipped articles, and embedding generation status.
+* Alert if extraction fails or data volume is below expected threshold.
 
-**Feature Description:**
-Central orchestrator that controls flow between agents (e.g., ExternalInfoAgent → WriterAgent → FactCheckAgent), maintains context, and handles retry or error routing.
+#### ✅ **AC8: Manual Triggering Option**
 
-**Acceptance Criteria:**
-
-* Maintains a shared memory or state object across agents.
-* Should handle step-level failures with fallbacks or retries.
-* Sequence and branching logic must be defined (e.g., YAML or FSM-based).
-* Logs execution trace for each agent call per memo.
-* Provides APIs to trigger or monitor orchestration runs.
+* Admins should be able to manually trigger the weekly job (e.g., via CLI or UI) if needed.
 
 ---
 
-### 9. **Writer Agent - Prompt Refinement and Guardrails**
-
-**Feature Description:**
-Refines input prompts for the Writer Agent by applying rules (e.g., simplify, remove sensitive info, enforce tone) and ensures guardrails like profanity filtering and completeness.
-
-**Acceptance Criteria:**
-
-* Applies prompt transformations based on section and context.
-* Adds guardrail checks like banned phrases, completeness validation.
-* Prompts should be tested against a ruleset and pass validation before being sent to LLM.
-* Logs raw and refined prompts for audits.
-
----
-
-### 10. **FactCheck Agent**
-
-**Feature Description:**
-Validates LLM-generated text using retrieved external information or previously stored knowledge, highlights inconsistencies, and optionally suggests corrections.
-
-**Acceptance Criteria:**
-
-* Accepts LLM output and reference context.
-* Flags unsupported claims or hallucinations.
-* Returns a list of checked facts with pass/fail/confidence status.
-* Should not block memo creation but flag concerns.
-* Stores result in DB for audit and feedback loops.
-
----
-
-### 11. **Testing**
-
-**Feature Description:**
-Covers unit testing, integration testing, and E2E tests for all modules including API, agents, and database.
-
-**Acceptance Criteria:**
-
-* Minimum 80% unit test coverage for core functions.
-* CI pipeline should fail on test failure.
-* Tests must include: API, DB models, agent logic, edge cases.
-* Use mocking for LLM calls and external APIs.
-* Generate test reports (JUnit format).
-
----
-
-### 12. **Edit, Redraft, DB Updation Logic**
-
-**Feature Description:**
-Allows users to edit generated memo sections, trigger re-generation (redraft) via prompt adjustment, and update the memo and embedding in the DB accordingly.
-
-**Acceptance Criteria:**
-
-* Editable sections on UI or via API.
-* Regeneration uses latest context and prompt.
-* Updates original memo and replaces embeddings in vector store.
-* Must keep edit history or audit trail.
-* Validate regenerated content before DB write.
-
----
-
-If you'd like, I can format all of this into an **Azure DevOps importable CSV** or **markdown table** for direct use in the board — just let me know!
+Let me know if you’d like SQL schema, API contract, or test cases based on this!
