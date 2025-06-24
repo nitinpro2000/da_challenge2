@@ -1,90 +1,83 @@
-Here’s a detailed **User Story Description** and **Acceptance Criteria** for handling **Weekly Historical News Data Extraction** with the given fields.
+Here’s the simplified **User Story** and **Acceptance Criteria** for the weekly extraction of **company website data**, focusing only on the essential fields you've listed.
 
 ---
 
-### **User Story: Weekly Historical News Data Extraction**
+### **User Story: Weekly Company Website Page Extraction and Embedding**
 
 **As a** Data Engineer / System,
-**I want** to extract, process, and store historical news articles on a weekly basis,
-**So that** I can enable downstream systems and models (like LLMs or analytics tools) to retrieve relevant information about companies and industries based on their relevance and context.
+**I want** to extract and store web pages from company websites every week,
+**So that** I can maintain an up-to-date, searchable, and semantically enriched repository of company-related content.
 
 ---
 
 ### **Description:**
 
-This feature focuses on the scheduled weekly ingestion and enrichment of historical news data. Each news article will be associated with metadata such as the company name, industry name, and other relevant information. Articles are scored and embedded using AI models to support semantic search, classification, and retrieval tasks.
+Each week, the system extracts key web pages from official company websites. The text content of these pages is stored alongside metadata and embedded using a semantic model to support intelligent search, classification, and downstream ML applications.
 
 ---
 
-### **Fields to be captured per article:**
+### **Fields to Capture:**
 
-| Field Name            | Description                                                                |
-| --------------------- | -------------------------------------------------------------------------- |
-| `company_name`        | The name of the company the article is related to                          |
-| `industry_name`       | The name of the industry the company belongs to                            |
-| `type_of_article`     | Type/category of article (e.g., news, opinion, press release)              |
-| `article_id`          | Unique identifier for the article                                          |
-| `article_URL`         | Source URL of the article                                                  |
-| `article_search_term` | The search keyword(s) used to discover this article                        |
-| `article_title`       | Title of the article                                                       |
-| `article_date`        | The published date of the article                                          |
-| `article_text`        | Full text content of the article                                           |
-| `date_of_extraction`  | The date the article was extracted into the system                         |
-| `relevance_score`     | Score indicating relevance to company or topic (0 to 1 or a defined scale) |
-| `article_embedding`   | Vector representation of article text for semantic search                  |
+| Field Name              | Description                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `company_websites_data` | Reference ID or batch/job identifier grouping the extracted data for a company |
+| `company_name`          | Name of the company                                                            |
+| `URL`                   | URL of the specific web page extracted                                         |
+| `date_of_extraction`    | Date when the web page was scraped                                             |
+| `page_content`          | Cleaned text content of the page                                               |
+| `page_embedding`        | Semantic embedding vector generated from `page_content`                        |
 
 ---
 
 ### **Acceptance Criteria:**
 
-#### ✅ **AC1: Weekly Scheduled Job**
+#### ✅ **AC1: Weekly Job Execution**
 
-* The system must run a job every week to extract new historical articles.
-* Job must complete within defined SLA (e.g., < 2 hours for 10,000 articles).
+* The system must run automatically once every week to extract pages from all tracked company websites.
+* Completion must be logged with a summary of URLs extracted per company.
 
-#### ✅ **AC2: Metadata Extraction**
+#### ✅ **AC2: Field Population**
 
-* Each article must include:
+* Each stored record must include:
 
   * `company_name`
-  * `industry_name`
-  * `type_of_article`
-  * `article_id` (UUID or hash)
-  * `article_URL`
-  * `article_search_term`
-  * `article_title`
-  * `article_date`
-  * `article_text`
-  * `date_of_extraction` (must be the current date)
+  * `URL`
+  * `date_of_extraction` (equal to job run date)
+  * `page_content` (minimum 100 characters)
+  * `page_embedding` (valid dimensionality e.g., 1536)
 
-#### ✅ **AC3: Uniqueness Check**
+#### ✅ **AC3: No Duplicate URLs**
 
-* The system must avoid inserting duplicate articles (`article_id` must be unique).
-* If duplicate found, it should log and skip or update based on policy.
+* Duplicate `URL`s for the same `company_name` within the same week must not be stored.
+* Composite uniqueness should be enforced using `(company_name, URL, date_of_extraction)`.
 
-#### ✅ **AC4: Relevance Scoring**
+#### ✅ **AC4: Embedding Generation**
 
-* Each article must be evaluated and assigned a `relevance_score` using predefined business or ML logic.
-* Articles below a relevance threshold (e.g., score < 0.4) should be flagged or excluded if configured.
+* Each `page_content` must be processed to generate a `page_embedding` using a preselected embedding model (e.g., Azure OpenAI).
+* Embedding must be stored in a vector-compatible DB for semantic search.
 
-#### ✅ **AC5: Embedding Generation**
+#### ✅ **AC5: Data Validity**
 
-* For each article, generate a semantic embedding using a predefined model (e.g., Azure OpenAI).
-* `article_embedding` must be stored in a vector-compatible database (e.g., pgvector or Azure AI Search).
+* Pages with missing `page_content` or failed embedding must be logged and excluded from storage.
+* If a company yields no valid pages, an alert or log entry must be generated.
 
-#### ✅ **AC6: Queryable Format**
+#### ✅ **AC6: Storage Format and Indexing**
 
-* The data must be stored in a structured format (e.g., Postgres, Parquet, etc.) with indexing to support downstream queries by company, date, industry, or relevance.
+* Records must be stored in a structured and queryable database (e.g., PostgreSQL with pgvector or Azure Cognitive Search).
+* Indexes must be available on `company_name`, `date_of_extraction`, and optionally `URL`.
 
 #### ✅ **AC7: Logging and Monitoring**
 
-* Log success, failures, skipped articles, and embedding generation status.
-* Alert if extraction fails or data volume is below expected threshold.
+* System must log:
 
-#### ✅ **AC8: Manual Triggering Option**
+  * Number of pages extracted per company
+  * Number of embeddings generated
+  * Any URLs that failed to extract or embed
 
-* Admins should be able to manually trigger the weekly job (e.g., via CLI or UI) if needed.
+#### ✅ **AC8: Manual Trigger Option**
+
+* Admins must be able to re-run extraction for a specific company or URL list manually.
 
 ---
 
-Let me know if you’d like SQL schema, API contract, or test cases based on this!
+Let me know if you'd like a database schema, Python code, or API contract to go along with this!
