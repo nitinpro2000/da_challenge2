@@ -1,96 +1,57 @@
-import asyncio
-import asyncpg
-import pandas as pd
-import uuid
-import datetime
-import numpy as np
-import os
-from openai import AzureOpenAI
-from dotenv import load_dotenv
+<rail version="0.1">
+    <input>
+        <Text name="prompt"/>
+    </input>
+    <output>
+        <Text name="content">
+            <Check input="content" type="pii" on_fail="exception"/>
+        </Text>
+    </output>
+    <prompt>
+        Use the following prompt to generate content.
+    </prompt>
+</rail>
 
-load_dotenv()
 
-# Set up Azure OpenAI client
-client = AzureOpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    api_version="2024-02-15-preview",
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
-)
+from guardrails import Guard
 
-# Replace with your model deployment name
-EMBEDDING_MODEL = "your-embedding-deployment"
+guard = Guard.from_pydantic(output_class=dict)
+guard.add_check("content", "pii", on_fail="exception")
 
-def get_embedding(text: str) -> list:
-    response = client.embeddings.create(
-        model=EMBEDDING_MODEL,
-        input=[text]
-    )
-    return response.data[0].embedding
 
-async def insert_news_from_csv(csv_path):
-    # Load CSV data
-    df = pd.read_csv(csv_path)
-    df.fillna("", inplace=True)
+from guardrails import Guard
 
-    conn = await asyncpg.connect(
-        user='your_user',
-        password='your_password',
-        database='your_db',
-        host='localhost',
-        port=5432
-    )
+# Load the rail (change if you want to use Python-based config)
+guard = Guard.from_rail("pii_guard.rail")
 
-    insert_query = """
-        INSERT INTO historical_news_data (
-            article_id,
-            company_name,
-            industry_name,
-            type_of_article,
-            article_url,
-            article_search_term,
-            article_title,
-            article_date,
-            article_text,
-            article_summary,
-            date_of_extraction,
-            relevance_score,
-            article_embedding,
-            article_summary_embedding,
-            inserted_at
-        ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-            $11, $12, $13, $14, CURRENT_TIMESTAMP
-        )
-    """
+# General wrapper
+def with_guardrails(func):
+    def wrapper(prompt: str, *args, **kwargs):
+        # Call the original function
+        content = func(prompt, *args, **kwargs)
 
-    for _, row in df.iterrows():
+        # Validate content with guardrails
         try:
-            # Generate embeddings
-            article_embedding = get_embedding(row["article_text"])
-            summary_embedding = get_embedding(row["article_summary"])
-
-            await conn.execute(
-                insert_query,
-                uuid.uuid4(),
-                row["company_name"],
-                row["industry_name"],
-                row["type_of_article"],
-                row["article_url"],
-                row["article_search_term"],
-                row["article_title"],
-                pd.to_datetime(row["article_date"]).date(),
-                row["article_text"],
-                row["article_summary"],
-                pd.to_datetime(row["date_of_extraction"]).date(),
-                float(row["relevance_score"]),
-                article_embedding,
-                summary_embedding
-            )
+            validated = guard(prompt=prompt, content=content)
+            return validated["content"]
         except Exception as e:
-            print(f"Error inserting row: {e}")
+            print(f"[Guardrails] Blocked output from '{func.__name__}':", str(e))
+            return "⚠️ Content blocked due to PII or policy violation."
+    return wrapper
 
-    await conn.close()
-    print("CSV insertion completed.")
+@with_guardrails
+def generate_news_summary(prompt: str) -> str:
+    return f"Breaking news: CEO's number is 9876543210."
 
-# Run
-asyncio.run(insert_news_from_csv("your_file.csv"))
+@with_guardrails
+def generate_client_report(prompt: str) -> str:
+    return f"Client John Doe lives at 123 Main Street."
+
+@with_guardrails
+def generate_industry_insights(prompt: str) -> str:
+    return f"The retail industry shows strong growth."
+
+# Use the wrapped functions
+print(generate_news_summary("Summarize today's company news."))
+print(generate_client_report("Give full client details."))
+print(generate_industry_insights("What's happening in retail?"))
