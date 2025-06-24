@@ -1,21 +1,96 @@
--- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
+import asyncio
+import asyncpg
+import pandas as pd
+import uuid
+import datetime
+import numpy as np
+import os
+from openai import AzureOpenAI
+from dotenv import load_dotenv
 
--- Create the table
-CREATE TABLE historical_news_data (
-    article_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    company_name TEXT NOT NULL,
-    industry_name TEXT,
-    type_of_article TEXT,
-    article_url TEXT,
-    article_search_term TEXT,
-    article_title TEXT,
-    article_date DATE,
-    article_text TEXT,
-    article_summary TEXT,
-    date_of_extraction DATE DEFAULT CURRENT_DATE,
-    relevance_score REAL,
-    article_embedding VECTOR(1536),
-    article_summary_embedding VECTOR(1536),
-    inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+load_dotenv()
+
+# Set up Azure OpenAI client
+client = AzureOpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    api_version="2024-02-15-preview",
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+)
+
+# Replace with your model deployment name
+EMBEDDING_MODEL = "your-embedding-deployment"
+
+def get_embedding(text: str) -> list:
+    response = client.embeddings.create(
+        model=EMBEDDING_MODEL,
+        input=[text]
+    )
+    return response.data[0].embedding
+
+async def insert_news_from_csv(csv_path):
+    # Load CSV data
+    df = pd.read_csv(csv_path)
+    df.fillna("", inplace=True)
+
+    conn = await asyncpg.connect(
+        user='your_user',
+        password='your_password',
+        database='your_db',
+        host='localhost',
+        port=5432
+    )
+
+    insert_query = """
+        INSERT INTO historical_news_data (
+            article_id,
+            company_name,
+            industry_name,
+            type_of_article,
+            article_url,
+            article_search_term,
+            article_title,
+            article_date,
+            article_text,
+            article_summary,
+            date_of_extraction,
+            relevance_score,
+            article_embedding,
+            article_summary_embedding,
+            inserted_at
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, CURRENT_TIMESTAMP
+        )
+    """
+
+    for _, row in df.iterrows():
+        try:
+            # Generate embeddings
+            article_embedding = get_embedding(row["article_text"])
+            summary_embedding = get_embedding(row["article_summary"])
+
+            await conn.execute(
+                insert_query,
+                uuid.uuid4(),
+                row["company_name"],
+                row["industry_name"],
+                row["type_of_article"],
+                row["article_url"],
+                row["article_search_term"],
+                row["article_title"],
+                pd.to_datetime(row["article_date"]).date(),
+                row["article_text"],
+                row["article_summary"],
+                pd.to_datetime(row["date_of_extraction"]).date(),
+                float(row["relevance_score"]),
+                article_embedding,
+                summary_embedding
+            )
+        except Exception as e:
+            print(f"Error inserting row: {e}")
+
+    await conn.close()
+    print("CSV insertion completed.")
+
+# Run
+asyncio.run(insert_news_from_csv("your_file.csv"))
