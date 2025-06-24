@@ -1,44 +1,13 @@
-import os, openai
-openai.api_type = "azure"
-openai.api_base = os.getenv("AZURE_OPENAI_API_BASE")
-openai.api_key = os.getenv("AZURE_OPENAI_API_KEY")
-openai.api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2023-05-15")
-
-
-from nemoguardrails import RailsConfig, LLMRails
-
-config = RailsConfig.from_content({
-    "models": [
-        {
-            "type": "main",
-            "engine": "azure",
-            "model": "<your_deployment_name>"
-        }
-    ],
-    "rails": {
-        "output": {
-            "flows": ["self check output"]
-        },
-        "config": {
-            "sensitive_data_detection": {
-                "output": {
-                    "entities": ["EMAIL_ADDRESS", "PHONE_NUMBER"]
-                }
-            }
-        }
-    }
-})
-
-rails = LLMRails(config)
-
-from functools import wraps
-
-def guarded(func):
-    @wraps(func)
-    def wrapper(prompt: str, *args, **kwargs):
-        raw = func(prompt, *args, **kwargs)
-        # Run through Guardrails
-        result = rails.generate(messages=[{"role": "user", "content": prompt}],
-                                raw_llm_output=raw)
-        return result["content"]
-    return wrapper
+Here's a breakdown of the "Guardrails Implementation" story, concise and in 4 points for each section:
+Story: Implement Guardrails for [Specify System/Feature]
+As a [Role], I want to implement automated guardrails so that [Benefit].
+Description:
+ * This story focuses on establishing and automating "guardrails" – automated mechanisms, policies, and checks – within our [Specify System/Feature].
+ * Guardrails prevent undesirable states, ensure adherence to best practices, and enforce compliance requirements, acting as automated safety nets.
+ * Implementation involves defining policies, choosing appropriate tooling (e.g., policy-as-code), integrating them into workflows, and establishing reporting/alerting.
+ * The scope is an initial set of critical guardrails; future stories will handle expansion and refinement.
+Acceptance Criteria:
+ * Functional Enforcement: Each implemented guardrail successfully and automatically enforces its defined policy (e.g., blocks vulnerable deployments, validates data schema, prevents unapproved cloud resource provisioning).
+ * Clear Feedback & Logging: Violations are logged with sufficient detail (timestamp, violating entity, policy) and provide clear, actionable feedback for rapid remediation.
+ * Alerting & Reporting: Configurable alerts (e.g., Slack, PagerDuty) are triggered for critical violations, and a dashboard/report provides an overview of compliance.
+ * Minimal Impact & Testability: Guardrails have minimal performance impact on existing systems and workflows, and defined test cases exist to verify their proper functioning.
