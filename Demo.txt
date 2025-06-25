@@ -1,1 +1,40 @@
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhdXRoMHw2ODViYzcwNWIxOTg0NDlhMmRlMGFmOWMiLCJhcGlLZXlJZCI6IjlkZjU1N2JiLWU5Y2MtNDc2ZC1hMDE2LWNmMGM2ZjZlYjkwMyIsInNjb3BlIjoicmVhZDpwYWNrYWdlcyIsInBlcm1pc3Npb25zIjpbXSwiaWF0IjoxNzUwODQ1NTYzLCJleHAiOjE3NTg2MjE1NjN9.LhB6DudxyWBilFuHw5m-JLPAHvEjMfF0cc15UbHjyMY
+
+from guardrails import Guard
+from openai import AzureOpenAI
+
+# Setup Azure OpenAI
+client = AzureOpenAI(
+    api_key="your-api-key",
+    azure_endpoint="https://<your-resource>.openai.azure.com",
+    api_version="2023-05-15"
+)
+
+# Define guard with toxicity and length
+guard = Guard.from_rail("""
+<rail version="0.1">
+  <output>
+    <string name="response" max_tokens="1000" />
+  </output>
+
+  <guard>
+    <toxicity threshold="0.5" on_fail="reask" />
+    <length min_tokens="10" max_tokens="1000" on_fail="reask" />
+  </guard>
+</rail>
+""")
+
+# Run with LLM
+raw_prompt = "Write something about politics or religion."
+response, validation = guard(
+    prompt_params={"input": raw_prompt},
+    llm_api=client.chat.completions.create,
+    engine="your-deployment-name",
+    temperature=0.5,
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant"},
+        {"role": "user", "content": raw_prompt}
+    ]
+)
+
+print("Final response:", response)
+print("Validation report:", validation)
