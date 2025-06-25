@@ -1,12 +1,73 @@
-def my_llm_api(*, messages, **kwargs) -> str:
-    """
-    messages: list of dicts like [{"role":"user","content":"..."}],
-    **kwargs: any other params like model, temperature, etc.
-    """
-    # Convert the `messages` list to whatever your LLM expects
-    prompt = "\n".join(m["content"] for m in messages if m["role"] == "user")
+import os
+from guardrails import Guard
+from openai import AzureOpenAI
 
-    # Example LLM call (replace with your own)
-    resp = some_llm_call(prompt=prompt, **kwargs)
-    # resp must be a string
-    return resp
+# ——————————————————————————————
+# 1. Setup Azure OpenAI environment
+# ——————————————————————————————
+os.environ["AZURE_OPENAI_API_KEY"] = "<YOUR_AZURE_OPENAI_API_KEY>"
+os.environ["AZURE_OPENAI_ENDPOINT"] = "<YOUR_AZURE_OPENAI_ENDPOINT>"  # e.g. https://your-resource.openai.azure.com
+os.environ["OPENAI_API_VERSION"] = "2024-10-21"
+
+# ——————————————————————————————
+# 2. Create the AzureOpenAI client
+# ——————————————————————————————
+client = AzureOpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    api_version=os.getenv("OPENAI_API_VERSION")
+)  # Using default namespace :contentReference[oaicite:1]{index=1}
+
+# ——————————————————————————————
+# 3. Define your RAIL spec
+# ——————————————————————————————
+rail_spec = """
+<rail version="0.1">
+  <messages>
+    <message role="user">${input}</message>
+  </messages>
+  <output>
+    <string name="response" max_tokens="1000" />
+  </output>
+  <guard>
+    <toxicity threshold="0.5" on_fail="reask" />
+    <length min_tokens="10" max_tokens="1000" on_fail="reask" />
+  </guard>
+</rail>
+"""
+
+guard = Guard.for_rail_string(rail_spec)
+
+# ——————————————————————————————
+# 4. Define your custom LLM callable
+# ——————————————————————————————
+def azure_llm(*, messages, **kwargs) -> str:
+    """
+    Custom callable for Guardrails.
+    Accepts `messages` and any kwargs (e.g. model, temperature).
+    Returns the assistant response as a plain string.
+    """
+    resp = client.chat.completions.create(
+        model=kwargs.get("model"),  # e.g. "gpt-4o" or your deployment
+        messages=messages,
+        temperature=kwargs.get("temperature", 0.7),
+        max_tokens=kwargs.get("max_tokens", 500),
+    )
+    # Extract and return content text
+    return resp.choices[0].message.content
+
+# ——————————————————————————————
+# 5. Run the Guard with your callable
+# ——————————————————————————————
+user_input = "Tell me an inspiring short story."
+
+raw, validated, *rest = guard(
+    azure_llm,
+    messages=[{"role": "user", "content": user_input}],
+    model="gpt-4o",        # your deployment
+    temperature=0.7,
+    max_tokens=300,
+)
+
+print("🚀 Guardrails response:")
+print(validated["response"])
