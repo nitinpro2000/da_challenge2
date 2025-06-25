@@ -1,40 +1,52 @@
+import os
+import guardrails as gr
 
-from guardrails import Guard
-from openai import AzureOpenAI
+# ——————————————————————————————————————————————
+# 1. Configure Azure OpenAI environment variables
+# ——————————————————————————————————————————————
+os.environ["AZURE_API_KEY"] = "<YOUR_AZURE_OPENAI_API_KEY>"
+os.environ["AZURE_API_BASE"] = "<YOUR_AZURE_ENDPOINT_URL>"  # e.g. "https://your-resource.openai.azure.com"
+os.environ["AZURE_API_VERSION"] = "2023-05-15"
 
-# Setup Azure OpenAI
-client = AzureOpenAI(
-    api_key="your-api-key",
-    azure_endpoint="https://<your-resource>.openai.azure.com",
-    api_version="2023-05-15"
-)
-
-# Define guard with toxicity and length
-guard = Guard.from_rail("""
+# ——————————————————————————————————————————————
+# 2. Define RAIL spec (with messages + output + guards)
+# ——————————————————————————————————————————————
+rail_spec = """
 <rail version="0.1">
+  <messages>
+    <message role="user">
+      ${input}
+    </message>
+  </messages>
   <output>
     <string name="response" max_tokens="1000" />
   </output>
-
   <guard>
     <toxicity threshold="0.5" on_fail="reask" />
     <length min_tokens="10" max_tokens="1000" on_fail="reask" />
   </guard>
 </rail>
-""")
+"""
 
-# Run with LLM
-raw_prompt = "Write something about politics or religion."
-response, validation = guard(
-    prompt_params={"input": raw_prompt},
-    llm_api=client.chat.completions.create,
-    engine="your-deployment-name",
-    temperature=0.5,
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant"},
-        {"role": "user", "content": raw_prompt}
-    ]
+# ——————————————————————————————————————————————
+# 3. Create Guard from the spec
+# ——————————————————————————————————————————————
+guard = gr.Guard.for_rail_string(rail_spec)
+
+# ——————————————————————————————————————————————
+# 4. Prompt the guard using Azure OpenAI
+# ——————————————————————————————————————————————
+user_input = "Tell me an inspiring short story."
+
+raw_output, validated_output, *other = guard(
+    # Azure OpenAI uses openai.chat.completions.create under the hood with "azure/DEPLOYMENT_NAME"
+    llm_api=os.environ.get,
+    model="azure/your-deployment-name",
+    messages=[{"role": "user", "content": user_input}],
+    temperature=0.7,
 )
 
-print("Final response:", response)
-print("Validation report:", validation)
+# ——————————————————————————————————————————————
+# 5. Print the validated response
+# ——————————————————————————————————————————————
+print("Validated story:", validated_output["response"])
