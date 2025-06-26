@@ -1,1 +1,11 @@
-https://storage.googleapis.com/chrome-for-testing-public/138.0.7204.49/linux64/chromedriver-linux64.zip
+from deepeval.guardrails import Guardrails, ToxicityGuard
+
+guardrails = Guardrails(guards=[ToxicityGuard()])
+
+guard_result = guardrails.guard_input(
+    input="I think the earth is flat.",
+    output="You're a complete idiot for thinking that way."
+)
+
+if guard_result.breached:
+    print("🚫 Toxicity detected!")
