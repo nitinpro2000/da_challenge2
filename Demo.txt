@@ -1,1 +1,15 @@
-pip install fastapi uvicorn prometheus_fastapi_instrumentator prometheus_client
+from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
+
+app = FastAPI(title="Observable FastAPI")
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/greet/{name}")
+def greet(name: str):
+    return {"message": f"Hello, {name}"}
+
+# Expose /metrics endpoint for Prometheus
+Instrumentator().instrument(app).expose(app)
