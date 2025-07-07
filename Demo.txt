@@ -1,11 +1,7 @@
-from deepeval.guardrails import Guardrails, ToxicityGuard
+global:
+  scrape_interval: 15s
 
-guardrails = Guardrails(guards=[ToxicityGuard()])
-
-guard_result = guardrails.guard_input(
-    input="I think the earth is flat.",
-    output="You're a complete idiot for thinking that way."
-)
-
-if guard_result.breached:
-    print("🚫 Toxicity detected!")
+scrape_configs:
+  - job_name: "fastapi-app"
+    static_configs:
+      - targets: ["localhost:8000"]
