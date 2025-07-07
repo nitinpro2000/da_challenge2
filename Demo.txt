@@ -1,3 +1,8 @@
-sum(rate(http_request_duration_seconds_sum[1m])) by (handler)
-/
-sum(rate(http_request_duration_seconds_count[1m])) by (handler)
+CREATE TABLE observability_metrics (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL,
+    function_name TEXT NOT NULL,
+    time_taken_sec REAL NOT NULL,
+    status TEXT NOT NULL,
+    exception TEXT
+);
