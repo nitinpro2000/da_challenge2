@@ -1,8 +1,47 @@
-CREATE TABLE observability_metrics (
-    id SERIAL PRIMARY KEY,
-    timestamp TIMESTAMPTZ NOT NULL,
-    function_name TEXT NOT NULL,
-    time_taken_sec REAL NOT NULL,
-    status TEXT NOT NULL,
-    exception TEXT
-);
+import time
+import asyncpg
+import asyncio
+from datetime import datetime
+from functools import wraps
+
+
+class Observability:
+    def __init__(self, db_config):
+        self.db_config = db_config
+        self.db_pool = None
+
+    async def init_db_pool(self):
+        if self.db_pool is None:
+            self.db_pool = await asyncpg.create_pool(**self.db_config)
+
+    async def insert_metric(self, timestamp, function_name, time_taken, status, exception_msg):
+        async with self.db_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO observability_metrics (timestamp, function_name, time_taken_sec, status, exception)
+                VALUES ($1, $2, $3, $4, $5)
+            """, timestamp, function_name, time_taken, status, exception_msg)
+
+    def track(self):
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                await self.init_db_pool()
+                start_time = time.time()
+                timestamp = datetime.utcnow()
+                status = "Success"
+                exception_msg = ""
+
+                try:
+                    result = await func(*args, **kwargs)
+                    return result
+                except Exception as e:
+                    status = "Error"
+                    exception_msg = str(e)
+                    raise
+                finally:
+                    end_time = time.time()
+                    time_taken = round(end_time - start_time, 4)
+                    await self.insert_metric(timestamp, func.__name__, time_taken, status, exception_msg)
+
+            return wrapper
+        return decorator
