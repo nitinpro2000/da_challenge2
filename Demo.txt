@@ -1,47 +1,46 @@
-import time
-import asyncpg
-import asyncio
-from datetime import datetime
-from functools import wraps
+Here’s a well-defined **User Story** and **Acceptance Criteria** for implementing **observability tracking** that logs **time taken by each API or Agent into a PostgreSQL table**.
 
+---
 
-class Observability:
-    def __init__(self, db_config):
-        self.db_config = db_config
-        self.db_pool = None
+### ✅ **User Story**
 
-    async def init_db_pool(self):
-        if self.db_pool is None:
-            self.db_pool = await asyncpg.create_pool(**self.db_config)
+**Title**: Track API and Agent Execution Time for Observability
 
-    async def insert_metric(self, timestamp, function_name, time_taken, status, exception_msg):
-        async with self.db_pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO observability_metrics (timestamp, function_name, time_taken_sec, status, exception)
-                VALUES ($1, $2, $3, $4, $5)
-            """, timestamp, function_name, time_taken, status, exception_msg)
+**As a** developer or system owner,
+**I want** to track and store the execution time of each API endpoint and agent function call in a PostgreSQL table,
+**So that** I can monitor performance, identify bottlenecks, and improve system reliability and responsiveness.
 
-    def track(self):
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                await self.init_db_pool()
-                start_time = time.time()
-                timestamp = datetime.utcnow()
-                status = "Success"
-                exception_msg = ""
+---
 
-                try:
-                    result = await func(*args, **kwargs)
-                    return result
-                except Exception as e:
-                    status = "Error"
-                    exception_msg = str(e)
-                    raise
-                finally:
-                    end_time = time.time()
-                    time_taken = round(end_time - start_time, 4)
-                    await self.insert_metric(timestamp, func.__name__, time_taken, status, exception_msg)
+### ✅ **Description**
 
-            return wrapper
-        return decorator
+For every API request or agent execution, the system should automatically capture metrics such as:
+
+* API/Agent name
+* Start time
+* End time
+* Total duration (in ms)
+* Status (success/failure)
+* Timestamp
+* Additional metadata (e.g., user ID, request ID, input size)
+
+These metrics should be inserted into a PostgreSQL table in near-real-time, using asynchronous calls to avoid blocking the main logic.
+
+---
+
+### ✅ **Acceptance Criteria**
+
+| ID  | Acceptance Criteria                                                                                                                                                                                              |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1 | When an API endpoint is hit, the start time and end time are recorded, and the duration is calculated accurately.                                                                                                |
+| AC2 | When an Agent function is called, its name, duration, and execution status are logged similarly.                                                                                                                 |
+| AC3 | A PostgreSQL table named (e.g., `observability_metrics`) exists with columns: `id`, `name`, `type` (API/Agent), `start_time`, `end_time`, `duration_ms`, `status`, `created_at`, and `metadata` (optional JSON). |
+| AC4 | Metrics are inserted into the table asynchronously using `asyncpg` or similar library without blocking the request/response cycle.                                                                               |
+| AC5 | Errors in metric logging (e.g., DB down) do not affect the main API/Agent execution. Failures are logged for retries.                                                                                            |
+| AC6 | The tracking logic is encapsulated in a reusable class (e.g., `ObservabilityTracker`) or middleware for consistent integration.                                                                                  |
+| AC7 | A test endpoint or dummy agent call demonstrates the correct data insertion into the table with at least 2–3 metrics.                                                                                            |
+| AC8 | The system supports adding custom tags/metadata for advanced filtering later (e.g., user ID, client name, environment).                                                                                          |
+
+---
+
+Would you like a sample schema or Python code to go with this user story?
