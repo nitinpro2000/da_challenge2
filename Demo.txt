@@ -1,46 +1,40 @@
-Here’s a well-defined **User Story** and **Acceptance Criteria** for implementing **observability tracking** that logs **time taken by each API or Agent into a PostgreSQL table**.
+import asyncpg
+import asyncio
+import csv
 
----
+async def fetch_and_save_to_csv():
+    # Connect to your PostgreSQL database
+    conn = await asyncpg.connect(
+        user='your_user',
+        password='your_password',
+        database='your_database',
+        host='localhost',
+        port=5432
+    )
 
-### ✅ **User Story**
+    try:
+        # Run the SELECT query
+        query = 'SELECT id, name, email FROM users;'  # Replace with your actual query
+        records = await conn.fetch(query)
 
-**Title**: Track API and Agent Execution Time for Observability
+        if not records:
+            print("No data found.")
+            return
 
-**As a** developer or system owner,
-**I want** to track and store the execution time of each API endpoint and agent function call in a PostgreSQL table,
-**So that** I can monitor performance, identify bottlenecks, and improve system reliability and responsiveness.
+        # Get column names
+        column_names = records[0].keys()
 
----
+        # Save to CSV
+        with open('output.csv', mode='w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(column_names)  # Write header
+            for record in records:
+                writer.writerow(record.values())  # Write data rows
 
-### ✅ **Description**
+        print("Data written to output.csv")
 
-For every API request or agent execution, the system should automatically capture metrics such as:
+    finally:
+        await conn.close()
 
-* API/Agent name
-* Start time
-* End time
-* Total duration (in ms)
-* Status (success/failure)
-* Timestamp
-* Additional metadata (e.g., user ID, request ID, input size)
-
-These metrics should be inserted into a PostgreSQL table in near-real-time, using asynchronous calls to avoid blocking the main logic.
-
----
-
-### ✅ **Acceptance Criteria**
-
-| ID  | Acceptance Criteria                                                                                                                                                                                              |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1 | When an API endpoint is hit, the start time and end time are recorded, and the duration is calculated accurately.                                                                                                |
-| AC2 | When an Agent function is called, its name, duration, and execution status are logged similarly.                                                                                                                 |
-| AC3 | A PostgreSQL table named (e.g., `observability_metrics`) exists with columns: `id`, `name`, `type` (API/Agent), `start_time`, `end_time`, `duration_ms`, `status`, `created_at`, and `metadata` (optional JSON). |
-| AC4 | Metrics are inserted into the table asynchronously using `asyncpg` or similar library without blocking the request/response cycle.                                                                               |
-| AC5 | Errors in metric logging (e.g., DB down) do not affect the main API/Agent execution. Failures are logged for retries.                                                                                            |
-| AC6 | The tracking logic is encapsulated in a reusable class (e.g., `ObservabilityTracker`) or middleware for consistent integration.                                                                                  |
-| AC7 | A test endpoint or dummy agent call demonstrates the correct data insertion into the table with at least 2–3 metrics.                                                                                            |
-| AC8 | The system supports adding custom tags/metadata for advanced filtering later (e.g., user ID, client name, environment).                                                                                          |
-
----
-
-Would you like a sample schema or Python code to go with this user story?
+# Run the async function
+asyncio.run(fetch_and_save_to_csv())
