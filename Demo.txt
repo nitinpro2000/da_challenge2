@@ -1,91 +1,25 @@
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
 import asyncpg
-import asyncio
-import time
-import uuid
-import json
-import inspect
-from functools import wraps
-from datetime import datetime
 
-class Observability:
-    def __init__(self, db_config):
-        self.db_config = db_config
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: create pool and store it
+    app.state.db_pool = await asyncpg.create_pool(
+        user='your_user',
+        password='your_password',
+        database='your_db',
+        host='localhost',
+        port=5432
+    )
+    yield
+    # Shutdown: close connections
+    await app.state.db_pool.close()
 
-    async def insert_metrics(self, data):
-        conn = await asyncpg.connect(**self.db_config)
-        try:
-            await conn.execute("""
-                INSERT INTO observability_metrics (
-                    function_name, execution_id, time_taken_ms, request_time,
-                    status_code, success, error_message, client_ip,
-                    user_id, endpoint, payload_size_bytes, environment, tags, params
-                )
-                VALUES (
-                    $1, $2, $3, $4,
-                    $5, $6, $7, $8,
-                    $9, $10, $11, $12, $13, $14
-                )
-            """, *data)
-        finally:
-            await conn.close()
+app = FastAPI(lifespan=lifespan)
 
-    def track(self, function_name, user_id=None, client_ip=None, endpoint=None, environment="prod", tags=None):
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                start = time.time()
-                execution_id = uuid.uuid4()
-                success = True
-                error_message = None
-                status_code = 200
-                result = None
-
-                try:
-                    bound_args = inspect.signature(func).bind(*args, **kwargs)
-                    bound_args.apply_defaults()
-                    request_data = dict(bound_args.arguments)
-                except Exception as e:
-                    request_data = {"error": f"failed to capture args: {str(e)}"}
-
-                try:
-                    result = await func(*args, **kwargs)
-                    return result
-                except Exception as e:
-                    success = False
-                    error_message = str(e)
-                    status_code = 500
-                    raise
-                finally:
-                    end = time.time()
-                    time_taken_ms = (end - start) * 1000
-                    request_time = datetime.utcnow()
-
-                    try:
-                        response_data = result if success else None
-                        combined_params = {
-                            "request": request_data,
-                            "response": response_data
-                        }
-                        params = json.dumps(combined_params, default=str)
-                    except Exception as e:
-                        params = json.dumps({"error": f"failed to serialize params/response: {str(e)}"})
-
-                    metrics_data = (
-                        function_name,
-                        execution_id,
-                        time_taken_ms,
-                        request_time,
-                        status_code,
-                        success,
-                        error_message,
-                        client_ip,
-                        user_id,
-                        endpoint,
-                        None,  # payload_size_bytes
-                        environment,
-                        tags if tags else {},
-                        params
-                    )
-                    asyncio.create_task(self.insert_metrics(metrics_data))
-            return wrapper
-        return decorator
+@app.get("/items")
+async def get_items():
+    pool = app.state.db_pool
+    async with pool.acquire() as conn:
+        return await conn.fetch("SELECT * FROM items")
