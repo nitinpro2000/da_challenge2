@@ -1,25 +1,6 @@
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
-import asyncpg
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: create pool and store it
-    app.state.db_pool = await asyncpg.create_pool(
-        user='your_user',
-        password='your_password',
-        database='your_db',
-        host='localhost',
-        port=5432
-    )
-    yield
-    # Shutdown: close connections
-    await app.state.db_pool.close()
-
-app = FastAPI(lifespan=lifespan)
-
-@app.get("/items")
-async def get_items():
-    pool = app.state.db_pool
-    async with pool.acquire() as conn:
-        return await conn.fetch("SELECT * FROM items")
+SELECT 
+  CASE 
+    WHEN data IS NULL OR data = '{}'::jsonb THEN ''
+    ELSE COALESCE(data->>'mykey', '')
+  END AS mykey_value
+FROM my_table;
