@@ -40,13 +40,12 @@ class Observability:
                 status_code = 200
                 result = None
 
-                # Capture function parameters as dict
                 try:
                     bound_args = inspect.signature(func).bind(*args, **kwargs)
                     bound_args.apply_defaults()
-                    params = json.dumps(bound_args.arguments, default=str)
+                    request_data = dict(bound_args.arguments)
                 except Exception as e:
-                    params = json.dumps({"error": f"failed to serialize params: {str(e)}"})
+                    request_data = {"error": f"failed to capture args: {str(e)}"}
 
                 try:
                     result = await func(*args, **kwargs)
@@ -61,7 +60,15 @@ class Observability:
                     time_taken_ms = (end - start) * 1000
                     request_time = datetime.utcnow()
 
-                    payload_size = None
+                    try:
+                        response_data = result if success else None
+                        combined_params = {
+                            "request": request_data,
+                            "response": response_data
+                        }
+                        params = json.dumps(combined_params, default=str)
+                    except Exception as e:
+                        params = json.dumps({"error": f"failed to serialize params/response: {str(e)}"})
 
                     metrics_data = (
                         function_name,
@@ -74,7 +81,7 @@ class Observability:
                         client_ip,
                         user_id,
                         endpoint,
-                        payload_size,
+                        None,  # payload_size_bytes
                         environment,
                         tags if tags else {},
                         params
