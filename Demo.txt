@@ -1,40 +1,84 @@
 import asyncpg
 import asyncio
-import csv
+import time
+import uuid
+import json
+import inspect
+from functools import wraps
+from datetime import datetime
 
-async def fetch_and_save_to_csv():
-    # Connect to your PostgreSQL database
-    conn = await asyncpg.connect(
-        user='your_user',
-        password='your_password',
-        database='your_database',
-        host='localhost',
-        port=5432
-    )
+class Observability:
+    def __init__(self, db_config):
+        self.db_config = db_config
 
-    try:
-        # Run the SELECT query
-        query = 'SELECT id, name, email FROM users;'  # Replace with your actual query
-        records = await conn.fetch(query)
+    async def insert_metrics(self, data):
+        conn = await asyncpg.connect(**self.db_config)
+        try:
+            await conn.execute("""
+                INSERT INTO observability_metrics (
+                    function_name, execution_id, time_taken_ms, request_time,
+                    status_code, success, error_message, client_ip,
+                    user_id, endpoint, payload_size_bytes, environment, tags, params
+                )
+                VALUES (
+                    $1, $2, $3, $4,
+                    $5, $6, $7, $8,
+                    $9, $10, $11, $12, $13, $14
+                )
+            """, *data)
+        finally:
+            await conn.close()
 
-        if not records:
-            print("No data found.")
-            return
+    def track(self, function_name, user_id=None, client_ip=None, endpoint=None, environment="prod", tags=None):
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                start = time.time()
+                execution_id = uuid.uuid4()
+                success = True
+                error_message = None
+                status_code = 200
+                result = None
 
-        # Get column names
-        column_names = records[0].keys()
+                # Capture function parameters as dict
+                try:
+                    bound_args = inspect.signature(func).bind(*args, **kwargs)
+                    bound_args.apply_defaults()
+                    params = json.dumps(bound_args.arguments, default=str)
+                except Exception as e:
+                    params = json.dumps({"error": f"failed to serialize params: {str(e)}"})
 
-        # Save to CSV
-        with open('output.csv', mode='w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(column_names)  # Write header
-            for record in records:
-                writer.writerow(record.values())  # Write data rows
+                try:
+                    result = await func(*args, **kwargs)
+                    return result
+                except Exception as e:
+                    success = False
+                    error_message = str(e)
+                    status_code = 500
+                    raise
+                finally:
+                    end = time.time()
+                    time_taken_ms = (end - start) * 1000
+                    request_time = datetime.utcnow()
 
-        print("Data written to output.csv")
+                    payload_size = None
 
-    finally:
-        await conn.close()
-
-# Run the async function
-asyncio.run(fetch_and_save_to_csv())
+                    metrics_data = (
+                        function_name,
+                        execution_id,
+                        time_taken_ms,
+                        request_time,
+                        status_code,
+                        success,
+                        error_message,
+                        client_ip,
+                        user_id,
+                        endpoint,
+                        payload_size,
+                        environment,
+                        tags if tags else {},
+                        params
+                    )
+                    asyncio.create_task(self.insert_metrics(metrics_data))
+            return wrapper
+        return decorator
