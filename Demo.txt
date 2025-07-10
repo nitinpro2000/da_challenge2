@@ -1,22 +1,30 @@
-import asyncpg
-from typing import Optional
+from fastapi import FastAPI
+from app.db import init_db_pool, get_connection, release_connection, close_db_pool
 
-# This will hold the pool object
-db_pool: Optional[asyncpg.pool.Pool] = None
+app = FastAPI()
 
-async def init_db_pool():
-    global db_pool
-    if db_pool is None:
-        db_pool = await asyncpg.create_pool(
-            dsn="postgresql://user:password@host:port/dbname",
-            min_size=1,
-            max_size=10
-        )
+@app.on_event("startup")
+async def on_startup():
+    await init_db_pool()
 
-async def get_db_connection():
-    if db_pool is None:
-        raise RuntimeError("Database pool is not initialized.")
-    return await db_pool.acquire()
+@app.on_event("shutdown")
+async def on_shutdown():
+    await close_db_pool()
 
-async def release_db_connection(conn):
-    await db_pool.release(conn)
+@app.get("/memos/{memo_id}")
+async def get_memo(memo_id: int):
+    conn = await get_connection()
+    try:
+        row = await conn.fetchrow("SELECT * FROM memo WHERE memo_id = $1", memo_id)
+        return dict(row) if row else {"message": "Memo not found"}
+    finally:
+        await release_connection(conn)
+
+@app.get("/users/{user_id}/memos")
+async def get_user_memos(user_id: int):
+    conn = await get_connection()
+    try:
+        rows = await conn.fetch("SELECT * FROM memo WHERE user_id = $1", user_id)
+        return [dict(row) for row in rows]
+    finally:
+        await release_connection(conn)
