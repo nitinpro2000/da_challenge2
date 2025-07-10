@@ -1,49 +1,107 @@
-import re
+Here's a clear, refined description along with acceptance criteria for implementing “Grounding with Bing Search” in your news agent:
 
-def markdown_to_plain_text(md_text):
-    """
-    Convert Markdown to plain text, remove all headings, and citation references like [1], [2], etc.
+---
 
-    Args:
-        md_text (str): Markdown formatted text.
+## 📘 Feature Description
 
-    Returns:
-        str: Plain text without headings and citations.
-    """
-    # Remove headings (lines starting with one or more #)
-    no_headings = re.sub(r'^\s{0,3}#{1,6} .*$', '', md_text, flags=re.MULTILINE)
+**Grounding with Bing Search** enables your news agent to fetch and integrate real-time public web data when responding to user queries. Instead of relying solely on static, model-internal knowledge, the agent now:
 
-    # Remove emphasis: *italic*, **bold**, ***bolditalic***
-    text = re.sub(r'(\*\*\*|___)(.*?)\1', r'\2', no_headings)
-    text = re.sub(r'(\*\*|__)(.*?)\1', r'\2', text)
-    text = re.sub(r'(\*|_)(.*?)\1', r'\2', text)
+1. Receives the user's query (e.g., “What’s the latest news about renewable energy?”).
+2. Internally decides whether to invoke Bing grounding.
+3. Sends a Bing search query to the Bing grounding service.
+4. Retrieves relevant web data chunks.
+5. Generates a response that includes:
 
-    # Remove inline code: `code`
-    text = re.sub(r'`([^`]*)`', r'\1', text)
+   * Summarized content based on recent results.
+   * Inline citations linking to the original web sources and to the Bing query used.
 
-    # Remove code blocks (```code```)
-    text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+This ensures:
 
-    # Remove links but keep the link text: [text](url)
-    text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)
+* Up-to-date information in news coverage.
+* Transparency through visible citations.
+* Compliance with Microsoft’s display requirements ([Microsoft Learn][1], [ArgonSys][2]).
 
-    # Remove images: ![alt](url)
-    text = re.sub(r'!\[.*?\]\(.*?\)', '', text)
+---
 
-    # Remove blockquotes
-    text = re.sub(r'^\s{0,3}>\s?', '', text, flags=re.MULTILINE)
+## ✅ Acceptance Criteria
 
-    # Remove unordered and ordered list markers
-    text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.MULTILINE)
-    text = re.sub(r'^\s*\d+\.\s+', '', text, flags=re.MULTILINE)
+### 1. Triggering Grounding
 
-    # Remove horizontal rules
-    text = re.sub(r'^(-{3,}|\*{3,})$', '', text, flags=re.MULTILINE)
+* \[ ] The agent determines when a query is news-related based on developer-specified rules (e.g., keywords like “update,” “today,” “latest”).
+* \[ ] For such queries, the agent invokes the Grounding with Bing Search tool correctly.
 
-    # Remove citation-style references like [1], [23], etc.
-    text = re.sub(r'\[\d+\]', '', text)
+### 2. Connector Setup
 
-    # Remove extra whitespace and collapse multiple newlines
-    text = re.sub(r'\n\s*\n+', '\n\n', text)
+* \[ ] A valid Bing grounding resource is configured and linked in Azure (same resource group as the agent) ([Microsoft Learn][1]).
+* \[ ] Optional tool parameters such as `count`, `freshness`, `market`, and `set_lang` are configurable and passed through the API call.
 
-    return text.strip()
+### 3. Bing Search Integration
+
+* \[ ] The agent sends the user’s query to Bing via the grounding service.
+* \[ ] The grounding response (web snippets, URLs, etc.) is consumed by the agent without exposing raw content to the user; it uses the data to summarize.
+
+### 4. Response Composition & Citations
+
+* \[ ] The agent's reply must include:
+
+  * A concise summary of findings.
+  * In-line citations linking to:
+
+    * Each source URL (from `annotations` in the API response).
+    * The actual Bing query URL (e.g., “[https://www.bing.com/search?q={query}”](https://www.bing.com/search?q={query}”)) ([Microsoft Learn][1], [PYMNTS][3]).
+* \[ ] All citations follow the exact format returned by the service (unaltered by the agent) per Microsoft’s Display Requirements ([Microsoft Learn][1]).
+
+### 5. Tool Re‑invoke Logic
+
+* \[ ] If initial summary is insufficient (based on internal agent criteria), the agent should be able to call the grounding tool again within the same session .
+
+### 6. Latency & Cost Handling
+
+* [ ] The agent logs timing for:
+
+  * Outbound search request
+  * Grounding response
+  * Final response generation
+* [ ] Usage of grounding records the cost associated, enabling developer monitoring and budgeting.
+
+### 7. Error Handling & Fallback
+
+* [ ] If Bing grounding fails or times out, the agent should gracefully:
+
+  * Notify the user of delay or inability to fetch live info.
+  * Fall back to pre‑trained knowledge where applicable.
+
+### 8. Testing
+
+* [ ] Unit tests validate:
+
+  * Bing tool invocation occurs with correct parameters.
+  * Response includes correctly formatted citations.
+  * Summaries reflect grounding output as intended.
+* [ ] Integration tests simulate:
+
+  * End-to-end user queries ("What's today's top news?").
+  * Fail-over behavior when grounding is unavailable.
+
+---
+
+## 🧩 Summary Table
+
+| Feature Area            | Description / Criteria                                   |
+| ----------------------- | -------------------------------------------------------- |
+| Grounding Trigger       | Fires on news-related queries                            |
+| Azure Setup             | Proper resource and API connection                       |
+| Search Invocation       | Uses Bing tools following spec                           |
+| Response with Citations | Includes URLs & raw Bing query link, formatted correctly |
+| Multi-step Invocation   | Agent can refine with additional searches                |
+| Logging & Cost Tracking | Logs latency & usage, supports cost oversight            |
+| Robust Fallback Logic   | Handles service failures gracefully                      |
+| Automated Testing       | Covers both unit and integration flows                   |
+
+---
+
+Let me know if you'd like me to include example API calls, UI mockups, or expand on any part (like error fallback messages).
+
+[1]: https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/tools/bing-grounding?utm_source=chatgpt.com "Grounding with Bing Search - Azure AI Foundry - Learn Microsoft"
+[2]: https://argonsys.com/microsoft-cloud/library/getting-results-with-ai-agents-bing-grounding/?utm_source=chatgpt.com "Getting Results with AI Agents + Bing Grounding - Argon Systems"
+[3]: https://www.pymnts.com/big-tech/2025/microsoft-retire-bing-search-apis-promote-azure-ai-agents/?utm_source=chatgpt.com "Microsoft to Retire Bing Search APIs, Promote Azure AI Agents"
