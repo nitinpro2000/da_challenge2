@@ -1,61 +1,49 @@
-Here's a **User Story**, **Description**, and **Acceptance Criteria** for the task:
+import re
 
----
+def markdown_to_plain_text(md_text):
+    """
+    Convert Markdown to plain text, remove all headings, and citation references like [1], [2], etc.
 
-### **User Story**
+    Args:
+        md_text (str): Markdown formatted text.
 
-**Title**: Update Application Design Document with Sequence Diagrams for APIs and Flow Diagrams for Agents
+    Returns:
+        str: Plain text without headings and citations.
+    """
+    # Remove headings (lines starting with one or more #)
+    no_headings = re.sub(r'^\s{0,3}#{1,6} .*$', '', md_text, flags=re.MULTILINE)
 
-**As a** system architect or technical lead,
-**I want to** update the application design documentation with accurate sequence diagrams for APIs and flow diagrams for agents,
-**so that** the technical team and stakeholders can clearly understand the system behavior, data flow, and agent orchestration for maintenance, onboarding, and scaling.
+    # Remove emphasis: *italic*, **bold**, ***bolditalic***
+    text = re.sub(r'(\*\*\*|___)(.*?)\1', r'\2', no_headings)
+    text = re.sub(r'(\*\*|__)(.*?)\1', r'\2', text)
+    text = re.sub(r'(\*|_)(.*?)\1', r'\2', text)
 
----
+    # Remove inline code: `code`
+    text = re.sub(r'`([^`]*)`', r'\1', text)
 
-### **Description**
+    # Remove code blocks (```code```)
+    text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
 
-The task involves updating the application design documentation to reflect the current implementation. This includes:
+    # Remove links but keep the link text: [text](url)
+    text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)
 
-1. **API Sequence Diagrams**:
+    # Remove images: ![alt](url)
+    text = re.sub(r'!\[.*?\]\(.*?\)', '', text)
 
-   * For each major API (e.g., Create Memo, Approve Regeneration, Get Client Info), include a detailed sequence diagram showing:
+    # Remove blockquotes
+    text = re.sub(r'^\s{0,3}>\s?', '', text, flags=re.MULTILINE)
 
-     * Actor (Frontend / User)
-     * API Gateway or FastAPI layer
-     * Business logic or service layer
-     * Database or async operations
-     * Response structure
-   * These diagrams should be updated to reflect the latest async behavior, validations (e.g., Guardrails), and backend architecture.
+    # Remove unordered and ordered list markers
+    text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*\d+\.\s+', '', text, flags=re.MULTILINE)
 
-2. **Agent Flow Diagrams**:
+    # Remove horizontal rules
+    text = re.sub(r'^(-{3,}|\*{3,})$', '', text, flags=re.MULTILINE)
 
-   * Each autonomous or orchestrated agent (e.g., LinkedIn Agent, Fusion Agent, Sentiment Agent) should have a **flow diagram (Mermaid / BPMN / Lucid)** that includes:
+    # Remove citation-style references like [1], [23], etc.
+    text = re.sub(r'\[\d+\]', '', text)
 
-     * Trigger conditions
-     * Data source and enrichment steps
-     * Communication between agents (if multi-agent system)
-     * LLM prompt-response interactions
-     * Final output and any feedback loop
+    # Remove extra whitespace and collapse multiple newlines
+    text = re.sub(r'\n\s*\n+', '\n\n', text)
 
-3. **Documentation Update**:
-
-   * Embed these diagrams in the official design document (Markdown / Word / Confluence).
-   * Each diagram should be accompanied by a brief explanation.
-
----
-
-### **Acceptance Criteria**
-
-| ID  | Criteria                                                                                                | Type       |
-| --- | ------------------------------------------------------------------------------------------------------- | ---------- |
-| AC1 | The design document includes updated **sequence diagrams for all major APIs**                           | Functional |
-| AC2 | The **sequence diagrams** clearly show all involved components (Frontend, API, DB, etc.)                | Functional |
-| AC3 | The **flow diagrams** for each agent are complete and reflect the actual flow logic                     | Functional |
-| AC4 | Each diagram is **validated** with developers or stakeholders for correctness                           | Review     |
-| AC5 | The diagrams are included in the **project documentation repository** (e.g., GitHub Wiki or Confluence) | Delivery   |
-| AC6 | Diagrams use a **consistent notation** (e.g., Mermaid.js, UML, BPMN)                                    | Quality    |
-| AC7 | Document is peer-reviewed and marked as “Updated” in version history or change log                      | Process    |
-
----
-
-Would you like a sample Mermaid sequence diagram or agent flow diagram included in this document?
+    return text.strip()
