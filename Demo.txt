@@ -18,3 +18,53 @@ async def secure_post(data: dict, user: dict = Depends(get_current_user)):
         "user_id": user["user_id"],
         "data_received": data
     }
+
+
+
+import httpx
+from jose import jwt, JWTError
+
+# Replace with your actual values
+TENANT_ID = "<your-tenant-id>"
+CLIENT_ID = "<your-client-id>"
+TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIn..."  # Your access_token
+
+ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
+JWKS_URL = f"{ISSUER}/discovery/v2.0/keys"
+
+async def validate_azure_jwt(token: str):
+    try:
+        # Fetch JWKS keys
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(JWKS_URL)
+            resp.raise_for_status()
+            jwks = resp.json()["keys"]
+
+        # Extract key from token header
+        unverified_header = jwt.get_unverified_header(token)
+        key = next((k for k in jwks if k["kid"] == unverified_header["kid"]), None)
+        if not key:
+            raise Exception("Matching public key not found in JWKS")
+
+        # Construct public key and validate
+        public_key = jwt.construct_rsa_public_key(key)
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=[key["alg"]],
+            audience=CLIENT_ID,
+            issuer=ISSUER
+        )
+
+        print("✅ JWT is valid")
+        print("Decoded payload:\n", payload)
+
+    except JWTError as e:
+        print("❌ Token is invalid:", str(e))
+    except Exception as e:
+        print("❌ Error:", str(e))
+
+# Run it
+import asyncio
+asyncio.run(validate_azure_jwt(TOKEN))
+
