@@ -1,21 +1,156 @@
-import msal
+import jwt
+import requests
+from jwt.algorithms import get_default_algorithms
+from datetime import datetime
 
-CLIENT_ID = "<your-client-id>"
-TENANT_ID = "<your-tenant-id>"
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-SCOPES = ["api://<your-api-client-id>/.default"]  # or your scopes
+# --- Configuration (Replace with your actual values) ---
+TENANT_ID = "YOUR_AZURE_AD_TENANT_ID"  # e.g., "common" for multi-tenant, or your tenant's GUID
+CLIENT_ID = "YOUR_AZURE_AD_APP_CLIENT_ID" # Application (client) ID of your registered app
 
-app = msal.PublicClientApplication(client_id=CLIENT_ID, authority=AUTHORITY)
+# Azure AD OpenID Connect metadata endpoint
+# For single-tenant applications: f"https://login.microsoftonline.com/{TENANT_ID}/v2.0/.well-known/openid-configuration"
+# For multi-tenant applications: "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration"
+AZURE_AD_METADATA_URL = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0/.well-known/openid-configuration"
 
-def get_valid_token():
-    accounts = app.get_accounts()
-    if accounts:
-        result = app.acquire_token_silent(SCOPES, account=accounts[0])
-        if result and "access_token" in result:
-            return result["access_token"]
-    # fallback to interactive login
-    result = app.acquire_token_interactive(SCOPES)
-    return result["access_token"]
+# --- Token Validation Function ---
 
-token = get_valid_token()
-print("Access Token:", token)
+def validate_azure_ad_jwt(token: str, client_id: str, tenant_id: str = "common") -> dict:
+    """
+    Validates an Azure AD JWT token.
+
+    Args:
+        token (str): The JWT token received from Azure AD SSO.
+        client_id (str): The Application (client) ID of your Azure AD registered app.
+        tenant_id (str, optional): The Directory (tenant) ID of your Azure AD.
+                                    Use "common" for multi-tenant applications.
+
+    Returns:
+        dict: The decoded and validated token payload if successful.
+
+    Raises:
+        jwt.exceptions.PyJWTError: If the token is invalid (e.g., bad signature,
+                                    expired, invalid claims).
+        requests.exceptions.RequestException: If there's an issue fetching
+                                              OpenID Connect metadata or JWKS.
+    """
+    try:
+        # 1. Fetch OpenID Connect metadata
+        metadata_response = requests.get(AZURE_AD_METADATA_URL.replace("{TENANT_ID}", tenant_id))
+        metadata_response.raise_for_status()
+        metadata = metadata_response.json()
+        jwks_uri = metadata.get("jwks_uri")
+        issuer = metadata.get("issuer")
+
+        if not jwks_uri or not issuer:
+            raise ValueError("Could not retrieve jwks_uri or issuer from OpenID Connect metadata.")
+
+        # 2. Fetch JWKS (JSON Web Key Set)
+        jwks_response = requests.get(jwks_uri)
+        jwks_response.raise_for_status()
+        jwks = jwks_response.json()
+        public_keys = {}
+        for key in jwks["keys"]:
+            # Ensure 'kty' is 'RSA' and 'use' is 'sig' for signing keys
+            if key.get('kty') == 'RSA' and key.get('use') == 'sig':
+                public_keys[key["kid"]] = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+
+        # 3. Get the header to find the kid
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        if not kid:
+            raise jwt.exceptions.InvalidHeaderError("Token header is missing 'kid'.")
+
+        # 4. Get the public key for verification
+        public_key = public_keys.get(kid)
+        if not public_key:
+            raise jwt.exceptions.InvalidKeyError(f"No public key found for kid: {kid}")
+
+        # 5. Define validation options and parameters
+        options = {
+            "verify_signature": True,
+            "verify_exp": True,
+            "verify_nbf": True,
+            "verify_iat": True,
+            "verify_aud": True,
+            "verify_iss": True,
+            "require_exp": True,
+            "require_iat": False, # IAT is optional for some flows
+            "require_nbf": False, # NBF is optional for some flows
+        }
+
+        # IMPORTANT: The audience (aud) claim in Azure AD tokens can be either
+        # your client ID (guid) or your application's App ID URI.
+        # You should configure your app to use one consistently or handle both.
+        # For simplicity, we'll use client_id here.
+        # If your 'aud' claim is your App ID URI, replace client_id with that URI.
+        expected_audience = client_id
+
+        # The issuer for Azure AD v2.0 tokens typically includes the tenant ID,
+        # e.g., "https://login.microsoftonline.com/{tenant_id}/v2.0"
+        # If using "common", the issuer will also be "common"
+        expected_issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0" if tenant_id != "common" else "https://login.microsoftonline.com/common/v2.0"
+
+
+        # 6. Decode and validate the token
+        decoded_payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=[unverified_header["alg"]], # Use the algorithm from the token header
+            audience=expected_audience,
+            issuer=expected_issuer,
+            options=options
+        )
+
+        # Optional: Further validate 'tid' claim if you are expecting a specific tenant
+        if 'tid' in decoded_payload and decoded_payload['tid'] != tenant_id and tenant_id != "common":
+             raise jwt.exceptions.InvalidClaimError("Invalid 'tid' claim.")
+
+        print("Token successfully validated!")
+        return decoded_payload
+
+    except jwt.exceptions.InvalidSignatureError:
+        print("Error: Token signature is invalid.")
+        raise
+    except jwt.exceptions.ExpiredSignatureError:
+        print("Error: Token has expired.")
+        raise
+    except jwt.exceptions.InvalidAudienceError:
+        print(f"Error: Invalid audience. Expected '{client_id}'.")
+        raise
+    except jwt.exceptions.InvalidIssuerError:
+        print(f"Error: Invalid issuer. Expected '{issuer}'.")
+        raise
+    except jwt.exceptions.InvalidTokenError as e:
+        print(f"Error: Invalid token - {e}")
+        raise
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching metadata or JWKS: {e}")
+        raise
+    except Exception as e:
+        print(f"An unexpected error occurred during token validation: {e}")
+        raise
+
+# --- Example Usage ---
+if __name__ == "__main__":
+    # IMPORTANT: Replace with a real token you obtain from an Azure AD SSO flow.
+    # This example token is *NOT* valid and will cause validation to fail.
+    # You would typically receive this token from your frontend application
+    # or an authentication library after a successful SSO login.
+    EXAMPLE_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6InlhSnp6aTVJbUVSWnl5Q2p0XzBhN0h6ajdnVSJ9.eyJhdWQiOiIyMzg4NDQxYS04NjI5LTQ3NmQtYTYxOC1hN2Q0ZTg5Zjg0NjQiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vNzJmOTg4YmYtODZmMS00MWFmLTkxYWItMmQ3Y2QwMTFkYjQ3L3YyLjAiLCJpYXQiOjE2NzYyMjQ0NzIsIm5iZiI6MTY3NjIyNDQ3MiwiZXhwIjoxNjc2MjI4MDcyLCJhaW8iOiJBVFFBeS84VEFBQUFSNmZtN2hJSlFzWkhhM0t1aWl6NmV5cThVbDRaNmhXQWRuMWg5djl0Rnd2cmx4aU51L0x0Z3J4dHZ2b0xIciIsIm5hbWUiOiJKb2huIERvZSIsIm9pZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInByZWZlcnJlZF91c2VybmFtZSI6ImpvaG5kb2VAZXhhbXBsZS5jb20iLCJzY3AiOiJ1c2VyX2ltcGVyc29uYXRpb24iLCJzdWIiOiIwbXR2Z0tLajFpTE1pM0t0MjgzSmVzZW9mTkNVMW1tVjUiLCJ0aWQiOiI3MmY5ODhiZi04NmYxLTQxYWYtOTFhYi0yZDdjZDAxMWRiNDciLCJ1dGkiOiJFQUFVX21IeWlrbVRsLVEzVk0wUSIsInZlciI6IjIuMCJ9.InvalidSignatureBecauseThisIsExampleOnly"
+
+    # Replace with your actual configuration details
+    my_tenant_id = "72f988bf-86f1-41af-91ab-2d7cd011db47"  # Example tenant ID (Microsoft's common tenant)
+    my_client_id = "2388441a-8629-476d-a618-a7d4e89f8464"  # Example client ID
+
+    try:
+        validated_payload = validate_azure_ad_jwt(EXAMPLE_TOKEN, my_client_id, my_tenant_id)
+        print("\nValidated Token Payload:")
+        import json
+        print(json.dumps(validated_payload, indent=2))
+        print(f"User's Name: {validated_payload.get('name')}")
+        print(f"User's UPN: {validated_payload.get('upn') or validated_payload.get('preferred_username')}")
+
+    except Exception as e:
+        print(f"\nToken validation failed: {e}")
+        print("Please ensure you're using a real, valid Azure AD token and correct configuration (TENANT_ID, CLIENT_ID).")
+
