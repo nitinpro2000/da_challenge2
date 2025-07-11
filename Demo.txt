@@ -1,4 +1,9 @@
-TENANT_ID = os.getenv("AZURE_TENANT_ID", "<your-tenant-id>")
-CLIENT_ID = os.getenv("AZURE_CLIENT_ID", "<your-client-id>")
-ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
-JWKS_URL = f"{ISSUER}/discovery/v2.0/keys"
+SELECT 
+    schemaname,
+    tablename,
+    indexname,
+    indexdef
+FROM 
+    pg_indexes
+ORDER BY 
+    schemaname, tablename;
