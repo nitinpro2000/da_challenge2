@@ -1,61 +1,20 @@
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
-import httpx
-import os
+from fastapi import FastAPI, Depends
+from auth import get_current_user
 
-# Replace with your Azure AD details
-TENANT_ID = os.getenv("AZURE_TENANT_ID", "<your-tenant-id>")
-CLIENT_ID = os.getenv("AZURE_CLIENT_ID", "<your-client-id>")
-ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
-JWKS_URL = f"{ISSUER}/discovery/v2.0/keys"
+app = FastAPI()
 
-auth_scheme = HTTPBearer()
-jwks_cache = {}
-
-# Fetch and cache JWKS public keys
-async def get_jwks():
-    if not jwks_cache:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(JWKS_URL)
-            resp.raise_for_status()
-            jwks_cache.update({"keys": resp.json()["keys"]})
-    return jwks_cache["keys"]
-
-# Validate token and decode payload
-async def verify_jwt(token: str):
-    try:
-        keys = await get_jwks()
-        header = jwt.get_unverified_header(token)
-        key = next((k for k in keys if k["kid"] == header["kid"]), None)
-        if not key:
-            raise HTTPException(status_code=403, detail="Invalid token header.")
-
-        public_key = jwt.construct_rsa_public_key(key)
-        payload = jwt.decode(
-            token,
-            public_key,
-            algorithms=[key["alg"]],
-            audience=CLIENT_ID,
-            issuer=ISSUER
-        )
-        return payload
-    except JWTError as e:
-        raise HTTPException(status_code=403, detail=f"Token validation error: {str(e)}")
-
-# FastAPI dependency for route protection
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme)):
-    token = credentials.credentials
-    payload = await verify_jwt(token)
-
-    user_id = payload.get("oid") or payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=403, detail="User ID not found in token")
-
+@app.get("/secure-data")
+async def secure_get(user: dict = Depends(get_current_user)):
     return {
-        "user_id": user_id,
-        "username": payload.get("preferred_username"),
-        "name": payload.get("name"),
-        "email": payload.get("email"),
-        "token_payload": payload  # optional
+        "message": "GET access granted",
+        "user_id": user["user_id"],
+        "username": user["username"]
+    }
+
+@app.post("/secure-action")
+async def secure_post(data: dict, user: dict = Depends(get_current_user)):
+    return {
+        "message": "POST access granted",
+        "user_id": user["user_id"],
+        "data_received": data
     }
