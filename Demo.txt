@@ -1,70 +1,21 @@
-from fastapi import FastAPI, Depends
-from auth import get_current_user
+import msal
 
-app = FastAPI()
-
-@app.get("/secure-data")
-async def secure_get(user: dict = Depends(get_current_user)):
-    return {
-        "message": "GET access granted",
-        "user_id": user["user_id"],
-        "username": user["username"]
-    }
-
-@app.post("/secure-action")
-async def secure_post(data: dict, user: dict = Depends(get_current_user)):
-    return {
-        "message": "POST access granted",
-        "user_id": user["user_id"],
-        "data_received": data
-    }
-
-
-
-import httpx
-from jose import jwt, JWTError
-
-# Replace with your actual values
-TENANT_ID = "<your-tenant-id>"
 CLIENT_ID = "<your-client-id>"
-TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIn..."  # Your access_token
+TENANT_ID = "<your-tenant-id>"
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+SCOPES = ["api://<your-api-client-id>/.default"]  # or your scopes
 
-ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
-JWKS_URL = f"{ISSUER}/discovery/v2.0/keys"
+app = msal.PublicClientApplication(client_id=CLIENT_ID, authority=AUTHORITY)
 
-async def validate_azure_jwt(token: str):
-    try:
-        # Fetch JWKS keys
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(JWKS_URL)
-            resp.raise_for_status()
-            jwks = resp.json()["keys"]
+def get_valid_token():
+    accounts = app.get_accounts()
+    if accounts:
+        result = app.acquire_token_silent(SCOPES, account=accounts[0])
+        if result and "access_token" in result:
+            return result["access_token"]
+    # fallback to interactive login
+    result = app.acquire_token_interactive(SCOPES)
+    return result["access_token"]
 
-        # Extract key from token header
-        unverified_header = jwt.get_unverified_header(token)
-        key = next((k for k in jwks if k["kid"] == unverified_header["kid"]), None)
-        if not key:
-            raise Exception("Matching public key not found in JWKS")
-
-        # Construct public key and validate
-        public_key = jwt.construct_rsa_public_key(key)
-        payload = jwt.decode(
-            token,
-            public_key,
-            algorithms=[key["alg"]],
-            audience=CLIENT_ID,
-            issuer=ISSUER
-        )
-
-        print("✅ JWT is valid")
-        print("Decoded payload:\n", payload)
-
-    except JWTError as e:
-        print("❌ Token is invalid:", str(e))
-    except Exception as e:
-        print("❌ Error:", str(e))
-
-# Run it
-import asyncio
-asyncio.run(validate_azure_jwt(TOKEN))
-
+token = get_valid_token()
+print("Access Token:", token)
