@@ -1,40 +1,18 @@
-import requests
-from jose import jwt
-from jose.exceptions import JWTError
-from jose.utils import base64url_decode
+import jwt
+from jwt import PyJWKClient
 
-def get_jwk_keys():
-    jwks_url = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
-    return requests.get(jwks_url).json()["keys"]
+def verify_token(tenant_id, client_id, token):
+    jwks_url = f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys"
+    issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0"
 
-def get_signing_key(jwk_keys, token):
-    headers = jwt.get_unverified_headers(token)
-    kid = headers["kid"]
-    for key in jwk_keys:
-        if key["kid"] == kid:
-            return key
-    raise Exception("Public key not found in JWKS for token.")
+    jwks_client = PyJWKClient(jwks_url)
+    signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-def verify_token(token: str):
-    jwk_keys = get_jwk_keys()
-    key = get_signing_key(jwk_keys, token)
-    try:
-        claims = jwt.decode(
-            token,
-            key,
-            algorithms=["RS256"],
-            audience=CLIENT_ID,
-            issuer=f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
-        )
-        print("✅ Token is valid.")
-        print("Claims:", claims)
-        return claims
-    except JWTError as e:
-        print("❌ Token verification failed:", e)
-        return None
-
-# Example usage
-TENANT_ID = "your-tenant-id"
-CLIENT_ID = "your-client-id"
-bearer_token = "your-access-token"
-verify_token(bearer_token)
+    claims = jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=["RS256"],
+        audience=client_id,
+        issuer=issuer,
+    )
+    return claims
