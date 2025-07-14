@@ -16,3 +16,15 @@ def base64url_encode(input_bytes: bytes) -> str:
 def fetch_jwks(jwks_uri):
     return requests.get(jwks_uri).json()["keys"]
 
+
+
+def adjust_nonce_header(token: str) -> str:
+    header_b64, payload_b64, signature = token.split('.')
+    header = json.loads(base64.urlsafe_b64decode(header_b64 + '=='))
+    if 'nonce' in header:
+        # Compute sha256 hash of the nonce
+        hashed = hashlib.sha256(header['nonce'].encode()).digest()
+        header['nonce'] = base64url_encode(hashed)
+        header_b64 = base64url_encode(json.dumps(header).encode())
+    return f"{header_b64}.{payload_b64}.{signature}"
+
