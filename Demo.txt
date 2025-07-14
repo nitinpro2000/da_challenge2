@@ -8,3 +8,11 @@ def adjust_header_with_hashed_nonce(token):
         new_header_b64 = base64url_encode(json.dumps(hdr_json).encode("utf-8"))
         return f"{new_header_b64}.{payload_b64}.{signature}"
     return token
+
+
+def base64url_encode(input_bytes: bytes) -> str:
+    return base64.urlsafe_b64encode(input_bytes).rstrip(b"=").decode("utf-8")
+
+def fetch_jwks(jwks_uri):
+    return requests.get(jwks_uri).json()["keys"]
+
