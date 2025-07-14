@@ -1,3 +1,55 @@
-SELECT conname
-FROM pg_constraint
-WHERE conrelid = 'memos'::regclass AND contype = 'f';
+Here’s a **description** and **acceptance criteria** for implementing **Authorization using JWT token in a FastAPI backend**:
+
+---
+
+### ✅ **Feature Description: Authorization using JWT Token in FastAPI**
+
+Implement secure **Authorization** in the FastAPI backend using **JWT (JSON Web Token)**. This mechanism ensures that only authenticated users can access protected endpoints. The token should be passed in the `Authorization` header as a Bearer token. The backend must validate the token before granting access to any protected route.
+
+---
+
+### 🎯 **Acceptance Criteria**
+
+#### 1. **Token Generation**
+
+* [ ] The backend should provide a `/login` or `/token` endpoint to generate a JWT token after validating credentials.
+* [ ] The JWT should include necessary claims like `sub` (user ID or email), `exp` (expiry), etc.
+* [ ] JWT token must be signed using a secure secret and algorithm (e.g., `HS256`).
+
+#### 2. **Secure Token Handling**
+
+* [ ] The token must be passed by the client in the `Authorization` header as:
+
+  ```
+  Authorization: Bearer <JWT_TOKEN>
+  ```
+* [ ] The backend should decode and verify the JWT for protected routes using a dependency.
+
+#### 3. **Token Validation**
+
+* [ ] Invalid or expired tokens must result in a `401 Unauthorized` response.
+* [ ] Tokens with invalid signatures or incorrect structure must also be rejected.
+
+#### 4. **Role-Based Access (Optional)**
+
+* [ ] If implemented, routes should enforce authorization based on user roles/permissions present in the JWT claims.
+
+#### 5. **Swagger UI Integration**
+
+* [ ] The Swagger UI must include an `Authorize` button to enter the Bearer token.
+* [ ] After authorization, users should be able to test protected endpoints directly from the Swagger interface.
+
+#### 6. **Code Structure**
+
+* [ ] JWT logic (encode/decode/verify) should be placed in a separate utility module (e.g., `auth.py`).
+* [ ] Authorization dependencies should be reusable across different routes.
+
+#### 7. **Security Best Practices**
+
+* [ ] The secret key should not be hardcoded; it must be loaded from a secure environment variable.
+* [ ] The token should expire in a reasonable timeframe (e.g., 15 mins to 1 hour).
+* [ ] If refresh tokens are used (optional), they must be handled securely.
+
+---
+
+Would you like a sample implementation with code?
