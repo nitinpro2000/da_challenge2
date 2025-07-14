@@ -1,41 +1,40 @@
 import requests
 from jose import jwt
-from jose.exceptions import JWTError, ExpiredSignatureError, JWTClaimsError
+from jose.exceptions import JWTError
+from jose.utils import base64url_decode
 
-# Azure Entra (AAD) tenant ID
-TENANT_ID = 'your-tenant-id'
-CLIENT_ID = 'your-app-client-id'  # This is the Application (client) ID of your app
-AUTHORITY = f'https://login.microsoftonline.com/{TENANT_ID}'
-JWKS_URL = f'{AUTHORITY}/discovery/v2.0/keys'
-ISSUER = f'{AUTHORITY}/v2.0'
+def get_jwk_keys():
+    jwks_url = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
+    return requests.get(jwks_url).json()["keys"]
 
-def get_jwks():
-    response = requests.get(JWKS_URL)
-    response.raise_for_status()
-    return response.json()
+def get_signing_key(jwk_keys, token):
+    headers = jwt.get_unverified_headers(token)
+    kid = headers["kid"]
+    for key in jwk_keys:
+        if key["kid"] == kid:
+            return key
+    raise Exception("Public key not found in JWKS for token.")
 
 def verify_token(token: str):
-    jwks = get_jwks()
+    jwk_keys = get_jwk_keys()
+    key = get_signing_key(jwk_keys, token)
     try:
-        # Decode and validate the token
         claims = jwt.decode(
             token,
-            jwks,
-            algorithms=['RS256'],
+            key,
+            algorithms=["RS256"],
             audience=CLIENT_ID,
-            issuer=ISSUER
+            issuer=f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
         )
-        print("Token is valid.")
+        print("✅ Token is valid.")
         print("Claims:", claims)
         return claims
-    except ExpiredSignatureError:
-        print("Token has expired.")
-    except JWTClaimsError as e:
-        print("Invalid claims:", e)
     except JWTError as e:
-        print("Token verification failed:", e)
-    return None
+        print("❌ Token verification failed:", e)
+        return None
 
 # Example usage
-bearer_token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'  # Replace with your token
+TENANT_ID = "your-tenant-id"
+CLIENT_ID = "your-client-id"
+bearer_token = "your-access-token"
 verify_token(bearer_token)
