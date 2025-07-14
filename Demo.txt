@@ -1,18 +1,30 @@
-import jwt
-from jwt import PyJWKClient
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+import base64
 
-def verify_token(tenant_id, client_id, token):
-    jwks_url = f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys"
-    issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0"
-
-    jwks_client = PyJWKClient(jwks_url)
-    signing_key = jwks_client.get_signing_key_from_jwt(token)
-
-    claims = jwt.decode(
-        token,
-        signing_key.key,
-        algorithms=["RS256"],
-        audience=client_id,
-        issuer=issuer,
+def construct_public_key(n, e):
+    """Constructs a public key from n and e values."""
+    
+    n_int = base64_to_int(n)
+    e_int = base64_to_int(e)
+    
+    public_key = rsa.RSAPublicNumbers(n_int, e_int).public_key(default_backend())
+    
+    pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
-    return claims
+    
+    return pem
+
+def base64_to_int(s):
+    """Converts a base64 encoded string to an integer."""
+    return int.from_bytes(base64.urlsafe_b64decode(s + '==='), 'big')
+
+# Example usage (replace with your actual n and e values from the JWKS):
+n = "your_n_value"
+e = "your_e_value"
+public_key_pem = construct_public_key(n, e)
+
+# Now you can use public_key_pem with jwt.decode()
