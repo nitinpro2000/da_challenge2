@@ -1,30 +1,57 @@
-def adjust_header_with_hashed_nonce(token):
-    header_b64, payload_b64, signature = token.split('.')
-    hdr_json = json.loads(base64.urlsafe_b64decode(header_b64 + '=='))
-    if "nonce" in hdr_json:
-        raw = hdr_json["nonce"].encode("utf-8")
-        hashed = hashlib.sha256(raw).digest()
-        hdr_json["nonce"] = base64url_encode(hashed)
-        new_header_b64 = base64url_encode(json.dumps(hdr_json).encode("utf-8"))
-        return f"{new_header_b64}.{payload_b64}.{signature}"
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.openapi.models import APIKey
+from fastapi.openapi.utils import get_openapi
+from typing import Optional
+
+app = FastAPI()
+
+# Dummy secret token for validation (replace with actual logic or JWT verification)
+VALID_TOKENS = {"mysecrettoken123"}
+
+# Dependency to extract and verify the Bearer token
+security = HTTPBearer(auto_error=False)
+
+def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authorization header",
+        )
+    token = credentials.credentials
+    if token not in VALID_TOKENS:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
     return token
 
+# Secure route
+@app.get("/secure-data")
+def secure_data(token: str = Depends(verify_token)):
+    return {"message": "You are authorized!", "token_used": token}
 
-def base64url_encode(input_bytes: bytes) -> str:
-    return base64.urlsafe_b64encode(input_bytes).rstrip(b"=").decode("utf-8")
+# Optional: Customize OpenAPI schema to show Bearer auth in Swagger UI
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="My Secure API",
+        version="1.0.0",
+        description="This is a secured FastAPI with Bearer Token Auth",
+        routes=app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    }
+    for path in openapi_schema["paths"].values():
+        for operation in path.values():
+            operation["security"] = [{"BearerAuth": []}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
 
-def fetch_jwks(jwks_uri):
-    return requests.get(jwks_uri).json()["keys"]
-
-
-
-def adjust_nonce_header(token: str) -> str:
-    header_b64, payload_b64, signature = token.split('.')
-    header = json.loads(base64.urlsafe_b64decode(header_b64 + '=='))
-    if 'nonce' in header:
-        # Compute sha256 hash of the nonce
-        hashed = hashlib.sha256(header['nonce'].encode()).digest()
-        header['nonce'] = base64url_encode(hashed)
-        header_b64 = base64url_encode(json.dumps(header).encode())
-    return f"{header_b64}.{payload_b64}.{signature}"
-
+app.openapi = custom_openapi
