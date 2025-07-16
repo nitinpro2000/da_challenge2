@@ -1,55 +1,93 @@
-Here’s a **description** and **acceptance criteria** for implementing **Authorization using JWT token in a FastAPI backend**:
+Here’s a **user story and technical description** for updating all APIs and agents in your system to use **Azure AD (Microsoft Entra ID) tokens** instead of **API keys** for authenticating Azure OpenAI connections:
 
 ---
 
-### ✅ **Feature Description: Authorization using JWT Token in FastAPI**
+## ✅ **User Story**
 
-Implement secure **Authorization** in the FastAPI backend using **JWT (JSON Web Token)**. This mechanism ensures that only authenticated users can access protected endpoints. The token should be passed in the `Authorization` header as a Bearer token. The backend must validate the token before granting access to any protected route.
+**Title**: Replace Azure OpenAI API key authentication with Azure AD (Microsoft Entra ID) token authentication in all APIs and agents
 
----
-
-### 🎯 **Acceptance Criteria**
-
-#### 1. **Token Generation**
-
-* [ ] The backend should provide a `/login` or `/token` endpoint to generate a JWT token after validating credentials.
-* [ ] The JWT should include necessary claims like `sub` (user ID or email), `exp` (expiry), etc.
-* [ ] JWT token must be signed using a secure secret and algorithm (e.g., `HS256`).
-
-#### 2. **Secure Token Handling**
-
-* [ ] The token must be passed by the client in the `Authorization` header as:
-
-  ```
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* [ ] The backend should decode and verify the JWT for protected routes using a dependency.
-
-#### 3. **Token Validation**
-
-* [ ] Invalid or expired tokens must result in a `401 Unauthorized` response.
-* [ ] Tokens with invalid signatures or incorrect structure must also be rejected.
-
-#### 4. **Role-Based Access (Optional)**
-
-* [ ] If implemented, routes should enforce authorization based on user roles/permissions present in the JWT claims.
-
-#### 5. **Swagger UI Integration**
-
-* [ ] The Swagger UI must include an `Authorize` button to enter the Bearer token.
-* [ ] After authorization, users should be able to test protected endpoints directly from the Swagger interface.
-
-#### 6. **Code Structure**
-
-* [ ] JWT logic (encode/decode/verify) should be placed in a separate utility module (e.g., `auth.py`).
-* [ ] Authorization dependencies should be reusable across different routes.
-
-#### 7. **Security Best Practices**
-
-* [ ] The secret key should not be hardcoded; it must be loaded from a secure environment variable.
-* [ ] The token should expire in a reasonable timeframe (e.g., 15 mins to 1 hour).
-* [ ] If refresh tokens are used (optional), they must be handled securely.
+**As a** platform engineer,
+**I want** to update the authentication mechanism for Azure OpenAI connections in all APIs and agents from static API key usage to Azure Active Directory token-based authentication,
+**so that** we improve security, enable centralized identity management, reduce the risk of credential leakage, and adhere to enterprise compliance policies.
 
 ---
 
-Would you like a sample implementation with code?
+## 📘 **Description / Technical Details**
+
+### 🔁 **Current State:**
+
+* Azure OpenAI clients are initialized using static API keys hardcoded in config files or passed via environment variables.
+* Tokens are not scoped or identity-bound, and accidental leaks could compromise system-wide access.
+* No RBAC or fine-grained access control is in place for specific models, deployments, or applications.
+
+### 🔄 **Target State:**
+
+* Azure OpenAI clients are initialized using a **bearer token** acquired via Azure AD, scoped with proper permissions.
+* This access token is retrieved dynamically using either:
+
+  * **Managed Identity (for agents, APIs on Azure)**
+  * **Client Credentials Flow (for local apps or services)** using `DefaultAzureCredential` or `ClientSecretCredential` from `azure.identity`
+* Token is passed in the header of each OpenAI request (`Authorization: Bearer <token>`).
+* API key is **completely removed** from configs, pipelines, and code.
+
+---
+
+## 🔨 **Implementation Tasks**
+
+### 1. **Register Azure AD App**
+
+* Register an app in Azure Active Directory with the right permissions:
+
+  * `https://cognitiveservices.azure.com/.default` scope
+  * Assign the app permission to the Azure OpenAI resource using **RBAC** (`Cognitive Services User` role).
+
+### 2. **Update Authentication Flow**
+
+* Use `DefaultAzureCredential()` for workloads running in Azure.
+* Use `ClientSecretCredential` for workloads running outside Azure (e.g., local dev).
+
+```python
+from azure.identity import DefaultAzureCredential
+from openai import AzureOpenAI
+
+client = AzureOpenAI(
+    api_version="2024-02-01",
+    azure_endpoint="https://<your-resource>.openai.azure.com",
+    azure_ad_token_provider=DefaultAzureCredential()
+)
+```
+
+> Ensure that `azure_ad_token_provider` is supported (from `openai` >= 1.25.0 or newer SDKs).
+
+### 3. **Update All API Endpoints and Agents**
+
+* Refactor all instances where `AzureOpenAI` or `OpenAI` client is initialized.
+* Remove API key references from code, `.env`, and secrets manager.
+* Replace them with Azure AD token-based credential injection.
+
+### 4. **Update CI/CD Pipelines**
+
+* Inject `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_CLIENT_SECRET` or enable managed identity in deployment targets.
+* Validate token acquisition and OpenAI connection in deployment smoke tests.
+
+### 5. **Secure and Audit**
+
+* Rotate and disable old API keys.
+* Audit access logs for any legacy key usage.
+* Set up alerts in Azure Monitor for unauthorized token failures or expired credentials.
+
+---
+
+## ✅ **Acceptance Criteria**
+
+| Criteria        | Description                                                                      |
+| --------------- | -------------------------------------------------------------------------------- |
+| 🔐 Security     | No API key usage in any part of the code or config                               |
+| ✅ Functionality | All agents and APIs can still access Azure OpenAI models via authenticated calls |
+| 🧪 Tested       | End-to-end tested in dev, staging, and prod with real tokens                     |
+| 📦 Scalable     | Supports both managed identity and service principal-based access                |
+| 📜 Logged       | Token acquisition failures and usage are logged for monitoring                   |
+
+---
+
+Let me know if you'd like this as a **Word document** or want me to generate sample code and CI steps as well.
