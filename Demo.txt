@@ -1,43 +1,40 @@
-Here's a **description** and **acceptance criteria** for implementing **Signature Verification in the FastAPI backend for SSO Authorization** (e.g., using Azure AD tokens or other JWT issuers):
+Here’s a clear **description** and **acceptance criteria** for implementing **error status tracking for memos in the `memos` table**:
 
 ---
 
-## ✅ **Feature: Signature Verification for SSO Authorization in FastAPI Backend**
+## ✅ **Feature: Update Memo Error Status and Store Error Message**
 
 ### 📘 **Description:**
 
-Update the FastAPI backend to **verify the digital signature of JWT tokens** issued by the SSO provider (e.g., Azure Active Directory, Auth0, Okta) during authorization. This will ensure the token was indeed issued by a trusted identity provider and **has not been tampered with**.
+Enhance the backend logic to **update the `memos` table** with an appropriate **error status** and **error message** whenever memo processing fails. This allows tracking and debugging of failed memos and ensures that failures are visible in both the UI and logs.
 
-This security update will:
-
-* Fetch and cache the **JWKS (JSON Web Key Set)** from the SSO provider's discovery URL.
-* Use the public keys to verify the JWT **signature**.
-* Ensure token claims like `aud`, `iss`, and `exp` are validated as per configuration.
+When a failure occurs during memo processing (e.g., OpenAI call failure, DB error, validation error), the `status` column should be updated to `"error"` and the `error_message` column should contain a short, relevant description of the error.
 
 ---
 
 ### ✅ **Acceptance Criteria:**
 
-| **ID** | **Criteria**             | **Description**                                                                                                         |
-| ------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| AC1    | JWKS URL integration     | The backend should be configured with the correct JWKS endpoint of the SSO provider.                                    |
-| AC2    | Public key verification  | Token signature must be verified using the public key from the JWKS.                                                    |
-| AC3    | Verify standard claims   | The backend must validate standard claims like `iss` (issuer), `aud` (audience), and `exp` (expiration).                |
-| AC4    | Fail unauthorized tokens | Tokens with invalid signature, expired tokens, or incorrect claims must return a `401 Unauthorized` response.           |
-| AC5    | Middleware integration   | Signature verification should be implemented as a reusable dependency or middleware applied across protected endpoints. |
-| AC6    | Logging                  | Invalid token signature or claims must be logged for audit/debugging without exposing sensitive information.            |
-| AC7    | Swagger Authorization    | Token-based auth should still work through Swagger UI using a Bearer Token input.                                       |
-| AC8    | Caching public keys      | Public keys from JWKS should be cached in memory (with a TTL) to avoid unnecessary repeated lookups.                    |
-| AC9    | Unit Tests               | Unit tests must verify valid and invalid token behaviors (expired, tampered, invalid `aud`, etc.).                      |
+| **ID** | **Criteria**          | **Description**                                                                                                                                         |
+| ------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC1    | Error Status Column   | The `memos` table should have a `status` column. On failure, this must be set to `"error"`.                                                             |
+| AC2    | Error Message Column  | The table should include an `error_message` (TEXT or VARCHAR) column to store error details (e.g., `"OpenAI timeout"`, `"Missing client_id"`).          |
+| AC3    | Update on Exception   | During memo creation or processing, if an exception occurs, the system must update the `status = 'error'` and insert the corresponding `error_message`. |
+| AC4    | Logging               | The full error stack trace should still be logged (internally), but the message in the database should be a concise, user-friendly explanation.         |
+| AC5    | Non-blocking Failures | Failures in one memo should not crash the system or block other memos from being processed.                                                             |
+| AC6    | Error Visibility      | The error status and message should be visible in admin tools or frontend (if applicable) for further triage.                                           |
+| AC7    | Retry Safe            | If a retry mechanism is implemented later, it should detect `status='error'` and optionally reset the status.                                           |
+| AC8    | Unit Tests            | Test cases must simulate failure scenarios and assert that the error status and messages are correctly set in the database.                             |
+| AC9    | Optional: Truncation  | If needed, truncate error messages in DB to a fixed length (e.g., 255 characters) to prevent overflow.                                                  |
 
 ---
 
-### 📌 Optional Enhancements:
+### 📝 Example Schema Update (if needed):
 
-* AC10: Support for multiple identity providers (optional).
-* AC11: Auto-refresh cached JWKS keys on expiry or on key rotation.
-* AC12: Include role-based access control using `roles` or `scp` claims (if available in token).
+```sql
+ALTER TABLE memos ADD COLUMN status VARCHAR(20) DEFAULT 'pending';
+ALTER TABLE memos ADD COLUMN error_message TEXT;
+```
 
 ---
 
-Would you like the FastAPI code implementation as well?
+Let me know if you want Python (FastAPI + SQLAlchemy or asyncpg) code to implement this.
