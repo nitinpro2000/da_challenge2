@@ -1,93 +1,43 @@
-Here’s a **user story and technical description** for updating all APIs and agents in your system to use **Azure AD (Microsoft Entra ID) tokens** instead of **API keys** for authenticating Azure OpenAI connections:
+Here's a **description** and **acceptance criteria** for implementing **Signature Verification in the FastAPI backend for SSO Authorization** (e.g., using Azure AD tokens or other JWT issuers):
 
 ---
 
-## ✅ **User Story**
+## ✅ **Feature: Signature Verification for SSO Authorization in FastAPI Backend**
 
-**Title**: Replace Azure OpenAI API key authentication with Azure AD (Microsoft Entra ID) token authentication in all APIs and agents
+### 📘 **Description:**
 
-**As a** platform engineer,
-**I want** to update the authentication mechanism for Azure OpenAI connections in all APIs and agents from static API key usage to Azure Active Directory token-based authentication,
-**so that** we improve security, enable centralized identity management, reduce the risk of credential leakage, and adhere to enterprise compliance policies.
+Update the FastAPI backend to **verify the digital signature of JWT tokens** issued by the SSO provider (e.g., Azure Active Directory, Auth0, Okta) during authorization. This will ensure the token was indeed issued by a trusted identity provider and **has not been tampered with**.
 
----
+This security update will:
 
-## 📘 **Description / Technical Details**
-
-### 🔁 **Current State:**
-
-* Azure OpenAI clients are initialized using static API keys hardcoded in config files or passed via environment variables.
-* Tokens are not scoped or identity-bound, and accidental leaks could compromise system-wide access.
-* No RBAC or fine-grained access control is in place for specific models, deployments, or applications.
-
-### 🔄 **Target State:**
-
-* Azure OpenAI clients are initialized using a **bearer token** acquired via Azure AD, scoped with proper permissions.
-* This access token is retrieved dynamically using either:
-
-  * **Managed Identity (for agents, APIs on Azure)**
-  * **Client Credentials Flow (for local apps or services)** using `DefaultAzureCredential` or `ClientSecretCredential` from `azure.identity`
-* Token is passed in the header of each OpenAI request (`Authorization: Bearer <token>`).
-* API key is **completely removed** from configs, pipelines, and code.
+* Fetch and cache the **JWKS (JSON Web Key Set)** from the SSO provider's discovery URL.
+* Use the public keys to verify the JWT **signature**.
+* Ensure token claims like `aud`, `iss`, and `exp` are validated as per configuration.
 
 ---
 
-## 🔨 **Implementation Tasks**
+### ✅ **Acceptance Criteria:**
 
-### 1. **Register Azure AD App**
-
-* Register an app in Azure Active Directory with the right permissions:
-
-  * `https://cognitiveservices.azure.com/.default` scope
-  * Assign the app permission to the Azure OpenAI resource using **RBAC** (`Cognitive Services User` role).
-
-### 2. **Update Authentication Flow**
-
-* Use `DefaultAzureCredential()` for workloads running in Azure.
-* Use `ClientSecretCredential` for workloads running outside Azure (e.g., local dev).
-
-```python
-from azure.identity import DefaultAzureCredential
-from openai import AzureOpenAI
-
-client = AzureOpenAI(
-    api_version="2024-02-01",
-    azure_endpoint="https://<your-resource>.openai.azure.com",
-    azure_ad_token_provider=DefaultAzureCredential()
-)
-```
-
-> Ensure that `azure_ad_token_provider` is supported (from `openai` >= 1.25.0 or newer SDKs).
-
-### 3. **Update All API Endpoints and Agents**
-
-* Refactor all instances where `AzureOpenAI` or `OpenAI` client is initialized.
-* Remove API key references from code, `.env`, and secrets manager.
-* Replace them with Azure AD token-based credential injection.
-
-### 4. **Update CI/CD Pipelines**
-
-* Inject `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_CLIENT_SECRET` or enable managed identity in deployment targets.
-* Validate token acquisition and OpenAI connection in deployment smoke tests.
-
-### 5. **Secure and Audit**
-
-* Rotate and disable old API keys.
-* Audit access logs for any legacy key usage.
-* Set up alerts in Azure Monitor for unauthorized token failures or expired credentials.
+| **ID** | **Criteria**             | **Description**                                                                                                         |
+| ------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| AC1    | JWKS URL integration     | The backend should be configured with the correct JWKS endpoint of the SSO provider.                                    |
+| AC2    | Public key verification  | Token signature must be verified using the public key from the JWKS.                                                    |
+| AC3    | Verify standard claims   | The backend must validate standard claims like `iss` (issuer), `aud` (audience), and `exp` (expiration).                |
+| AC4    | Fail unauthorized tokens | Tokens with invalid signature, expired tokens, or incorrect claims must return a `401 Unauthorized` response.           |
+| AC5    | Middleware integration   | Signature verification should be implemented as a reusable dependency or middleware applied across protected endpoints. |
+| AC6    | Logging                  | Invalid token signature or claims must be logged for audit/debugging without exposing sensitive information.            |
+| AC7    | Swagger Authorization    | Token-based auth should still work through Swagger UI using a Bearer Token input.                                       |
+| AC8    | Caching public keys      | Public keys from JWKS should be cached in memory (with a TTL) to avoid unnecessary repeated lookups.                    |
+| AC9    | Unit Tests               | Unit tests must verify valid and invalid token behaviors (expired, tampered, invalid `aud`, etc.).                      |
 
 ---
 
-## ✅ **Acceptance Criteria**
+### 📌 Optional Enhancements:
 
-| Criteria        | Description                                                                      |
-| --------------- | -------------------------------------------------------------------------------- |
-| 🔐 Security     | No API key usage in any part of the code or config                               |
-| ✅ Functionality | All agents and APIs can still access Azure OpenAI models via authenticated calls |
-| 🧪 Tested       | End-to-end tested in dev, staging, and prod with real tokens                     |
-| 📦 Scalable     | Supports both managed identity and service principal-based access                |
-| 📜 Logged       | Token acquisition failures and usage are logged for monitoring                   |
+* AC10: Support for multiple identity providers (optional).
+* AC11: Auto-refresh cached JWKS keys on expiry or on key rotation.
+* AC12: Include role-based access control using `roles` or `scp` claims (if available in token).
 
 ---
 
-Let me know if you'd like this as a **Word document** or want me to generate sample code and CI steps as well.
+Would you like the FastAPI code implementation as well?
