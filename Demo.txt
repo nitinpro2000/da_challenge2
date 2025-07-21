@@ -1,40 +1,41 @@
-Here’s a clear **description** and **acceptance criteria** for implementing **error status tracking for memos in the `memos` table**:
+
+Here’s a clear and complete **user story** for updating SQL queries to parameterized queries using `asyncpg` in a Python backend:
 
 ---
 
-## ✅ **Feature: Update Memo Error Status and Store Error Message**
+### **User Story**: Update SQL Queries to Parameterized Queries using `asyncpg`
 
-### 📘 **Description:**
+**Title**: Secure SQL Query Execution with Parameterized Queries in `asyncpg`
 
-Enhance the backend logic to **update the `memos` table** with an appropriate **error status** and **error message** whenever memo processing fails. This allows tracking and debugging of failed memos and ensures that failures are visible in both the UI and logs.
-
-When a failure occurs during memo processing (e.g., OpenAI call failure, DB error, validation error), the `status` column should be updated to `"error"` and the `error_message` column should contain a short, relevant description of the error.
-
----
-
-### ✅ **Acceptance Criteria:**
-
-| **ID** | **Criteria**          | **Description**                                                                                                                                         |
-| ------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC1    | Error Status Column   | The `memos` table should have a `status` column. On failure, this must be set to `"error"`.                                                             |
-| AC2    | Error Message Column  | The table should include an `error_message` (TEXT or VARCHAR) column to store error details (e.g., `"OpenAI timeout"`, `"Missing client_id"`).          |
-| AC3    | Update on Exception   | During memo creation or processing, if an exception occurs, the system must update the `status = 'error'` and insert the corresponding `error_message`. |
-| AC4    | Logging               | The full error stack trace should still be logged (internally), but the message in the database should be a concise, user-friendly explanation.         |
-| AC5    | Non-blocking Failures | Failures in one memo should not crash the system or block other memos from being processed.                                                             |
-| AC6    | Error Visibility      | The error status and message should be visible in admin tools or frontend (if applicable) for further triage.                                           |
-| AC7    | Retry Safe            | If a retry mechanism is implemented later, it should detect `status='error'` and optionally reset the status.                                           |
-| AC8    | Unit Tests            | Test cases must simulate failure scenarios and assert that the error status and messages are correctly set in the database.                             |
-| AC9    | Optional: Truncation  | If needed, truncate error messages in DB to a fixed length (e.g., 255 characters) to prevent overflow.                                                  |
+**Description**:
+As a backend developer,
+I want to update all raw SQL queries in the codebase to use parameterized queries with `asyncpg`,
+So that I can prevent SQL injection vulnerabilities and ensure safer, more maintainable database interactions.
 
 ---
 
-### 📝 Example Schema Update (if needed):
+### **Acceptance Criteria**:
 
-```sql
-ALTER TABLE memos ADD COLUMN status VARCHAR(20) DEFAULT 'pending';
-ALTER TABLE memos ADD COLUMN error_message TEXT;
-```
+1. **All SQL queries must use `$1`, `$2`, etc., placeholders** instead of string concatenation or formatting.
+
+   * ✅ Example:
+
+     ```python
+     await conn.execute("INSERT INTO users (name, age) VALUES ($1, $2)", name, age)
+     ```
+
+2. **Any previous raw string SQL executions using `.format()` or `f-strings` must be refactored** to use parameterized execution.
+
+3. **The code must use appropriate `asyncpg` methods** such as `.execute()`, `.fetch()`, `.fetchrow()`, or `.fetchval()` with parameter binding.
+
+4. **Add input validation (optional but recommended)** before passing values to queries for data type correctness and business logic rules.
+
+5. **All updated queries must be unit tested** or verified in integration tests to ensure no functional regressions.
+
+6. **Code must follow PEP8 and internal coding standards** for readability and maintainability.
+
+7. **A static code review or linter (optional)** should confirm that unsafe SQL constructions no longer exist in the updated modules.
 
 ---
 
-Let me know if you want Python (FastAPI + SQLAlchemy or asyncpg) code to implement this.
+Let me know if you need the same user story formatted for **Azure DevOps** or **Jira** or want a checklist version.
