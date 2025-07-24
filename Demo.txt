@@ -1,60 +1,10 @@
-Here’s a user story to **update the error traceback message along with the error message for failed memos**, written in agile format:
-
----
-
-### **User Story**
-
-**Title:** Update error traceback and error message for failed memos
-
-**As a** developer or support engineer,
-**I want** the system to store and display both the error message and the full traceback when a memo fails to process,
-**So that** I can debug issues faster and have better context for resolution during support or root cause analysis.
-
----
-
-### **Description:**
-
-Currently, only a generic error message is stored/logged when memo processing fails. This is not sufficient to identify the exact root cause during debugging. This user story aims to enhance the error handling mechanism by storing both:
-
-* A clear error message summarizing the issue
-* The complete error traceback (stack trace) for deep technical insight
-
-This information should be saved in the memo processing status metadata (e.g., in the `error_message` and `error_traceback` fields in the database or logging system) and made accessible through the appropriate internal APIs or logs.
-
----
-
-### **Acceptance Criteria:**
-
-1. ✅ **Error message and traceback captured**
-
-   * When a memo processing attempt fails (e.g., during regeneration or approval), both the error message and full Python traceback are captured.
-
-2. ✅ **Stored in DB/log system**
-
-   * The error message is stored in the `error_message` field.
-   * The full traceback is stored in the `error_traceback` field (or appended to the same log record if logging is used).
-
-3. ✅ **Visible in failure response (optional)**
-
-   * For internal or debugging environments (e.g., staging), error message and traceback should be retrievable through an API endpoint (e.g., `GET /memos/{id}/status`) with appropriate permissions.
-   * For production, only a sanitized message is returned to end users (traceback hidden).
-
-4. ✅ **No PII or sensitive data in traceback**
-
-   * Traceback must be reviewed/sanitized to ensure no sensitive data (e.g., tokens, passwords, PII) is exposed.
-
-5. ✅ **Backward compatible**
-
-   * If `error_traceback` does not exist in older records, the system handles it gracefully.
-
-6. ✅ **Test coverage**
-
-   * Unit/integration tests validate that error and traceback are correctly stored and retrieved.
-
-7. ✅ **Logging for audit/debugging**
-
-   * The failure (with message and traceback) is logged in the system logs with a timestamp and memo ID.
-
----
-
-Let me know if you want JIRA-format or implementation hints (e.g., in FastAPI/Python).
+SELECT 
+    column_name,
+    data_type,
+    is_nullable,
+    character_maximum_length
+FROM 
+    information_schema.columns
+WHERE 
+    table_name = 'your_table_name'
+    AND table_schema = 'your_schema_name';  -- e.g., 'public'
