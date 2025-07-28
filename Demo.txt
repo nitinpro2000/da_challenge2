@@ -1,75 +1,79 @@
-class CompanyOverviewRegeneration:
+class PostgresRAGRetriever:
     """
-    Handles the regeneration of the 'Company Overview' section by processing prompts,
-    fetching previous context from various data sources, and generating final output
-    using LLMs or other regeneration logic.
-    
-    Attributes:
-        prompts (dict): A dictionary containing prompts for different regeneration sections.
+    Class for retrieving similar text chunks from a PostgreSQL database using pgvector.
+    It supports filtering by client name, section, and citation IDs, enabling contextual
+    retrieval for use in a Retrieval-Augmented Generation (RAG) workflow.
     """
 
-    def __init__(self, prompts):
+    def __init__(self):
         """
-        Initialize the CompanyOverviewRegeneration class with prompts.
-
-        Args:
-            prompts (dict): Dictionary of prompts mapped to their corresponding section names.
-        """
-        self.prompts = prompts
-
-    def reverse_dict(self, dict_obj):
-        """
-        Reverses the keys and values of the given dictionary.
-
-        Args:
-            dict_obj (dict): The dictionary to be reversed.
-
-        Returns:
-            dict: A new dictionary with keys and values swapped.
-        """
-        return {v: k for k, v in dict_obj.items()}
-
-    async def company_overview_final_response(self, company_overview_response_json, client_name, call_reports_client_name, citation_sections):
-        """
-        Generate the final company overview response after processing the regenerated content
-        and attaching relevant citations.
-
-        Args:
-            company_overview_response_json (dict): JSON response from the LLM or generation logic.
-            client_name (str): Name of the client.
-            call_reports_client_name (str): Name used in call reports for the client.
-            citation_sections (list): List of citation sections to be included in the final response.
-
-        Returns:
-            dict: Final company overview response with citations.
+        Initializes the PostgresRAGRetriever with necessary configurations or connections.
         """
         pass
 
-    async def fetch_prev_context_comapany_websites(self, client_name, citation_urls_company):
+    async def fetch_prev_context_call_reports(self, citation_ids, client_name):
         """
-        Fetches the previous context related to company websites for the specified client.
+        Fetches previous context from call reports for the given client and citation IDs.
 
         Args:
-            client_name (str): Name of the client.
-            citation_urls_company (list): List of citation URLs from company websites.
+            citation_ids (List[int]): List of citation IDs to filter the call reports.
+            client_name (str): Name of the client for filtering relevant call reports.
 
         Returns:
-            str: Combined previous context extracted from company websites.
+            str: Combined context text retrieved from the call reports.
         """
         pass
 
-    async def regenerate_section(self, section_name, previous_content, new_content, client_name, user_prompt):
+    async def fetch_prev_context_historical_news(self, citation_ids, client_name):
         """
-        Regenerates a specific section using the provided content and prompt.
+        Fetches previous context from historical news entries based on citation IDs and client name.
 
         Args:
-            section_name (str): Name of the section to regenerate (e.g., "Company Overview").
-            previous_content (str): Previous content of the section.
-            new_content (str): Newly generated content or updates.
-            client_name (str): Name of the client.
-            user_prompt (str): Prompt or instruction from the user for regeneration.
+            citation_ids (List[int]): List of citation IDs to retrieve relevant news records.
+            client_name (str): Name of the client to filter historical news articles.
 
         Returns:
-            dict: Regenerated section content with metadata or citations.
+            str: Combined context text from the selected historical news entries.
+        """
+        pass
+
+    async def fetch_similar_chunks(self, table: str, embedding: list, client_name: str, top_k: int = 5, section_name: str = None):
+        """
+        Retrieves top-k similar text chunks from a specific table using vector similarity.
+
+        Args:
+            table (str): The name of the database table to query.
+            embedding (List[float]): The embedding vector to compare against stored vectors.
+            client_name (str): Client name to filter the relevant rows.
+            top_k (int, optional): Number of top similar chunks to retrieve. Defaults to 5.
+            section_name (str, optional): Optional section name filter.
+
+        Returns:
+            List[Dict]: A list of dictionaries containing the most relevant text chunks and metadata.
+        """
+        pass
+
+    async def fetch_combined_chunks(
+        self,
+        tables: list,
+        embedding: list,
+        client_name: str,
+        call_reports_client_name: str,
+        top_k: int = 5,
+        citation_ids: list = []
+    ):
+        """
+        Fetches and combines similar text chunks from multiple tables based on semantic similarity.
+
+        Args:
+            tables (List[Dict]): List of table configurations with keys like name and filter info.
+            embedding (List[float]): Embedding vector for similarity comparison.
+            client_name (str): Primary client name to use for filtering.
+            call_reports_client_name (str): Alternate name used in the call reports table.
+            top_k (int, optional): Number of top chunks per table. Defaults to 5.
+            citation_ids (List[int], optional): Specific citation IDs to further narrow down results.
+
+        Returns:
+            List[Dict]: Combined list of relevant text chunks from all specified tables.
         """
         pass
