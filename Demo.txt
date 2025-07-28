@@ -1,76 +1,83 @@
 """
-Module: fact_check_agent
+Module: call_report_plugin
 
-This module defines the `FactCheckAgent` class, which is responsible for evaluating
-AI-generated content for factual accuracy and hallucinations using semantic kernel
-or other validation tools.
+This module defines the `CallReportPlugin` class for interacting with client call reports.
+It handles insertion, retrieval, deduplication, and relevance scoring of call report data.
 """
 
-class FactCheckAgent:
+class CallReportPlugin:
     """
-    Agent to perform fact-checking and hallucination detection on AI-generated responses.
+    Plugin to manage and retrieve client call report data.
 
-    The agent initializes required validation tools, processes AI output, and produces
-    structured evaluations including accuracy and hallucination scores or feedback.
+    Provides functionality to insert new call reports, fetch existing ones,
+    remove duplicates, and compute relevance based on recency and search context.
     """
 
-    def __init__(self):
+    def __init__(self, client_name):
         """
-        Initialize the FactCheckAgent with any required internal state.
-        """
-        # Placeholder for initialization logic (e.g., loading models or configs)
-        pass
-
-    async def initialize_sk(self):
-        """
-        Asynchronously initialize the Semantic Kernel or other underlying validation mechanisms.
-
-        This may include loading plugins, setting up prompt templates, or initializing clients.
-        """
-        # Initialization logic for Semantic Kernel or validation tools
-        pass
-
-    def _format_response(self, accuracy_response, hallucination_response):
-        """
-        Format the fact-checking and hallucination outputs into a unified response.
+        Initialize the plugin with a specific client name.
 
         Args:
-            accuracy_response (dict): The structured result from accuracy evaluation.
-            hallucination_response (dict): The structured result from hallucination evaluation.
-
-        Returns:
-            dict: Combined and human-readable formatted output of both evaluations.
+            client_name (str): Name of the client whose call reports are being accessed.
         """
-        # Combines results into a clean output
+        self.client_name = client_name
+        # Additional initialization for DB connection, etc.
+
+    async def insert_call_reports(self):
+        """
+        Asynchronously insert call report data for the client into the database.
+
+        This method should be called after parsing or receiving new call report data.
+        """
+        # Logic to insert call reports into DB
         pass
 
-    def extract_json(self, response):
+    async def fetch_call_reports(self):
         """
-        Extract and parse JSON content from a raw string response.
-
-        Args:
-            response (str): The raw response string that may contain JSON.
+        Asynchronously fetch all call reports related to the current client.
 
         Returns:
-            dict: Parsed JSON object extracted from the response.
-
-        Raises:
-            ValueError: If JSON parsing fails.
+            List[dict]: A list of call report records from the database.
         """
-        # Use regex or JSON decoder to parse response
+        # Query database and return call reports
         pass
 
-    async def evaluate_response(self, section_name, source_data, response):
+    async def recency_bias_factor(self, relevant_reports, decay_rate=0.005):
         """
-        Evaluate the AI-generated response against source data for factual correctness.
+        Apply a recency bias to reports, giving higher weight to recent reports.
 
         Args:
-            section_name (str): The section (e.g., "Client Overview", "Company News") being evaluated.
-            source_data (str or dict): The ground truth or reference data for validation.
-            response (str): The AI-generated text to be evaluated.
+            relevant_reports (List[dict]): List of relevant call reports.
+            decay_rate (float, optional): Exponential decay rate. Default is 0.005.
 
         Returns:
-            dict: A structured evaluation including scores, flags, and commentary for accuracy and hallucination.
+            List[dict]: Reports with an additional 'recency_score' field.
         """
-        # Performs actual evaluation using plugins or LLM prompts
+        # Apply exponential decay based on date
+        pass
+
+    def dededuplicate_by_id(self, reports):
+        """
+        Remove duplicate call reports based on unique report ID.
+
+        Args:
+            reports (List[dict]): List of call reports.
+
+        Returns:
+            List[dict]: Deduplicated list of call reports.
+        """
+        # Use dictionary or set to filter out duplicates
+        pass
+
+    async def get_relevant_call_reports(self, search_queries):
+        """
+        Retrieve call reports that are relevant to the provided search queries.
+
+        Args:
+            search_queries (List[str]): Keywords or phrases to match against call report contents.
+
+        Returns:
+            List[dict]: List of call reports matching the search criteria.
+        """
+        # Perform semantic/textual search across call reports
         pass
