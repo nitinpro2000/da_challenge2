@@ -1,83 +1,119 @@
 """
-Module: call_report_plugin
+Module: writer_agent
 
-This module defines the `CallReportPlugin` class for interacting with client call reports.
-It handles insertion, retrieval, deduplication, and relevance scoring of call report data.
+This module defines the WriterAgent class responsible for generating structured
+summaries and insights such as company news, overviews, next best actions,
+and sentiment analysis by leveraging external data sources and prompt templates.
 """
 
-class CallReportPlugin:
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from typing import Dict
+
+class WriterAgent:
     """
-    Plugin to manage and retrieve client call report data.
-
-    Provides functionality to insert new call reports, fetch existing ones,
-    remove duplicates, and compute relevance based on recency and search context.
+    Agent responsible for orchestrating summary generation and insights
+    for client-facing sections using external data like call reports,
+    company websites, and prompts.
     """
 
-    def __init__(self, client_name):
+    def __init__(self):
         """
-        Initialize the plugin with a specific client name.
+        Initialize the WriterAgent with default Azure credentials.
+        """
+        self.credential = DefaultAzureCredential()
+        # Add additional initialization as required
+
+    async def check_call_report_exists(self, client_name):
+        """
+        Check whether a call report exists for the specified client.
 
         Args:
-            client_name (str): Name of the client whose call reports are being accessed.
-        """
-        self.client_name = client_name
-        # Additional initialization for DB connection, etc.
-
-    async def insert_call_reports(self):
-        """
-        Asynchronously insert call report data for the client into the database.
-
-        This method should be called after parsing or receiving new call report data.
-        """
-        # Logic to insert call reports into DB
-        pass
-
-    async def fetch_call_reports(self):
-        """
-        Asynchronously fetch all call reports related to the current client.
+            client_name (str): Name of the client.
 
         Returns:
-            List[dict]: A list of call report records from the database.
+            bool: True if the call report exists, False otherwise.
         """
-        # Query database and return call reports
         pass
 
-    async def recency_bias_factor(self, relevant_reports, decay_rate=0.005):
+    async def check_call_report_size(self, client_name):
         """
-        Apply a recency bias to reports, giving higher weight to recent reports.
+        Check the size or length of the call report for a given client.
 
         Args:
-            relevant_reports (List[dict]): List of relevant call reports.
-            decay_rate (float, optional): Exponential decay rate. Default is 0.005.
+            client_name (str): Name of the client.
 
         Returns:
-            List[dict]: Reports with an additional 'recency_score' field.
+            int: Size or word count of the call report.
         """
-        # Apply exponential decay based on date
         pass
 
-    def dededuplicate_by_id(self, reports):
+    async def generate_news_summary(self, company_name: str, company_url: str, industry_name: str) -> Dict:
         """
-        Remove duplicate call reports based on unique report ID.
+        Generate a company news summary using the given parameters.
 
         Args:
-            reports (List[dict]): List of call reports.
+            company_name (str): Name of the company.
+            company_url (str): URL to the company's website.
+            industry_name (str): Name of the industry to fetch relevant news.
 
         Returns:
-            List[dict]: Deduplicated list of call reports.
+            Dict: A structured news summary.
         """
-        # Use dictionary or set to filter out duplicates
         pass
 
-    async def get_relevant_call_reports(self, search_queries):
+    async def get_response_next_best_actions(self, client_name, prompts, usable_count):
         """
-        Retrieve call reports that are relevant to the provided search queries.
+        Generate a response for the 'Next Best Actions' section using prompts and past data.
 
         Args:
-            search_queries (List[str]): Keywords or phrases to match against call report contents.
+            client_name (str): Name of the client.
+            prompts (List[str]): Prompt templates to guide generation.
+            usable_count (int): Number of past items to use for generation.
 
         Returns:
-            List[dict]: List of call reports matching the search criteria.
+            str: Generated response for the section.
         """
-        # Perform semantic/textual search across call reports
+        pass
+
+    async def get_response_company_overview(self, call_report_client_name, client_name, company_url, prompts, usable_count):
+        """
+        Generate a company overview by combining website data and past call reports.
+
+        Args:
+            call_report_client_name (str): Name used in call reports.
+            client_name (str): Official client name.
+            company_url (str): URL to the company's website.
+            prompts (List[str]): Prompt templates.
+            usable_count (int): Number of usable records to consider.
+
+        Returns:
+            str: Generated company overview.
+        """
+        pass
+
+    async def get_response_sentiment_analysis(self, client_name, prompts):
+        """
+        Generate a sentiment analysis summary based on past client interactions.
+
+        Args:
+            client_name (str): Name of the client.
+            prompts (List[str]): Prompt templates for sentiment analysis.
+
+        Returns:
+            str: Sentiment analysis summary.
+        """
+        pass
+
+    async def get_response(self, call_report_client_name, company_url, client_name):
+        """
+        Generate a complete response for a memo section using available data.
+
+        Args:
+            call_report_client_name (str): Client name used in call reports.
+            company_url (str): URL to the company's website.
+            client_name (str): Official name of the client.
+
+        Returns:
+            Dict[str, str]: Dictionary with responses for each section.
+        """
         pass
