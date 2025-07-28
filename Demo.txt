@@ -1,61 +1,94 @@
-async def get_relevant_news_reports(
-    self,
-    client_name: str,
-    search_queries: List[str],
-    historical_news_data: List[dict],
-    company_websites_data: List[dict]
-) -> List[dict]:
+class Observability:
     """
-    Retrieves news reports relevant to the given client by matching search queries.
+    Class for tracking and recording observability metrics such as execution time, status,
+    exceptions, and function-level analytics.
 
-    This function searches both historical news data and company website data,
-    filters for relevance based on search query matches, and returns the combined list of results.
-
-    Args:
-        client_name (str): Name of the client to filter contextually relevant reports.
-        search_queries (List[str]): Keywords or phrases to match against news content.
-        historical_news_data (List[dict]): Preloaded news articles with metadata.
-        company_websites_data (List[dict]): Preloaded company website content records.
-
-    Returns:
-        List[dict]: Filtered list of news or website reports relevant to the client and queries.
+    It uses an async PostgreSQL database connection to persist logs and provides a decorator 
+    to easily instrument async functions for tracking.
+    
+    Attributes:
+        db_config (str): The async database connection URL.
+        db_pool (asyncpg.Pool): Connection pool for executing insert queries.
     """
 
+    def __init__(self):
+        """
+        Initializes the Observability class with DB config and sets up the pool placeholder.
+        """
+        self.db_config = async_db_connection_url()
+        self.db_pool = None
 
-def dededuplicate_by_id(self, reports: List[dict]) -> List[dict]:
-    """
-    Removes duplicate reports from the list based on a unique 'id' field.
+    async def init_db_pool(self):
+        """
+        Initializes the async database connection pool if it hasn't been initialized already.
 
-    This function ensures that only one report per unique identifier is retained in the result,
-    which is helpful after merging data from multiple sources.
+        This is called automatically inside the tracking decorator before inserting any metrics.
+        """
+        ...
 
-    Args:
-        reports (List[dict]): List of news or website reports containing at least an 'id' field.
+    async def insert_metric(
+        self,
+        timestamp: datetime.datetime,
+        function_name: str,
+        time_taken: float,
+        status: str,
+        exception_msg: str,
+        params: dict
+    ):
+        """
+        Inserts execution metrics into the database.
 
-    Returns:
-        List[dict]: Deduplicated list of reports.
-    """
+        Args:
+            timestamp (datetime): The time when the function was executed.
+            function_name (str): Name of the function being tracked.
+            time_taken (float): Execution duration in seconds.
+            status (str): 'success' or 'failure' indicating the result.
+            exception_msg (str): Exception message if any, else None or empty.
+            params (dict): Parameters passed to the function (serialized or as JSON).
+        
+        Returns:
+            None
+        """
+        ...
 
+    def track(self, name: str):
+        """
+        A decorator to automatically track execution time, success/failure, and exceptions
+        for asynchronous functions.
 
-async def fetch_news(
-    self,
-    client_name: str,
-    search_queries: List[str],
-    historical_news_data: bool = False,
-    company_websites_data: bool = False
-) -> List[dict]:
-    """
-    Fetches the most relevant news content for the client from either historical news or company websites.
+        Args:
+            name (str): Name of the function or label to record in the metrics table.
 
-    This function decides which sources to pull from (historical or website data), invokes
-    relevance filtering using queries, and returns deduplicated news reports.
+        Returns:
+            Callable: The decorated async function with tracking applied.
+        """
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                await self.init_db_pool()
+                start_time = time.time()
+                status = "success"
+                exception_msg = ""
+                result = None
 
-    Args:
-        client_name (str): Name of the client.
-        search_queries (List[str]): List of search phrases for matching content.
-        historical_news_data (bool, optional): If True, includes historical news data. Defaults to False.
-        company_websites_data (bool, optional): If True, includes company website data. Defaults to False.
+                try:
+                    result = await func(*args, **kwargs)
+                except Exception as e:
+                    status = "failure"
+                    exception_msg = str(e)
+                    raise
+                finally:
+                    end_time = time.time()
+                    time_taken = end_time - start_time
+                    timestamp = datetime.datetime.utcnow()
+                    params = {"args": args, "kwargs": kwargs}
 
-    Returns:
-        List[dict]: Filtered and deduplicated list of relevant news items.
-    """
+                    await self.insert_metric(
+                        timestamp, name, time_taken, status, exception_msg, params
+                    )
+
+                return result
+
+            return wrapper
+
+        return decorator
