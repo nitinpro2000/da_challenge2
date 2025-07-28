@@ -1,94 +1,97 @@
 """
-Module: structured_relationship_data_plugin
+Module: structured_client_data_plugin
 
-This module defines the StructuredRelationshipDataPlugin class, which retrieves and formats
-structured client relationship data from Snowflake. It includes methods to process, transform,
-and organize client relationship metadata, contact information, and consultant groupings.
+This module defines the `StructuredClientDataPlugin` class, which retrieves structured
+client data from a Snowflake database. It provides helper methods for formatting
+and accessing financial snapshots, static profile data, wallet share information,
+and chart data for a given client.
 
 Typical usage:
-    plugin = StructuredRelationshipDataPlugin(snowflake_cursor)
-    client_data = await plugin.get_relationship_info("ABC Corp")
+    plugin = StructuredClientDataPlugin(snowflake_cursor)
+    static_info = await plugin.get_static_info("ABC Corp")
+    chart_data = await plugin.get_chart_data("ABC Corp")
 """
 
-class StructuredRelationshipDataPlugin:
+class StructuredClientDataPlugin:
     """
-    Plugin to retrieve structured client relationship data from Snowflake.
+    Plugin to retrieve structured client data from Snowflake.
 
-    This class interfaces with a Snowflake cursor to fetch relationship and contact data
-    for a given client, and includes helper methods for formatting and structuring
-    the retrieved information.
+    This class uses a Snowflake cursor to execute queries that fetch detailed
+    financial and profile-related data for a given client. It includes methods
+    to retrieve static client info, wallet share, financial snapshots, and
+    chart-related data.
     """
 
     def __init__(self, curs):
         """
-        Initialize the plugin with a Snowflake cursor.
+        Initialize the plugin with a Snowflake database cursor.
 
         Args:
-            curs: A Snowflake database cursor object used to execute queries.
+            curs: A Snowflake cursor used to execute queries.
         """
         self.curs = curs
 
-    def format_number(self, value_text):
+    def format_number(self, value):
         """
-        Format a text representation of a number into a standard format.
+        Format a numerical value with appropriate formatting (e.g., commas).
 
         Args:
-            value_text (str): The raw number string to format.
+            value (Any): The raw number to format (int, float, or string).
 
         Returns:
-            str: The formatted number with commas or appropriate punctuation.
+            str: A string with the number formatted for readability.
         """
         # Implementation not shown
         pass
 
-    def format_date(self, date_timestamp):
+    async def get_static_info(self, client_name: str) -> str:
         """
-        Convert a timestamp into a human-readable date format.
-
-        Args:
-            date_timestamp: The input timestamp to convert.
-
-        Returns:
-            str: A string representation of the date.
-        """
-        # Implementation not shown
-        pass
-
-    async def get_relationship_info(self, client_name):
-        """
-        Fetch structured relationship information for a given client.
+        Retrieve static profile information for the given client.
 
         Args:
             client_name (str): Name of the client.
 
         Returns:
-            dict: Structured data representing the client's relationship info.
+            str: A formatted string containing static client profile data.
         """
         # Implementation not shown
         pass
 
-    async def get_client_contacts(self, client_name):
+    async def get_client_snapshot_financials(self, client_name: str) -> str:
         """
-        Retrieve contact details associated with a given client.
+        Retrieve a financial snapshot summary for the client.
 
         Args:
-            client_name (str): The client's name for which to fetch contacts.
+            client_name (str): Name of the client.
 
         Returns:
-            list: A list of contact information dictionaries.
+            str: A summary string of key financial indicators for the client.
         """
         # Implementation not shown
         pass
 
-    def group_consultants(self, data):
+    async def get_wallet_share(self, client_name: str) -> str:
         """
-        Group consultant data based on their roles or tags.
+        Retrieve wallet share information for the client.
 
         Args:
-            data (list): A list of consultant metadata dictionaries.
+            client_name (str): Name of the client.
 
         Returns:
-            dict: A dictionary grouping consultants by role/category.
+            str: A string describing the client's wallet share by category or product.
+        """
+        # Implementation not shown
+        pass
+
+    async def get_chart_data(self, client_name: str) -> str:
+        """
+        Retrieve data needed to generate charts for client reporting.
+
+        Args:
+            client_name (str): Name of the client.
+
+        Returns:
+            str: A JSON or CSV-compatible string with chart data points.
         """
         # Implementation not shown
         pass
