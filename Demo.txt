@@ -1,10 +1,75 @@
-SELECT 
-    column_name,
-    data_type,
-    is_nullable,
-    character_maximum_length
-FROM 
-    information_schema.columns
-WHERE 
-    table_name = 'your_table_name'
-    AND table_schema = 'your_schema_name';  -- e.g., 'public'
+class CompanyOverviewRegeneration:
+    """
+    Handles the regeneration of the 'Company Overview' section by processing prompts,
+    fetching previous context from various data sources, and generating final output
+    using LLMs or other regeneration logic.
+    
+    Attributes:
+        prompts (dict): A dictionary containing prompts for different regeneration sections.
+    """
+
+    def __init__(self, prompts):
+        """
+        Initialize the CompanyOverviewRegeneration class with prompts.
+
+        Args:
+            prompts (dict): Dictionary of prompts mapped to their corresponding section names.
+        """
+        self.prompts = prompts
+
+    def reverse_dict(self, dict_obj):
+        """
+        Reverses the keys and values of the given dictionary.
+
+        Args:
+            dict_obj (dict): The dictionary to be reversed.
+
+        Returns:
+            dict: A new dictionary with keys and values swapped.
+        """
+        return {v: k for k, v in dict_obj.items()}
+
+    async def company_overview_final_response(self, company_overview_response_json, client_name, call_reports_client_name, citation_sections):
+        """
+        Generate the final company overview response after processing the regenerated content
+        and attaching relevant citations.
+
+        Args:
+            company_overview_response_json (dict): JSON response from the LLM or generation logic.
+            client_name (str): Name of the client.
+            call_reports_client_name (str): Name used in call reports for the client.
+            citation_sections (list): List of citation sections to be included in the final response.
+
+        Returns:
+            dict: Final company overview response with citations.
+        """
+        pass
+
+    async def fetch_prev_context_comapany_websites(self, client_name, citation_urls_company):
+        """
+        Fetches the previous context related to company websites for the specified client.
+
+        Args:
+            client_name (str): Name of the client.
+            citation_urls_company (list): List of citation URLs from company websites.
+
+        Returns:
+            str: Combined previous context extracted from company websites.
+        """
+        pass
+
+    async def regenerate_section(self, section_name, previous_content, new_content, client_name, user_prompt):
+        """
+        Regenerates a specific section using the provided content and prompt.
+
+        Args:
+            section_name (str): Name of the section to regenerate (e.g., "Company Overview").
+            previous_content (str): Previous content of the section.
+            new_content (str): Newly generated content or updates.
+            client_name (str): Name of the client.
+            user_prompt (str): Prompt or instruction from the user for regeneration.
+
+        Returns:
+            dict: Regenerated section content with metadata or citations.
+        """
+        pass
