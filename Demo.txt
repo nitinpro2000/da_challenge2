@@ -1,79 +1,167 @@
-class PostgresRAGRetriever:
+def update_client_overview_and_nba(...):
     """
-    Class for retrieving similar text chunks from a PostgreSQL database using pgvector.
-    It supports filtering by client name, section, and citation IDs, enabling contextual
-    retrieval for use in a Retrieval-Augmented Generation (RAG) workflow.
+    Updates the content of Client Overview and Next Best Actions (NBA) sections.
+
+    This function handles integration of newly generated or regenerated content into the system,
+    ensuring consistency across client-specific sections.
+
+    Args:
+        ...: Parameters used for identifying the client, section, and content updates.
+
+    Returns:
+        None
     """
 
-    def __init__(self):
-        """
-        Initializes the PostgresRAGRetriever with necessary configurations or connections.
-        """
-        pass
 
-    async def fetch_prev_context_call_reports(self, citation_ids, client_name):
-        """
-        Fetches previous context from call reports for the given client and citation IDs.
+async def refactor_new_prompt(self, user_prompt: str) -> str:
+    """
+    Refactors and optimizes a user-provided prompt for better LLM performance.
 
-        Args:
-            citation_ids (List[int]): List of citation IDs to filter the call reports.
-            client_name (str): Name of the client for filtering relevant call reports.
+    Args:
+        user_prompt (str): The original prompt entered by the user.
 
-        Returns:
-            str: Combined context text retrieved from the call reports.
-        """
-        pass
+    Returns:
+        str: A cleaned and improved prompt suitable for LLM processing.
+    """
 
-    async def fetch_prev_context_historical_news(self, citation_ids, client_name):
-        """
-        Fetches previous context from historical news entries based on citation IDs and client name.
 
-        Args:
-            citation_ids (List[int]): List of citation IDs to retrieve relevant news records.
-            client_name (str): Name of the client to filter historical news articles.
+def extract_unique_citations(self, text: str) -> Set[str]:
+    """
+    Extracts unique citation references from the given text.
 
-        Returns:
-            str: Combined context text from the selected historical news entries.
-        """
-        pass
+    Args:
+        text (str): The input text containing citation tags or markers.
 
-    async def fetch_similar_chunks(self, table: str, embedding: list, client_name: str, top_k: int = 5, section_name: str = None):
-        """
-        Retrieves top-k similar text chunks from a specific table using vector similarity.
+    Returns:
+        Set[str]: A set of unique citation identifiers.
+    """
 
-        Args:
-            table (str): The name of the database table to query.
-            embedding (List[float]): The embedding vector to compare against stored vectors.
-            client_name (str): Client name to filter the relevant rows.
-            top_k (int, optional): Number of top similar chunks to retrieve. Defaults to 5.
-            section_name (str, optional): Optional section name filter.
 
-        Returns:
-            List[Dict]: A list of dictionaries containing the most relevant text chunks and metadata.
-        """
-        pass
+def get_citation_ids_from_text(self, text: str, citation_dict: Dict[str, str]) -> List[str]:
+    """
+    Retrieves citation IDs from the text using a citation lookup dictionary.
 
-    async def fetch_combined_chunks(
-        self,
-        tables: list,
-        embedding: list,
-        client_name: str,
-        call_reports_client_name: str,
-        top_k: int = 5,
-        citation_ids: list = []
-    ):
-        """
-        Fetches and combines similar text chunks from multiple tables based on semantic similarity.
+    Args:
+        text (str): The text from which to extract citation references.
+        citation_dict (Dict[str, str]): A dictionary mapping citation tags to IDs.
 
-        Args:
-            tables (List[Dict]): List of table configurations with keys like name and filter info.
-            embedding (List[float]): Embedding vector for similarity comparison.
-            client_name (str): Primary client name to use for filtering.
-            call_reports_client_name (str): Alternate name used in the call reports table.
-            top_k (int, optional): Number of top chunks per table. Defaults to 5.
-            citation_ids (List[int], optional): Specific citation IDs to further narrow down results.
+    Returns:
+        List[str]: A list of citation IDs found in the text.
+    """
 
-        Returns:
-            List[Dict]: Combined list of relevant text chunks from all specified tables.
-        """
-        pass
+
+def reverse_dict(self, dict: Dict[Any, Any]) -> Dict[Any, Any]:
+    """
+    Reverses a dictionary's keys and values.
+
+    Args:
+        dict (Dict): The original dictionary.
+
+    Returns:
+        Dict: A new dictionary with keys and values swapped.
+    """
+
+
+async def nba_final_response(self, nba_response_json: dict, client_name: str, citation_sections: dict) -> str:
+    """
+    Builds the final formatted Next Best Actions (NBA) response with citations.
+
+    Args:
+        nba_response_json (dict): Raw LLM-generated NBA content.
+        client_name (str): Name of the client.
+        citation_sections (dict): Section-wise citation mappings.
+
+    Returns:
+        str: Final formatted NBA content with integrated citations.
+    """
+
+
+async def news_final_response(self, regenerated_text: str, client_name: str, new_citations: List[str], citations: List[str]) -> str:
+    """
+    Generates the final response for news sections by combining regenerated text and citations.
+
+    Args:
+        regenerated_text (str): LLM output for the news section.
+        client_name (str): Name of the client.
+        new_citations (List[str]): List of newly generated citation tags.
+        citations (List[str]): Existing citation references.
+
+    Returns:
+        str: Final formatted news content.
+    """
+
+
+def build_prompt(self, section: str, new_prompt: str, previous_content: str, rag_chunks: List[str], prev_context: str) -> str:
+    """
+    Constructs a full prompt for the LLM using contextual inputs and user instruction.
+
+    Args:
+        section (str): The name of the section being generated (e.g., Client Overview).
+        new_prompt (str): The user-provided instruction.
+        previous_content (str): Existing content of the section.
+        rag_chunks (List[str]): Retrieved RAG text chunks for context.
+        prev_context (str): Previously generated context.
+
+    Returns:
+        str: Final prompt string to be sent to the LLM.
+    """
+
+
+def call_azure_llm(self, prompt: str) -> str:
+    """
+    Sends the prompt to Azure-hosted LLM and retrieves the generated response.
+
+    Args:
+        prompt (str): Input prompt for the LLM.
+
+    Returns:
+        str: LLM-generated output text.
+    """
+
+
+def get_embedding(self, text: str) -> List[float]:
+    """
+    Computes the vector embedding for a given text.
+
+    Args:
+        text (str): Input string to embed.
+
+    Returns:
+        List[float]: Vector representation of the input text.
+    """
+
+
+async def extract_bulleted_sections_1lm(self, raw_text: str) -> Dict[str, Dict[str, List[str]]]:
+    """
+    Extracts structured, bulleted information from raw LLM-generated text.
+
+    Args:
+        raw_text (str): Raw text output from LLM.
+
+    Returns:
+        Dict[str, Dict[str, List[str]]]: Nested dictionary with section and bullet point mappings.
+    """
+
+
+async def fetch_call_reports_client_name(self, client_name: str) -> List[dict]:
+    """
+    Retrieves call reports for the specified client from the database.
+
+    Args:
+        client_name (str): Name of the client.
+
+    Returns:
+        List[dict]: A list of call reports related to the client.
+    """
+
+
+async def regenerate_section(...):
+    """
+    Regenerates a specific memo section using updated context, user prompt, and citations.
+
+    Args:
+        ...: Parameters include section name, previous content, new prompt, and citation references.
+
+    Returns:
+        str: Regenerated content for the specified section.
+    """
