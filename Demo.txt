@@ -1,35 +1,61 @@
-class MemoDBUtils:
+async def get_relevant_news_reports(
+    self,
+    client_name: str,
+    search_queries: List[str],
+    historical_news_data: List[dict],
+    company_websites_data: List[dict]
+) -> List[dict]:
     """
-    Utility class for interacting with the memo-related PostgreSQL database.
+    Retrieves news reports relevant to the given client by matching search queries.
 
-    This class provides asynchronous methods to perform common database operations 
-    such as inserting a new memo version and checking the existence of a memo ID.
+    This function searches both historical news data and company website data,
+    filters for relevance based on search query matches, and returns the combined list of results.
+
+    Args:
+        client_name (str): Name of the client to filter contextually relevant reports.
+        search_queries (List[str]): Keywords or phrases to match against news content.
+        historical_news_data (List[dict]): Preloaded news articles with metadata.
+        company_websites_data (List[dict]): Preloaded company website content records.
+
+    Returns:
+        List[dict]: Filtered list of news or website reports relevant to the client and queries.
     """
 
-    @staticmethod
-    async def insert_new_memo_version(memo_id: int, user_id: str, update_message: str) -> None:
-        """
-        Inserts a new version entry into the memo versioning table.
 
-        Args:
-            memo_id (int): Unique identifier of the memo being updated.
-            user_id (str): Identifier of the user who made the update.
-            update_message (str): Description of the update performed.
+def dededuplicate_by_id(self, reports: List[dict]) -> List[dict]:
+    """
+    Removes duplicate reports from the list based on a unique 'id' field.
 
-        Returns:
-            None
-        """
-        ...
+    This function ensures that only one report per unique identifier is retained in the result,
+    which is helpful after merging data from multiple sources.
 
-    @staticmethod
-    async def check_memo_id(memo_id: int) -> bool:
-        """
-        Checks whether a memo with the given ID exists in the database.
+    Args:
+        reports (List[dict]): List of news or website reports containing at least an 'id' field.
 
-        Args:
-            memo_id (int): The memo ID to verify.
+    Returns:
+        List[dict]: Deduplicated list of reports.
+    """
 
-        Returns:
-            bool: True if the memo ID exists, False otherwise.
-        """
-        ...
+
+async def fetch_news(
+    self,
+    client_name: str,
+    search_queries: List[str],
+    historical_news_data: bool = False,
+    company_websites_data: bool = False
+) -> List[dict]:
+    """
+    Fetches the most relevant news content for the client from either historical news or company websites.
+
+    This function decides which sources to pull from (historical or website data), invokes
+    relevance filtering using queries, and returns deduplicated news reports.
+
+    Args:
+        client_name (str): Name of the client.
+        search_queries (List[str]): List of search phrases for matching content.
+        historical_news_data (bool, optional): If True, includes historical news data. Defaults to False.
+        company_websites_data (bool, optional): If True, includes company website data. Defaults to False.
+
+    Returns:
+        List[dict]: Filtered and deduplicated list of relevant news items.
+    """
