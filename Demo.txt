@@ -1,167 +1,57 @@
-def update_client_overview_and_nba(...):
+class CitationGenerator:
     """
-    Updates the content of Client Overview and Next Best Actions (NBA) sections.
+    Class responsible for generating citations based on similarity results and context filtering.
 
-    This function handles integration of newly generated or regenerated content into the system,
-    ensuring consistency across client-specific sections.
+    This class uses percentile-based thresholds to select the most relevant data and can fetch citations
+    for various data types like call reports, company websites, or other client-related sources.
 
-    Args:
-        ...: Parameters used for identifying the client, section, and content updates.
-
-    Returns:
-        None
+    Attributes:
+        lock (asyncio.Lock): A lock to ensure async thread-safe operations when fetching citations.
     """
 
+    def __init__(self):
+        """
+        Initializes the CitationGenerator with an asyncio lock.
 
-async def refactor_new_prompt(self, user_prompt: str) -> str:
-    """
-    Refactors and optimizes a user-provided prompt for better LLM performance.
+        The lock is used to safely handle concurrent citation fetch operations in an async environment.
+        """
+        self.lock = asyncio.Lock()
 
-    Args:
-        user_prompt (str): The original prompt entered by the user.
+    def fetch_relevant_from_percentile(self, results: List[dict], threshhold_percentile: float = CITATION_THRESHOLD_PERCENTILE) -> List[dict]:
+        """
+        Filters and returns relevant chunks based on a percentile threshold from similarity results.
 
-    Returns:
-        str: A cleaned and improved prompt suitable for LLM processing.
-    """
+        Args:
+            results (List[dict]): A list of result dictionaries containing similarity scores and metadata.
+            threshhold_percentile (float, optional): The percentile threshold for selecting top results.
+                                                     Defaults to CITATION_THRESHOLD_PERCENTILE.
 
+        Returns:
+            List[dict]: A list of the most relevant chunks filtered by percentile logic.
+        """
+        ...
 
-def extract_unique_citations(self, text: str) -> Set[str]:
-    """
-    Extracts unique citation references from the given text.
+    async def fetch_citations(
+        self,
+        data_list: List[dict],
+        client_name: str,
+        citation_dict: dict = {},
+        count: dict = {'value': 1},
+        call_reports: bool = False,
+        company_websites: bool = False
+    ) -> List[str]:
+        """
+        Asynchronously generates citation strings based on provided data and context.
 
-    Args:
-        text (str): The input text containing citation tags or markers.
+        Args:
+            data_list (List[dict]): List of data items (e.g., retrieved chunks) for citation generation.
+            client_name (str): Name of the client the citations are associated with.
+            citation_dict (dict, optional): A dictionary to store or update citation mappings. Defaults to {}.
+            count (dict, optional): A mutable counter dict used to ensure unique citation indexing. Defaults to {'value': 1}.
+            call_reports (bool, optional): Flag to indicate if data is from call reports. Defaults to False.
+            company_websites (bool, optional): Flag to indicate if data is from company websites. Defaults to False.
 
-    Returns:
-        Set[str]: A set of unique citation identifiers.
-    """
-
-
-def get_citation_ids_from_text(self, text: str, citation_dict: Dict[str, str]) -> List[str]:
-    """
-    Retrieves citation IDs from the text using a citation lookup dictionary.
-
-    Args:
-        text (str): The text from which to extract citation references.
-        citation_dict (Dict[str, str]): A dictionary mapping citation tags to IDs.
-
-    Returns:
-        List[str]: A list of citation IDs found in the text.
-    """
-
-
-def reverse_dict(self, dict: Dict[Any, Any]) -> Dict[Any, Any]:
-    """
-    Reverses a dictionary's keys and values.
-
-    Args:
-        dict (Dict): The original dictionary.
-
-    Returns:
-        Dict: A new dictionary with keys and values swapped.
-    """
-
-
-async def nba_final_response(self, nba_response_json: dict, client_name: str, citation_sections: dict) -> str:
-    """
-    Builds the final formatted Next Best Actions (NBA) response with citations.
-
-    Args:
-        nba_response_json (dict): Raw LLM-generated NBA content.
-        client_name (str): Name of the client.
-        citation_sections (dict): Section-wise citation mappings.
-
-    Returns:
-        str: Final formatted NBA content with integrated citations.
-    """
-
-
-async def news_final_response(self, regenerated_text: str, client_name: str, new_citations: List[str], citations: List[str]) -> str:
-    """
-    Generates the final response for news sections by combining regenerated text and citations.
-
-    Args:
-        regenerated_text (str): LLM output for the news section.
-        client_name (str): Name of the client.
-        new_citations (List[str]): List of newly generated citation tags.
-        citations (List[str]): Existing citation references.
-
-    Returns:
-        str: Final formatted news content.
-    """
-
-
-def build_prompt(self, section: str, new_prompt: str, previous_content: str, rag_chunks: List[str], prev_context: str) -> str:
-    """
-    Constructs a full prompt for the LLM using contextual inputs and user instruction.
-
-    Args:
-        section (str): The name of the section being generated (e.g., Client Overview).
-        new_prompt (str): The user-provided instruction.
-        previous_content (str): Existing content of the section.
-        rag_chunks (List[str]): Retrieved RAG text chunks for context.
-        prev_context (str): Previously generated context.
-
-    Returns:
-        str: Final prompt string to be sent to the LLM.
-    """
-
-
-def call_azure_llm(self, prompt: str) -> str:
-    """
-    Sends the prompt to Azure-hosted LLM and retrieves the generated response.
-
-    Args:
-        prompt (str): Input prompt for the LLM.
-
-    Returns:
-        str: LLM-generated output text.
-    """
-
-
-def get_embedding(self, text: str) -> List[float]:
-    """
-    Computes the vector embedding for a given text.
-
-    Args:
-        text (str): Input string to embed.
-
-    Returns:
-        List[float]: Vector representation of the input text.
-    """
-
-
-async def extract_bulleted_sections_1lm(self, raw_text: str) -> Dict[str, Dict[str, List[str]]]:
-    """
-    Extracts structured, bulleted information from raw LLM-generated text.
-
-    Args:
-        raw_text (str): Raw text output from LLM.
-
-    Returns:
-        Dict[str, Dict[str, List[str]]]: Nested dictionary with section and bullet point mappings.
-    """
-
-
-async def fetch_call_reports_client_name(self, client_name: str) -> List[dict]:
-    """
-    Retrieves call reports for the specified client from the database.
-
-    Args:
-        client_name (str): Name of the client.
-
-    Returns:
-        List[dict]: A list of call reports related to the client.
-    """
-
-
-async def regenerate_section(...):
-    """
-    Regenerates a specific memo section using updated context, user prompt, and citations.
-
-    Args:
-        ...: Parameters include section name, previous content, new prompt, and citation references.
-
-    Returns:
-        str: Regenerated content for the specified section.
-    """
+        Returns:
+            List[str]: A list of formatted citation strings.
+        """
+        ...
