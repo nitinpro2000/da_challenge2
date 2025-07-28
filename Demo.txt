@@ -1,50 +1,67 @@
-Here’s a **User Story** and corresponding **Acceptance Criteria** for adding **docstrings and comments** to your codebase. This can be used in tools like Jira, Azure DevOps, Trello, etc.
+class Structured RelationshipDataPlugin:
 
----
+7
 
-### ✅ **User Story**: Add Docstrings and Code Comments
+8
 
-**Title:**
-Add Docstrings and Inline Comments to Improve Code Readability and Maintainability
+9
 
-**As a**
-developer or team member working on this codebase,
-**I want**
-every class, method, and function to have clear and complete docstrings and inline comments,
-**so that**
-the code is easier to understand, maintain, and extend by current and future developers.
+10
 
----
+11
 
-### 📌 **Description:**
+12
 
-The current codebase lacks comprehensive docstrings and inline comments. This story aims to add:
+13 >
 
-* Class-level and function-level docstrings that describe **purpose**, **parameters**, **return types**, and **behavior**
-* Inline comments for **complex logic**, **business rules**, or **non-obvious operations**
-* A consistent docstring style across the codebase (Google-style, NumPy-style, or Sphinx-style)
+29
 
----
+30
 
-### ✅ **Acceptance Criteria:**
+31 >
 
-| Criteria ID | Description                                                                                                |
-| ----------- | ---------------------------------------------------------------------------------------------------------- |
-| AC1         | Each class has a docstring explaining its purpose and key attributes or behaviors.                         |
-| AC2         | Each method/function has a docstring describing its input parameters, return values, and logic.            |
-| AC3         | Non-obvious blocks of logic (e.g., complex conditionals, calculations) are annotated with inline comments. |
-| AC4         | Docstrings follow a consistent format (e.g., Google-style or PEP 257).                                     |
-| AC5         | Code is reviewed to ensure that no important function is left undocumented.                                |
-| AC6         | Comments do not repeat what the code does literally but add value by explaining "why" or clarifying "how." |
-| AC7         | Final code passes static analysis/linter checks for documentation (e.g., flake8-docstrings if applicable). |
+Plugin to retrieve structured client data from Snowflake.
 
----
+def __init__(self,curs):
 
-### 🛠 Optional Technical Notes:
+self.curs curs
 
-* Use tools like **pydocstyle**, **flake8-docstrings**, or **interrogate** to validate completeness.
-* Markdown/Word documentation can be generated from the docstrings using **Sphinx**, **pdoc**, or **Docstring-to-Docx** plugins.
+def format_number(self,value_text):...
 
----
+def format_date(self,date_timestamp):...
 
-Let me know if you want this exported to a `.md`, `.docx`, or Jira-friendly format, or need a version tailored to a specific task management tool.
+45
+
+46 >
+
+M
+
+p_detai...
+
+105
+
+async def get_relationship_info(self, client_name: Annotated [st
+
+client....
+
+106
+
+107
+
+nt
+
+agent
+
+108 >
+
+async def get_client_contacts(self, ...
+
+marizati...
+
+156
+
+def group_consultants(self, data): ...
+
+ag_agent
+
+180
