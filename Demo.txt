@@ -1,94 +1,50 @@
-class Observability:
-    """
-    Class for tracking and recording observability metrics such as execution time, status,
-    exceptions, and function-level analytics.
+Here’s a **User Story** and corresponding **Acceptance Criteria** for adding **docstrings and comments** to your codebase. This can be used in tools like Jira, Azure DevOps, Trello, etc.
 
-    It uses an async PostgreSQL database connection to persist logs and provides a decorator 
-    to easily instrument async functions for tracking.
-    
-    Attributes:
-        db_config (str): The async database connection URL.
-        db_pool (asyncpg.Pool): Connection pool for executing insert queries.
-    """
+---
 
-    def __init__(self):
-        """
-        Initializes the Observability class with DB config and sets up the pool placeholder.
-        """
-        self.db_config = async_db_connection_url()
-        self.db_pool = None
+### ✅ **User Story**: Add Docstrings and Code Comments
 
-    async def init_db_pool(self):
-        """
-        Initializes the async database connection pool if it hasn't been initialized already.
+**Title:**
+Add Docstrings and Inline Comments to Improve Code Readability and Maintainability
 
-        This is called automatically inside the tracking decorator before inserting any metrics.
-        """
-        ...
+**As a**
+developer or team member working on this codebase,
+**I want**
+every class, method, and function to have clear and complete docstrings and inline comments,
+**so that**
+the code is easier to understand, maintain, and extend by current and future developers.
 
-    async def insert_metric(
-        self,
-        timestamp: datetime.datetime,
-        function_name: str,
-        time_taken: float,
-        status: str,
-        exception_msg: str,
-        params: dict
-    ):
-        """
-        Inserts execution metrics into the database.
+---
 
-        Args:
-            timestamp (datetime): The time when the function was executed.
-            function_name (str): Name of the function being tracked.
-            time_taken (float): Execution duration in seconds.
-            status (str): 'success' or 'failure' indicating the result.
-            exception_msg (str): Exception message if any, else None or empty.
-            params (dict): Parameters passed to the function (serialized or as JSON).
-        
-        Returns:
-            None
-        """
-        ...
+### 📌 **Description:**
 
-    def track(self, name: str):
-        """
-        A decorator to automatically track execution time, success/failure, and exceptions
-        for asynchronous functions.
+The current codebase lacks comprehensive docstrings and inline comments. This story aims to add:
 
-        Args:
-            name (str): Name of the function or label to record in the metrics table.
+* Class-level and function-level docstrings that describe **purpose**, **parameters**, **return types**, and **behavior**
+* Inline comments for **complex logic**, **business rules**, or **non-obvious operations**
+* A consistent docstring style across the codebase (Google-style, NumPy-style, or Sphinx-style)
 
-        Returns:
-            Callable: The decorated async function with tracking applied.
-        """
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                await self.init_db_pool()
-                start_time = time.time()
-                status = "success"
-                exception_msg = ""
-                result = None
+---
 
-                try:
-                    result = await func(*args, **kwargs)
-                except Exception as e:
-                    status = "failure"
-                    exception_msg = str(e)
-                    raise
-                finally:
-                    end_time = time.time()
-                    time_taken = end_time - start_time
-                    timestamp = datetime.datetime.utcnow()
-                    params = {"args": args, "kwargs": kwargs}
+### ✅ **Acceptance Criteria:**
 
-                    await self.insert_metric(
-                        timestamp, name, time_taken, status, exception_msg, params
-                    )
+| Criteria ID | Description                                                                                                |
+| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| AC1         | Each class has a docstring explaining its purpose and key attributes or behaviors.                         |
+| AC2         | Each method/function has a docstring describing its input parameters, return values, and logic.            |
+| AC3         | Non-obvious blocks of logic (e.g., complex conditionals, calculations) are annotated with inline comments. |
+| AC4         | Docstrings follow a consistent format (e.g., Google-style or PEP 257).                                     |
+| AC5         | Code is reviewed to ensure that no important function is left undocumented.                                |
+| AC6         | Comments do not repeat what the code does literally but add value by explaining "why" or clarifying "how." |
+| AC7         | Final code passes static analysis/linter checks for documentation (e.g., flake8-docstrings if applicable). |
 
-                return result
+---
 
-            return wrapper
+### 🛠 Optional Technical Notes:
 
-        return decorator
+* Use tools like **pydocstyle**, **flake8-docstrings**, or **interrogate** to validate completeness.
+* Markdown/Word documentation can be generated from the docstrings using **Sphinx**, **pdoc**, or **Docstring-to-Docx** plugins.
+
+---
+
+Let me know if you want this exported to a `.md`, `.docx`, or Jira-friendly format, or need a version tailored to a specific task management tool.
