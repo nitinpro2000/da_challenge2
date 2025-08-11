@@ -1,42 +1,100 @@
-import os
-from openai import AzureOpenAI
+Here’s a **user story** for your **MVP1** that covers testing **company news** and **industry news** search with **Azure OpenAI grounding using Bing Search**, for **all clients**.
 
-# Set up Azure OpenAI client
-client = AzureOpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),       # Your API key
-    api_version="2024-02-01",                        # API version
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT") # e.g., "https://<your-resource>.openai.azure.com/"
-)
+---
 
-def get_industry_from_company(company_name: str) -> str:
-    """
-    Get the industry name for a given company using Azure OpenAI.
-    """
-    system_prompt = (
-        "You are a precise corporate classification assistant. "
-        "Given a company name, respond with only its primary industry "
-        "category (e.g., 'Banking', 'Pharmaceuticals', 'Technology', 'Automotive'). "
-        "Do not include extra text, explanations, or multiple industries."
-    )
+## **User Story** – Company & Industry News with Bing Search (MVP1)
 
-    user_prompt = f"Company name: {company_name}\nIndustry:"
+**Title:**
+Retrieve and summarize company and industry news for all clients using Azure OpenAI with Bing Search grounding.
 
-    response = client.chat.completions.create(
-        model="gpt-4o",  # Change to your Azure OpenAI deployment name
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0,  # Keep deterministic for consistent results
-        max_tokens=20
-    )
+**As a**
+Business Analyst / Financial Research User
 
-    industry = response.choices[0].message.content.strip()
-    return industry
+**I want**
+to automatically retrieve, ground, and summarize the latest **company-specific** and **industry-level** news for each client in the portfolio using Bing Search
 
+**So that**
+I can have accurate, credible, and structured insights covering the past 18 months to support market monitoring, risk assessment, and decision-making.
 
-if __name__ == "__main__":
-    # Example usage
-    company = "Microsoft"
-    industry = get_industry_from_company(company)
-    print(f"Company: {company}\nIndustry: {industry}")
+---
+
+### **Description**
+
+For MVP1, the system will:
+
+* Accept a **list of clients** (company names and associated details).
+* For each client:
+
+  1. Use Azure OpenAI + Bing Search grounding to search **company news** using the **Company News Agent Prompt**.
+  2. Identify the **industry name** for the company (via Azure OpenAI classification).
+  3. Use Azure OpenAI + Bing Search grounding to search **industry news** using the **Industry News Agent Prompt**.
+* Ensure both company and industry news outputs are:
+
+  * Based **only** on credible sources found via Bing Search.
+  * Within the **last 18 months**.
+  * Structured according to the predefined output formats.
+* Results will be stored for review, with source URLs retained for traceability.
+* **Anti-hallucination** measures in prompts ensure no fabricated content.
+
+---
+
+### **Acceptance Criteria**
+
+#### **AC1 – Company News Retrieval**
+
+* Given a valid company name from the client list
+* When the system runs the company news agent prompt with Bing Search grounding
+* Then the output:
+
+  * Includes all required categories:
+
+    * Personnel changes
+    * M\&A (confirmed or rumored)
+    * Financial news
+    * Earnings reports
+    * Analyst reports
+    * Board meeting notes (for public funds)
+  * Has **300–400 word summary**, key events table, date range, and credible sources list.
+  * States **“No significant updates reported”** where no data exists.
+  * Contains **no hallucinated or unverifiable details**.
+
+#### **AC2 – Industry Identification**
+
+* Given a company name
+* When the system runs the industry classification prompt
+* Then the output contains **only** the correct primary industry name (single string, no explanation).
+
+#### **AC3 – Industry News Retrieval**
+
+* Given the identified industry name
+* When the system runs the industry news agent prompt with Bing Search grounding
+* Then the output:
+
+  * Includes all required categories:
+
+    * Trends in staff movements
+    * Trends in M\&A
+    * Regulatory or policy changes & impacts
+    * Financial trends
+  * Has **300–400 word summary**, key trends table, date range, and credible sources list.
+  * States **“No significant updates reported”** where no data exists.
+  * Contains **no hallucinated or unverifiable details**.
+
+#### **AC4 – Coverage for All Clients**
+
+* Given the complete client list
+* When the system executes the workflow
+* Then:
+
+  * All clients have both company and industry news outputs.
+  * No client entry is skipped unless explicitly marked invalid.
+  * Any failures are logged with error details.
+
+#### **AC5 – Grounding Validation**
+
+* All retrieved content is grounded in **Bing Search result snippets** and linked to source URLs.
+* No statement is included without an associated credible source in the sources list.
+
+---
+
+If you want, I can next **write the Azure DevOps Test Cases table** for this MVP1 user story so your QA team can run it step-by-step and check every acceptance criterion in execution. That way, it will be directly usable in your sprint.
