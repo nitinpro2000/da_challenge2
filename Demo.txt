@@ -1,100 +1,129 @@
-Here’s a **user story** for your **MVP1** that covers testing **company news** and **industry news** search with **Azure OpenAI grounding using Bing Search**, for **all clients**.
+import os
+from azure.identity import DefaultAzureCredential
+from azure.ai.openai import ChatCompletionsClient
 
----
+class NewsRegeneration:
+    """
+    NewsRegeneration handles incoming user prompts and decides whether to:
+    - Make small edits to existing news content (formatting, grammar, minor rewording)
+    - Fully regenerate news content using Bing Search grounding if the prompt requests something new or if the prompt is empty
 
-## **User Story** – Company & Industry News with Bing Search (MVP1)
+    Uses Azure OpenAI to classify the request and execute the appropriate logic.
+    """
 
-**Title:**
-Retrieve and summarize company and industry news for all clients using Azure OpenAI with Bing Search grounding.
+    def __init__(self, azure_openai_endpoint, azure_openai_key, deployment_name):
+        """
+        Initialize the NewsRegeneration instance.
 
-**As a**
-Business Analyst / Financial Research User
+        :param azure_openai_endpoint: Endpoint URL for Azure OpenAI service.
+        :param azure_openai_key: API key for Azure OpenAI service.
+        :param deployment_name: Model deployment name (e.g., 'gpt-4o').
+        """
+        self.client = ChatCompletionsClient(
+            endpoint=azure_openai_endpoint,
+            credential=DefaultAzureCredential() if not azure_openai_key else azure_openai_key
+        )
+        self.deployment_name = deployment_name
 
-**I want**
-to automatically retrieve, ground, and summarize the latest **company-specific** and **industry-level** news for each client in the portfolio using Bing Search
+    def classify_request(self, user_prompt, existing_content):
+        """
+        Use LLM to decide whether the user request requires:
+        - 'edit': Apply changes to existing content
+        - 'regenerate': Generate entirely new content
 
-**So that**
-I can have accurate, credible, and structured insights covering the past 18 months to support market monitoring, risk assessment, and decision-making.
+        **LLM Prompt Design Guidelines:**
+        - If `user_prompt` is empty: Always return 'regenerate'
+        - If the prompt requests only formatting, grammar fixes, style adjustments, or rewording → return 'edit'
+        - If the prompt requests new details, different data, updated timeline, or a change in topic → return 'regenerate'
 
----
+        :param user_prompt: The user's current request as a string.
+        :param existing_content: The existing news content (if any).
+        :return: 'edit' or 'regenerate'
+        """
+        if not user_prompt.strip():
+            return "regenerate"
 
-### **Description**
+        classification_prompt = f"""
+You are a decision-making assistant.
+You will be given:
+1. A user prompt (what the user wants now)
+2. The existing news content
 
-For MVP1, the system will:
+Your task: Decide whether to 'edit' the existing content or 'regenerate' entirely.
+Rules:
+- If the prompt is about formatting, grammar, styling, or minor rewriting without changing the topic → return 'edit'
+- If the prompt asks for NEW data, updated events, different companies, industries, or dates → return 'regenerate'
+- Always respond with ONLY the word: edit OR regenerate
 
-* Accept a **list of clients** (company names and associated details).
-* For each client:
+User Prompt: {user_prompt}
+Existing Content: {existing_content if existing_content else '[EMPTY]'}
+"""
+        response = self.client.create(
+            model=self.deployment_name,
+            messages=[{"role": "user", "content": classification_prompt}],
+            max_tokens=10,
+            temperature=0
+        )
+        return response.choices[0].message["content"].strip().lower()
 
-  1. Use Azure OpenAI + Bing Search grounding to search **company news** using the **Company News Agent Prompt**.
-  2. Identify the **industry name** for the company (via Azure OpenAI classification).
-  3. Use Azure OpenAI + Bing Search grounding to search **industry news** using the **Industry News Agent Prompt**.
-* Ensure both company and industry news outputs are:
+    def generate_news_with_bing(self, regeneration_prompt):
+        """
+        Regenerate news content using Bing Search grounding.
 
-  * Based **only** on credible sources found via Bing Search.
-  * Within the **last 18 months**.
-  * Structured according to the predefined output formats.
-* Results will be stored for review, with source URLs retained for traceability.
-* **Anti-hallucination** measures in prompts ensure no fabricated content.
+        **Guidelines for the LLM:**
+        - Search for the latest news relevant to the regeneration prompt
+        - Summarize and synthesize information in 300–400 words
+        - Include risk factors, theme validation, market trends, and future outlook (18 months)
+        - Maintain factual accuracy and cite reputable sources when possible
 
----
+        :param regeneration_prompt: The regeneration request prompt.
+        :return: Newly generated news content as a string.
+        """
+        # TODO: Implement Bing Search grounding integration
+        return f"[Regenerated news content for: {regeneration_prompt}]"
 
-### **Acceptance Criteria**
+    def edit_existing_content(self, user_prompt, existing_content):
+        """
+        Apply small edits to existing content using LLM.
 
-#### **AC1 – Company News Retrieval**
+        **Editing Guidelines for the LLM:**
+        - Only modify formatting, grammar, style, or flow
+        - Preserve the factual meaning and details
+        - Do not introduce new facts unless explicitly provided in user prompt
 
-* Given a valid company name from the client list
-* When the system runs the company news agent prompt with Bing Search grounding
-* Then the output:
+        :param user_prompt: Editing instructions from the user.
+        :param existing_content: The original news content.
+        :return: Updated news content as a string.
+        """
+        editing_prompt = f"""
+You are an editing assistant.
+You will be given:
+1. A piece of existing news content
+2. A set of editing instructions
 
-  * Includes all required categories:
+Apply the edits without changing the factual meaning.
 
-    * Personnel changes
-    * M\&A (confirmed or rumored)
-    * Financial news
-    * Earnings reports
-    * Analyst reports
-    * Board meeting notes (for public funds)
-  * Has **300–400 word summary**, key events table, date range, and credible sources list.
-  * States **“No significant updates reported”** where no data exists.
-  * Contains **no hallucinated or unverifiable details**.
+Editing Instructions: {user_prompt}
+Existing Content: {existing_content}
+"""
+        response = self.client.create(
+            model=self.deployment_name,
+            messages=[{"role": "user", "content": editing_prompt}],
+            max_tokens=1000,
+            temperature=0.5
+        )
+        return response.choices[0].message["content"]
 
-#### **AC2 – Industry Identification**
+    def handle_request(self, user_prompt, existing_content=None):
+        """
+        Handle an incoming user request by deciding whether to edit or regenerate.
 
-* Given a company name
-* When the system runs the industry classification prompt
-* Then the output contains **only** the correct primary industry name (single string, no explanation).
-
-#### **AC3 – Industry News Retrieval**
-
-* Given the identified industry name
-* When the system runs the industry news agent prompt with Bing Search grounding
-* Then the output:
-
-  * Includes all required categories:
-
-    * Trends in staff movements
-    * Trends in M\&A
-    * Regulatory or policy changes & impacts
-    * Financial trends
-  * Has **300–400 word summary**, key trends table, date range, and credible sources list.
-  * States **“No significant updates reported”** where no data exists.
-  * Contains **no hallucinated or unverifiable details**.
-
-#### **AC4 – Coverage for All Clients**
-
-* Given the complete client list
-* When the system executes the workflow
-* Then:
-
-  * All clients have both company and industry news outputs.
-  * No client entry is skipped unless explicitly marked invalid.
-  * Any failures are logged with error details.
-
-#### **AC5 – Grounding Validation**
-
-* All retrieved content is grounded in **Bing Search result snippets** and linked to source URLs.
-* No statement is included without an associated credible source in the sources list.
-
----
-
-If you want, I can next **write the Azure DevOps Test Cases table** for this MVP1 user story so your QA team can run it step-by-step and check every acceptance criterion in execution. That way, it will be directly usable in your sprint.
+        :param user_prompt: The user's request string.
+        :param existing_content: Current news content (if any).
+        :return: Final news content string.
+        """
+        decision = self.classify_request(user_prompt, existing_content)
+        if decision == "regenerate":
+            return self.generate_news_with_bing(user_prompt)
+        else:
+            return self.edit_existing_content(user_prompt, existing_content)
