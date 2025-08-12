@@ -1,129 +1,44 @@
-import os
-from azure.identity import DefaultAzureCredential
-from azure.ai.openai import ChatCompletionsClient
+import json
 
-class NewsRegeneration:
-    """
-    NewsRegeneration handles incoming user prompts and decides whether to:
-    - Make small edits to existing news content (formatting, grammar, minor rewording)
-    - Fully regenerate news content using Bing Search grounding if the prompt requests something new or if the prompt is empty
+def get_regeneration_prompt(existing_json, regeneration_instructions, regenerated_json):
+    prompt = """
+You are given:  
+1. Existing content JSON — contains two keys:  
+   - "text" — a string containing the news article text.  
+   - "citations" — a dictionary where keys are citation IDs (like "c1", "c2") and values are citation URLs.  
 
-    Uses Azure OpenAI to classify the request and execute the appropriate logic.
-    """
+2. Regeneration instructions — plain text instructions describing how the new content should be generated or combined with the existing content.  
 
-    def __init__(self, azure_openai_endpoint, azure_openai_key, deployment_name):
-        """
-        Initialize the NewsRegeneration instance.
+3. Regenerated content JSON — same structure as the existing content JSON but with updated text and citations.  
 
-        :param azure_openai_endpoint: Endpoint URL for Azure OpenAI service.
-        :param azure_openai_key: API key for Azure OpenAI service.
-        :param deployment_name: Model deployment name (e.g., 'gpt-4o').
-        """
-        self.client = ChatCompletionsClient(
-            endpoint=azure_openai_endpoint,
-            credential=DefaultAzureCredential() if not azure_openai_key else azure_openai_key
-        )
-        self.deployment_name = deployment_name
+Your Task:  
 
-    def classify_request(self, user_prompt, existing_content):
-        """
-        Use LLM to decide whether the user request requires:
-        - 'edit': Apply changes to existing content
-        - 'regenerate': Generate entirely new content
+- Read the regeneration instructions carefully and determine if you should:  
+  1. Replace the existing content entirely with the regenerated content, OR  
+  2. Combine the regenerated content with the existing content (merge both texts and citations).  
 
-        **LLM Prompt Design Guidelines:**
-        - If `user_prompt` is empty: Always return 'regenerate'
-        - If the prompt requests only formatting, grammar fixes, style adjustments, or rewording → return 'edit'
-        - If the prompt requests new details, different data, updated timeline, or a change in topic → return 'regenerate'
+- When combining:  
+  - Merge the "text" fields, making sure the final text flows logically.  
+  - Merge "citations" from both JSONs.  
+  - If the same citation ID exists in both the existing and regenerated content but refers to a different URL, change one of the IDs to a new unique ID (e.g., "c5") and also update that ID in the "text" where it appears.  
 
-        :param user_prompt: The user's current request as a string.
-        :param existing_content: The existing news content (if any).
-        :return: 'edit' or 'regenerate'
-        """
-        if not user_prompt.strip():
-            return "regenerate"
+- The final output must:  
+  - Be in JSON format, same as the existing content (two keys: "text" and "citations").  
+  - Contain only the final merged or replaced content (no additional commentary, no markdown).  
 
-        classification_prompt = f"""
-You are a decision-making assistant.
-You will be given:
-1. A user prompt (what the user wants now)
-2. The existing news content
+Existing content JSON:
+{existing_content_json}
 
-Your task: Decide whether to 'edit' the existing content or 'regenerate' entirely.
-Rules:
-- If the prompt is about formatting, grammar, styling, or minor rewriting without changing the topic → return 'edit'
-- If the prompt asks for NEW data, updated events, different companies, industries, or dates → return 'regenerate'
-- Always respond with ONLY the word: edit OR regenerate
+Regeneration instructions:
+{regeneration_instructions}
 
-User Prompt: {user_prompt}
-Existing Content: {existing_content if existing_content else '[EMPTY]'}
-"""
-        response = self.client.create(
-            model=self.deployment_name,
-            messages=[{"role": "user", "content": classification_prompt}],
-            max_tokens=10,
-            temperature=0
-        )
-        return response.choices[0].message["content"].strip().lower()
+Regenerated content JSON:
+{regenerated_content_json}
 
-    def generate_news_with_bing(self, regeneration_prompt):
-        """
-        Regenerate news content using Bing Search grounding.
-
-        **Guidelines for the LLM:**
-        - Search for the latest news relevant to the regeneration prompt
-        - Summarize and synthesize information in 300–400 words
-        - Include risk factors, theme validation, market trends, and future outlook (18 months)
-        - Maintain factual accuracy and cite reputable sources when possible
-
-        :param regeneration_prompt: The regeneration request prompt.
-        :return: Newly generated news content as a string.
-        """
-        # TODO: Implement Bing Search grounding integration
-        return f"[Regenerated news content for: {regeneration_prompt}]"
-
-    def edit_existing_content(self, user_prompt, existing_content):
-        """
-        Apply small edits to existing content using LLM.
-
-        **Editing Guidelines for the LLM:**
-        - Only modify formatting, grammar, style, or flow
-        - Preserve the factual meaning and details
-        - Do not introduce new facts unless explicitly provided in user prompt
-
-        :param user_prompt: Editing instructions from the user.
-        :param existing_content: The original news content.
-        :return: Updated news content as a string.
-        """
-        editing_prompt = f"""
-You are an editing assistant.
-You will be given:
-1. A piece of existing news content
-2. A set of editing instructions
-
-Apply the edits without changing the factual meaning.
-
-Editing Instructions: {user_prompt}
-Existing Content: {existing_content}
-"""
-        response = self.client.create(
-            model=self.deployment_name,
-            messages=[{"role": "user", "content": editing_prompt}],
-            max_tokens=1000,
-            temperature=0.5
-        )
-        return response.choices[0].message["content"]
-
-    def handle_request(self, user_prompt, existing_content=None):
-        """
-        Handle an incoming user request by deciding whether to edit or regenerate.
-
-        :param user_prompt: The user's request string.
-        :param existing_content: Current news content (if any).
-        :return: Final news content string.
-        """
-        decision = self.classify_request(user_prompt, existing_content)
-        if decision == "regenerate":
-            return self.generate_news_with_bing(user_prompt)
-        else:
-            return self.edit_existing_content(user_prompt, existing_content)
+Return only the final output JSON.
+""".format(
+        existing_content_json=json.dumps(existing_json, ensure_ascii=False, indent=2),
+        regeneration_instructions=regeneration_instructions,
+        regenerated_content_json=json.dumps(regenerated_json, ensure_ascii=False, indent=2)
+    )
+    return prompt
