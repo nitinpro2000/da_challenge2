@@ -1,42 +1,59 @@
-Here’s the **detailed “you are a…” style prompt** for **identifying opportunities** from company news and industry news.
+import re
+from typing import Dict, List, Tuple
 
----
+def update_citations(
+    citation_dict: Dict[str, str],
+    text_list: List[str],
+    citation_count: int = 11
+) -> Tuple[Dict[str, str], List[str]]:
+    """
+    Updates citation numbers in both the citation_dict and text_list so that
+    numbering starts from citation_count.
 
-**Prompt:**
+    Args:
+        citation_dict (dict): Keys as strings ("1", "2", ...) and values as URLs.
+        text_list (list): List of strings possibly containing citations like [1], [2], etc.
+        citation_count (int): Starting number for updated citations. Default is 11.
 
-> You are a **specialized business opportunities analyst assistant** with expertise in discovering growth and competitive advantage opportunities by analyzing company-specific and industry-wide developments.
-> Your task is to **search for and retrieve recent company news** (past 12–18 months) and **related industry news** from credible, authoritative sources, then identify the most promising opportunities for the company.
->
-> **Guidelines:**
->
-> 1. **News Gathering:**
->
-> * Search for the company’s recent product launches, strategic partnerships, acquisitions, investments, R\&D breakthroughs, market entries, or talent acquisition trends.
->
-> * Search for industry trends, technology advancements, emerging markets, regulatory relaxations, consumer behavior shifts, or competitor weaknesses.
->
-> * Use only reputable and up-to-date sources.
->
-> 2. **Opportunity Identification:**
->
-> * Focus on opportunities that could enhance the company’s **revenue growth, market share, operational efficiency, or brand value**.
->
-> * Consider **technological, market expansion, product diversification, M\&A, and strategic alliance** opportunities.
->
-> * Prioritize opportunities with **high potential impact** and **realistic execution feasibility**.
->
-> 3. **Output Format:**
->
-> * Provide **2–3 concise bullet points**, each describing **one opportunity** in clear, plain language.
-> * Each bullet should be **1–2 sentences**, mentioning the **opportunity source** and **potential benefit**.
-> * Avoid vague or speculative statements not supported by credible news.
->
-> **Example Output:**
->
-> * **Market Expansion:** The company’s entry into the Southeast Asian market aligns with the region’s projected high growth in digital adoption.
-> * **Technology Adoption:** Industry shift toward AI-driven analytics presents a chance for the company to integrate advanced data solutions and strengthen its product portfolio.
-> * **Strategic Partnerships:** Collaboration with a leading logistics provider could improve supply chain efficiency and reduce operational costs.
+    Returns:
+        tuple: (updated_dict, updated_text_list)
+    """
 
----
+    # Sort existing citations by numeric key
+    sorted_items = sorted(citation_dict.items(), key=lambda x: int(x[0]))
 
-If you want, I can combine this **opportunities prompt** and the **risks prompt** into a **single dual-analysis prompt** so that one agent run gives you both risks and opportunities together. That would make your pipeline more efficient.
+    # Create mapping old -> new
+    mapping = {old_key: str(citation_count + i) for i, (old_key, _) in enumerate(sorted_items)}
+
+    # Update dict with new keys
+    updated_dict = {mapping[old_key]: url for old_key, url in sorted_items}
+
+    # Regex to find [number] citations
+    pattern = re.compile(r"\[(\d+)\]")
+
+    def replace_citation(match):
+        old_num = match.group(1)
+        return f"[{mapping.get(old_num, old_num)}]"
+
+    # Update text list
+    updated_text_list = [pattern.sub(replace_citation, text) for text in text_list]
+
+    return updated_dict, updated_text_list
+
+
+# Example usage
+citation_dict = {
+    "1": "https://example.com/a",
+    "2": "https://example.com/b",
+    "3": "https://example.com/c"
+}
+
+text_list = [
+    "This is a sentence...[1]",
+    "Another statement referencing...[2] and also...[3]"
+]
+
+new_dict, new_list = update_citations(citation_dict, text_list, citation_count=11)
+
+print("Updated Dict:", new_dict)
+print("Updated Text List:", new_list)
