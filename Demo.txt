@@ -1,44 +1,12 @@
-import json
+Please provide a concise company profile for **{company_name}** using information from the official website ({company_domain}) and other trusted, reputable sources.  
+Summarize in 3–4 bullet points covering the most important facts, such as:
 
-def get_regeneration_prompt(existing_json, regeneration_instructions, regenerated_json):
-    prompt = """
-You are given:  
-1. Existing content JSON — contains two keys:  
-   - "text" — a string containing the news article text.  
-   - "citations" — a dictionary where keys are citation IDs (like "c1", "c2") and values are citation URLs.  
+- What the company does and its main operations.
+- Mission or vision statement.
+- Founding year and headquarters location.
+- Key products/services or industries served.
 
-2. Regeneration instructions — plain text instructions describing how the new content should be generated or combined with the existing content.  
-
-3. Regenerated content JSON — same structure as the existing content JSON but with updated text and citations.  
-
-Your Task:  
-
-- Read the regeneration instructions carefully and determine if you should:  
-  1. Replace the existing content entirely with the regenerated content, OR  
-  2. Combine the regenerated content with the existing content (merge both texts and citations).  
-
-- When combining:  
-  - Merge the "text" fields, making sure the final text flows logically.  
-  - Merge "citations" from both JSONs.  
-  - If the same citation ID exists in both the existing and regenerated content but refers to a different URL, change one of the IDs to a new unique ID (e.g., "c5") and also update that ID in the "text" where it appears.  
-
-- The final output must:  
-  - Be in JSON format, same as the existing content (two keys: "text" and "citations").  
-  - Contain only the final merged or replaced content (no additional commentary, no markdown).  
-
-Existing content JSON:
-{existing_content_json}
-
-Regeneration instructions:
-{regeneration_instructions}
-
-Regenerated content JSON:
-{regenerated_content_json}
-
-Return only the final output JSON.
-""".format(
-        existing_content_json=json.dumps(existing_json, ensure_ascii=False, indent=2),
-        regeneration_instructions=regeneration_instructions,
-        regenerated_content_json=json.dumps(regenerated_json, ensure_ascii=False, indent=2)
-    )
-    return prompt
+Guidelines:
+- Use only verifiable information from reliable sources.
+- Include the source URL in parentheses after each bullet point.
+- Avoid speculation or unverified claims.
