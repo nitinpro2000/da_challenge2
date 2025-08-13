@@ -5,46 +5,46 @@ def update_citations(
     citation_dict: Dict[str, str],
     text_list: List[str],
     citation_count: int = 11
-) -> Tuple[Dict[str, str], List[str]]:
+) -> Tuple[Dict[str, str], List[str], int]:
     """
-    Updates citation numbers in both the citation_dict and text_list so that
-    numbering starts from citation_count.
+    Updates citation numbers in both citation_dict and text_list so that
+    numbering starts from citation_count, even if dict is empty.
 
     Args:
         citation_dict (dict): Keys as strings ("1", "2", ...) and values as URLs.
         text_list (list): List of strings possibly containing citations like [1], [2], etc.
-        citation_count (int): Starting number for updated citations. Default is 11.
+        citation_count (int): Starting number for updated citations.
 
     Returns:
-        tuple: (updated_dict, updated_text_list)
+        tuple: (updated_dict, updated_text_list, new_citation_count)
     """
 
-    # Sort existing citations by numeric key
-    sorted_items = sorted(citation_dict.items(), key=lambda x: int(x[0]))
-
-    # Create mapping old -> new
-    mapping = {old_key: str(citation_count + i) for i, (old_key, _) in enumerate(sorted_items)}
-
-    # Update dict with new keys
-    updated_dict = {mapping[old_key]: url for old_key, url in sorted_items}
-
-    # Regex to find [number] citations
+    # Regex to find all citations in list
     pattern = re.compile(r"\[(\d+)\]")
+    found_citations = sorted(set(int(m) for text in text_list for m in pattern.findall(text)))
 
+    # Build mapping from old -> new numbers
+    mapping = {str(old): str(citation_count + i) for i, old in enumerate(found_citations)}
+
+    # Update dict keys if dict is not empty
+    updated_dict = {mapping.get(old_key, old_key): url for old_key, url in citation_dict.items()}
+
+    # Replace in text list
     def replace_citation(match):
         old_num = match.group(1)
         return f"[{mapping.get(old_num, old_num)}]"
 
-    # Update text list
     updated_text_list = [pattern.sub(replace_citation, text) for text in text_list]
 
-    return updated_dict, updated_text_list
+    # New citation count after update
+    new_citation_count = citation_count + len(found_citations)
+
+    return updated_dict, updated_text_list, new_citation_count
 
 
 # Example usage
 citation_dict = {
     "1": "https://example.com/a",
-    "2": "https://example.com/b",
     "3": "https://example.com/c"
 }
 
@@ -53,7 +53,8 @@ text_list = [
     "Another statement referencing...[2] and also...[3]"
 ]
 
-new_dict, new_list = update_citations(citation_dict, text_list, citation_count=11)
+new_dict, new_list, new_count = update_citations(citation_dict, text_list, citation_count=11)
 
 print("Updated Dict:", new_dict)
 print("Updated Text List:", new_list)
+print("Next Citation Count:", new_count)
