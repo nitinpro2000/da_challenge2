@@ -1,60 +1,198 @@
-import re
-from typing import Dict, List, Tuple
+import json
+from typing import List, Dict, Any
 
-def update_citations(
-    citation_dict: Dict[str, str],
-    text_list: List[str],
-    citation_count: int = 11
-) -> Tuple[Dict[str, str], List[str], int]:
+# -----------------------------
+# Azure OpenAI LLM Call Helper
+# -----------------------------
+def call_llm(prompt: str, deployment_name: str = "gpt-4o", temperature: float = 0) -> str:
     """
-    Updates citation numbers in both citation_dict and text_list so that
-    numbering starts from citation_count, even if dict is empty.
-
-    Args:
-        citation_dict (dict): Keys as strings ("1", "2", ...) and values as URLs.
-        text_list (list): List of strings possibly containing citations like [1], [2], etc.
-        citation_count (int): Starting number for updated citations.
-
-    Returns:
-        tuple: (updated_dict, updated_text_list, new_citation_count)
+    Calls the Azure OpenAI LLM and returns the raw text output.
     """
+    from openai import AzureOpenAI
+    client = AzureOpenAI(
+        api_key="YOUR_AZURE_OPENAI_KEY",
+        api_version="2024-06-01",
+        azure_endpoint="YOUR_AZURE_OPENAI_ENDPOINT"
+    )
 
-    # Regex to find all citations in list
-    pattern = re.compile(r"\[(\d+)\]")
-    found_citations = sorted(set(int(m) for text in text_list for m in pattern.findall(text)))
+    response = client.chat.completions.create(
+        model=deployment_name,
+        temperature=temperature,
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
 
-    # Build mapping from old -> new numbers
-    mapping = {str(old): str(citation_count + i) for i, old in enumerate(found_citations)}
+    return response.choices[0].message.content.strip()
 
-    # Update dict keys if dict is not empty
-    updated_dict = {mapping.get(old_key, old_key): url for old_key, url in citation_dict.items()}
+# -----------------------------
+# Step 1: Decide Source Type
+# -----------------------------
+def decide_sources(user_prompt: str) -> List[str]:
+    """
+    Returns list like ["call_report", "news", "website_news"]
+    """
+    decision_prompt = f"""
+You are a source classifier for a company profile update system.
 
-    # Replace in text list
-    def replace_citation(match):
-        old_num = match.group(1)
-        return f"[{mapping.get(old_num, old_num)}]"
+Possible content sources:
+1. "call_report" - Internal meeting notes and discussion summaries.
+2. "news" - Recent public news and articles about the company.
+3. "website_news" - Official website announcements and press releases.
 
-    updated_text_list = [pattern.sub(replace_citation, text) for text in text_list]
+Given the user's request below, return ONLY a JSON array with one or more of these values, based on which sources contain the information needed.
 
-    # New citation count after update
-    new_citation_count = citation_count + len(found_citations)
+User Request:
+{user_prompt}
 
-    return updated_dict, updated_text_list, new_citation_count
+Return ONLY a JSON array. Example:
+["call_report"]
+or
+["news", "call_report"]
+"""
+    raw_output = call_llm(decision_prompt)
+    try:
+        return json.loads(raw_output)
+    except json.JSONDecodeError:
+        raise ValueError(f"Unexpected LLM output: {raw_output}")
 
+# -----------------------------
+# Step 2: Fetch Context
+# -----------------------------
+def fetch_context(source_list: List[str]) -> Dict[str, Any]:
+    """
+    Fetches the required contexts based on sources selected by LLM.
+    - For call_report: previous context + new call report data with citations.
+    - For news: latest news data + citations.
+    - For website_news: latest website press releases.
+    """
+    context = {}
 
-# Example usage
-citation_dict = {
-    "1": "https://example.com/a",
-    "3": "https://example.com/c"
-}
+    if "call_report" in source_list:
+        previous_call_report = get_previous_call_report_context()
+        new_call_report = get_new_call_report_data()  # includes call_report_ids & titles
+        context["call_report"] = {
+            "previous": previous_call_report,
+            "new": new_call_report
+        }
 
-text_list = [
-    "This is a sentence...[1]",
-    "Another statement referencing...[2] and also...[3]"
-]
+    if "news" in source_list:
+        context["news"] = get_latest_news_data()  # includes news content & citations
 
-new_dict, new_list, new_count = update_citations(citation_dict, text_list, citation_count=11)
+    if "website_news" in source_list:
+        context["website_news"] = get_website_news()
 
-print("Updated Dict:", new_dict)
-print("Updated Text List:", new_list)
-print("Next Citation Count:", new_count)
+    return context
+
+# -----------------------------
+# Step 3: Decide Section Updates
+# -----------------------------
+def decide_section_updates(user_prompt: str, existing_content_json: Dict[str, Any], new_context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Given user prompt, existing JSON content, and fetched new context,
+    returns only updated sections with merged citations.
+    """
+    update_prompt = f"""
+You are a content update planner for a structured company profile JSON.
+
+Sections in the profile:
+1. "about_the_company" - From website_news only.
+2. "relationship_summary" - From call_report only.
+3. "investment_goals" - From call_report only.
+4. "risks" - From news and/or call_report.
+5. "opportunities" - From news and/or call_report.
+
+You will be given:
+- User's request
+- Existing JSON content for all sections
+- New context from the required sources
+- Citation IDs and titles for call report context
+- Citations for news context (if applicable)
+
+Your task:
+1. Decide which section(s) need updates.
+2. For each section:
+   - Decide if the new information should be appended to the existing content or replace it.
+   - Keep relevant old content if it still applies.
+   - Integrate new citations:
+       * For call report data, keep existing call report citations unless replaced.
+       * For news data, use the provided news citations.
+3. Return an updated JSON with modified sections only.
+
+User Request:
+{user_prompt}
+
+Existing Content JSON:
+{json.dumps(existing_content_json, indent=2)}
+
+New Context:
+{json.dumps(new_context, indent=2)}
+
+Return ONLY the updated sections in JSON format with updated citations.
+"""
+    raw_output = call_llm(update_prompt)
+    try:
+        return json.loads(raw_output)
+    except json.JSONDecodeError:
+        raise ValueError(f"Unexpected LLM output: {raw_output}")
+
+# -----------------------------
+# Example Placeholder Fetch Functions
+# -----------------------------
+def get_previous_call_report_context():
+    return {"relationship_summary": "Existing relationship summary...", "investment_goals": "Existing goals..."}
+
+def get_new_call_report_data():
+    return {
+        "relationship_summary": "New discussion points from call...",
+        "investment_goals": "New investment objectives discussed...",
+        "citations": [
+            {"id": "CR123", "title": "Call Report March"}
+        ]
+    }
+
+def get_latest_news_data():
+    return {
+        "risks": "Company faces supply chain disruptions...",
+        "opportunities": "Expansion into Asian markets...",
+        "citations": [
+            {"id": "NEWS001", "url": "https://news.example.com/article1"}
+        ]
+    }
+
+def get_website_news():
+    return {
+        "about_the_company": "Updated mission and values from company website..."
+    }
+
+# -----------------------------
+# Main Orchestration
+# -----------------------------
+def run_update_pipeline(user_prompt: str, existing_content_json: Dict[str, Any]):
+    # Step 1: Decide sources
+    sources = decide_sources(user_prompt)
+    print(f"Sources selected: {sources}")
+
+    # Step 2: Fetch context
+    new_context = fetch_context(sources)
+
+    # Step 3: Decide updates
+    updated_sections = decide_section_updates(user_prompt, existing_content_json, new_context)
+    print("Updated Sections:", json.dumps(updated_sections, indent=2))
+
+    return updated_sections
+
+# -----------------------------
+# Example Run
+# -----------------------------
+if __name__ == "__main__":
+    user_prompt = "Add the latest quarterly call highlights and mention any new risks found in news."
+    existing_content = {
+        "about_the_company": "Company overview text...",
+        "relationship_summary": "Old summary...",
+        "investment_goals": "Old goals...",
+        "risks": "Old risks...",
+        "opportunities": "Old opportunities..."
+    }
+
+    run_update_pipeline(user_prompt, existing_content)
