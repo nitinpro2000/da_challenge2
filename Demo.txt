@@ -1,198 +1,135 @@
-import json
-from typing import List, Dict, Any
+from typing import List, Dict
+from openai import AzureOpenAI  # or openai if using OpenAI directly
 
-# -----------------------------
-# Azure OpenAI LLM Call Helper
-# -----------------------------
-def call_llm(prompt: str, deployment_name: str = "gpt-4o", temperature: float = 0) -> str:
-    """
-    Calls the Azure OpenAI LLM and returns the raw text output.
-    """
-    from openai import AzureOpenAI
-    client = AzureOpenAI(
-        api_key="YOUR_AZURE_OPENAI_KEY",
-        api_version="2024-06-01",
-        azure_endpoint="YOUR_AZURE_OPENAI_ENDPOINT"
-    )
+class ContextUpdatePlanner:
+    def __init__(self, llm_client: AzureOpenAI, pg_conn):
+        """
+        llm_client: AzureOpenAI client for LLM calls
+        pg_conn: PostgreSQL connection for fetching call report/news/website data
+        """
+        self.llm_client = llm_client
+        self.pg_conn = pg_conn
 
-    response = client.chat.completions.create(
-        model=deployment_name,
-        temperature=temperature,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
+    def _ask_source_type(self, user_prompt: str) -> str:
+        """
+        Step 1: Ask LLM where to get the new context from.
+        Only returns one of: 'call_report', 'news', 'website_news'
+        """
+        system_prompt = """
+        You are a classification assistant.
+        Based on the user's request, decide where the new context should be retrieved from.
+        Only respond with exactly one of the following values:
+        - call_report
+        - news
+        - website_news
 
-    return response.choices[0].message.content.strip()
+        Rules:
+        - If the user mentions "call report", "call notes", "meeting notes" → call_report
+        - If the user mentions "news" or "market news" → news
+        - If the user mentions "website" or "company website" → website_news
+        """
+        response = self.llm_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt.strip()},
+                {"role": "user", "content": user_prompt.strip()}
+            ],
+            temperature=0
+        )
+        return response.choices[0].message.content.strip()
 
-# -----------------------------
-# Step 1: Decide Source Type
-# -----------------------------
-def decide_sources(user_prompt: str) -> List[str]:
-    """
-    Returns list like ["call_report", "news", "website_news"]
-    """
-    decision_prompt = f"""
-You are a source classifier for a company profile update system.
-
-Possible content sources:
-1. "call_report" - Internal meeting notes and discussion summaries.
-2. "news" - Recent public news and articles about the company.
-3. "website_news" - Official website announcements and press releases.
-
-Given the user's request below, return ONLY a JSON array with one or more of these values, based on which sources contain the information needed.
-
-User Request:
-{user_prompt}
-
-Return ONLY a JSON array. Example:
-["call_report"]
-or
-["news", "call_report"]
-"""
-    raw_output = call_llm(decision_prompt)
-    try:
-        return json.loads(raw_output)
-    except json.JSONDecodeError:
-        raise ValueError(f"Unexpected LLM output: {raw_output}")
-
-# -----------------------------
-# Step 2: Fetch Context
-# -----------------------------
-def fetch_context(source_list: List[str]) -> Dict[str, Any]:
-    """
-    Fetches the required contexts based on sources selected by LLM.
-    - For call_report: previous context + new call report data with citations.
-    - For news: latest news data + citations.
-    - For website_news: latest website press releases.
-    """
-    context = {}
-
-    if "call_report" in source_list:
-        previous_call_report = get_previous_call_report_context()
-        new_call_report = get_new_call_report_data()  # includes call_report_ids & titles
-        context["call_report"] = {
-            "previous": previous_call_report,
-            "new": new_call_report
+    def _fetch_call_report_context(self) -> Dict:
+        """
+        Fetch call report context, citation IDs, and titles from PostgreSQL.
+        Also include previous call report context.
+        """
+        with self.pg_conn.cursor() as cur:
+            cur.execute("SELECT report_id, title, content FROM call_reports ORDER BY created_at DESC LIMIT 5;")
+            rows = cur.fetchall()
+        context = [{"id": r[0], "title": r[1], "content": r[2]} for r in rows]
+        previous_context = " ".join([c["content"] for c in context])
+        return {
+            "previous_context": previous_context,
+            "call_reports": context
         }
 
-    if "news" in source_list:
-        context["news"] = get_latest_news_data()  # includes news content & citations
+    def _fetch_news_context(self) -> Dict:
+        """
+        Fetch latest news content and citations from your existing news generation logic.
+        """
+        # This is a placeholder — replace with your actual news generation function
+        news_content = "Generated fresh news content..."
+        news_citations = [{"id": 101, "url": "https://example.com/news1"}]
+        return {
+            "news_content": news_content,
+            "news_citations": news_citations
+        }
 
-    if "website_news" in source_list:
-        context["website_news"] = get_website_news()
+    def _fetch_website_news_context(self) -> Dict:
+        """
+        Fetch website news content (from database or API).
+        """
+        with self.pg_conn.cursor() as cur:
+            cur.execute("SELECT content FROM website_news ORDER BY created_at DESC LIMIT 1;")
+            row = cur.fetchone()
+        return {
+            "website_news_content": row[0] if row else ""
+        }
 
-    return context
+    def _decide_section_updates(self, user_prompt: str, context_data: Dict) -> Dict:
+        """
+        Step 2: Ask LLM which sections to update, 
+        whether to include existing content or new content only, 
+        and handle citation mapping.
+        """
+        system_prompt = """
+        You are an update planner.
+        You will receive:
+        - User's request
+        - Retrieved context (call report/news/website news)
+        Your job:
+        - Decide which sections in the document should be updated
+        - For each section, decide if we should include existing content or replace with new content
+        - Suggest citation mapping for any new information
+        Return as JSON with:
+        {
+            "sections_to_update": [
+                {"name": "<section_name>", "mode": "append|replace", "citations": [<ids>]}
+            ]
+        }
+        """
+        response = self.llm_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt.strip()},
+                {"role": "user", "content": f"User request: {user_prompt}\n\nContext:\n{context_data}"}
+            ],
+            temperature=0
+        )
+        return response.choices[0].message.content.strip()
 
-# -----------------------------
-# Step 3: Decide Section Updates
-# -----------------------------
-def decide_section_updates(user_prompt: str, existing_content_json: Dict[str, Any], new_context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Given user prompt, existing JSON content, and fetched new context,
-    returns only updated sections with merged citations.
-    """
-    update_prompt = f"""
-You are a content update planner for a structured company profile JSON.
+    def process_request(self, user_prompt: str) -> Dict:
+        """
+        Orchestrates the entire flow:
+        1. Detect source type
+        2. Fetch context accordingly
+        3. Pass to LLM for section update planning
+        """
+        source_type = self._ask_source_type(user_prompt)
 
-Sections in the profile:
-1. "about_the_company" - From website_news only.
-2. "relationship_summary" - From call_report only.
-3. "investment_goals" - From call_report only.
-4. "risks" - From news and/or call_report.
-5. "opportunities" - From news and/or call_report.
+        if source_type == "call_report":
+            context_data = self._fetch_call_report_context()
+        elif source_type == "news":
+            context_data = self._fetch_news_context()
+        elif source_type == "website_news":
+            context_data = self._fetch_website_news_context()
+        else:
+            raise ValueError(f"Unexpected source type: {source_type}")
 
-You will be given:
-- User's request
-- Existing JSON content for all sections
-- New context from the required sources
-- Citation IDs and titles for call report context
-- Citations for news context (if applicable)
+        section_plan = self._decide_section_updates(user_prompt, context_data)
 
-Your task:
-1. Decide which section(s) need updates.
-2. For each section:
-   - Decide if the new information should be appended to the existing content or replace it.
-   - Keep relevant old content if it still applies.
-   - Integrate new citations:
-       * For call report data, keep existing call report citations unless replaced.
-       * For news data, use the provided news citations.
-3. Return an updated JSON with modified sections only.
-
-User Request:
-{user_prompt}
-
-Existing Content JSON:
-{json.dumps(existing_content_json, indent=2)}
-
-New Context:
-{json.dumps(new_context, indent=2)}
-
-Return ONLY the updated sections in JSON format with updated citations.
-"""
-    raw_output = call_llm(update_prompt)
-    try:
-        return json.loads(raw_output)
-    except json.JSONDecodeError:
-        raise ValueError(f"Unexpected LLM output: {raw_output}")
-
-# -----------------------------
-# Example Placeholder Fetch Functions
-# -----------------------------
-def get_previous_call_report_context():
-    return {"relationship_summary": "Existing relationship summary...", "investment_goals": "Existing goals..."}
-
-def get_new_call_report_data():
-    return {
-        "relationship_summary": "New discussion points from call...",
-        "investment_goals": "New investment objectives discussed...",
-        "citations": [
-            {"id": "CR123", "title": "Call Report March"}
-        ]
-    }
-
-def get_latest_news_data():
-    return {
-        "risks": "Company faces supply chain disruptions...",
-        "opportunities": "Expansion into Asian markets...",
-        "citations": [
-            {"id": "NEWS001", "url": "https://news.example.com/article1"}
-        ]
-    }
-
-def get_website_news():
-    return {
-        "about_the_company": "Updated mission and values from company website..."
-    }
-
-# -----------------------------
-# Main Orchestration
-# -----------------------------
-def run_update_pipeline(user_prompt: str, existing_content_json: Dict[str, Any]):
-    # Step 1: Decide sources
-    sources = decide_sources(user_prompt)
-    print(f"Sources selected: {sources}")
-
-    # Step 2: Fetch context
-    new_context = fetch_context(sources)
-
-    # Step 3: Decide updates
-    updated_sections = decide_section_updates(user_prompt, existing_content_json, new_context)
-    print("Updated Sections:", json.dumps(updated_sections, indent=2))
-
-    return updated_sections
-
-# -----------------------------
-# Example Run
-# -----------------------------
-if __name__ == "__main__":
-    user_prompt = "Add the latest quarterly call highlights and mention any new risks found in news."
-    existing_content = {
-        "about_the_company": "Company overview text...",
-        "relationship_summary": "Old summary...",
-        "investment_goals": "Old goals...",
-        "risks": "Old risks...",
-        "opportunities": "Old opportunities..."
-    }
-
-    run_update_pipeline(user_prompt, existing_content)
+        return {
+            "source_type": source_type,
+            "context_data": context_data,
+            "section_plan": section_plan
+        }
