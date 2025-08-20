@@ -1,198 +1,121 @@
-import json
-from typing import List, Dict, Any
+import psycopg2
+import snowflake.connector
+import requests
 
-# -----------------------------
-# Azure OpenAI LLM Call Helper
-# -----------------------------
-def call_llm(prompt: str, deployment_name: str = "gpt-4o", temperature: float = 0) -> str:
+
+class TestConnections:
     """
-    Calls the Azure OpenAI LLM and returns the raw text output.
+    Class to test connections for Postgres, Snowflake, and Azure OpenAI.
+    Runs a small query/request to ensure the service is functional.
     """
-    from openai import AzureOpenAI
-    client = AzureOpenAI(
-        api_key="YOUR_AZURE_OPENAI_KEY",
-        api_version="2024-06-01",
-        azure_endpoint="YOUR_AZURE_OPENAI_ENDPOINT"
-    )
 
-    response = client.chat.completions.create(
-        model=deployment_name,
-        temperature=temperature,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
+    def __init__(self, postgres_config=None, snowflake_config=None, azure_openai_config=None):
+        self.postgres_config = postgres_config
+        self.snowflake_config = snowflake_config
+        self.azure_openai_config = azure_openai_config
 
-    return response.choices[0].message.content.strip()
+    def test_postgres(self):
+        """Test PostgreSQL connection and run a sample query."""
+        try:
+            conn = psycopg2.connect(
+                host=self.postgres_config["host"],
+                port=self.postgres_config.get("port", 5432),
+                dbname=self.postgres_config["dbname"],
+                user=self.postgres_config["user"],
+                password=self.postgres_config["password"]
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT version();")  # simple query
+            version = cur.fetchone()[0]
+            conn.close()
+            return True, f"Postgres connection successful. Version: {version}"
+        except Exception as e:
+            return False, f"Postgres connection failed: {e}"
 
-# -----------------------------
-# Step 1: Decide Source Type
-# -----------------------------
-def decide_sources(user_prompt: str) -> List[str]:
-    """
-    Returns list like ["call_report", "news", "website_news"]
-    """
-    decision_prompt = f"""
-You are a source classifier for a company profile update system.
+    def test_snowflake(self):
+        """Test Snowflake connection and run a sample query."""
+        try:
+            conn = snowflake.connector.connect(
+                user=self.snowflake_config["user"],
+                password=self.snowflake_config["password"],
+                account=self.snowflake_config["account"],
+                warehouse=self.snowflake_config.get("warehouse"),
+                database=self.snowflake_config.get("database"),
+                schema=self.snowflake_config.get("schema"),
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT CURRENT_VERSION();")
+            version = cur.fetchone()[0]
+            conn.close()
+            return True, f"Snowflake connection successful. Version: {version}"
+        except Exception as e:
+            return False, f"Snowflake connection failed: {e}"
 
-Possible content sources:
-1. "call_report" - Internal meeting notes and discussion summaries.
-2. "news" - Recent public news and articles about the company.
-3. "website_news" - Official website announcements and press releases.
+    def test_azure_openai(self):
+        """Test Azure OpenAI endpoint connection with a small prompt."""
+        try:
+            url = f"{self.azure_openai_config['endpoint']}/openai/deployments/{self.azure_openai_config['deployment_name']}/chat/completions?api-version={self.azure_openai_config['api_version']}"
+            headers = {
+                "Content-Type": "application/json",
+                "api-key": self.azure_openai_config["api_key"]
+            }
+            data = {
+                "messages": [{"role": "user", "content": "Say 'pong' if you can read this."}],
+                "max_tokens": 5
+            }
+            response = requests.post(url, headers=headers, json=data, timeout=10)
 
-Given the user's request below, return ONLY a JSON array with one or more of these values, based on which sources contain the information needed.
+            if response.status_code == 200:
+                text = response.json()["choices"][0]["message"]["content"]
+                return True, f"Azure OpenAI connection successful. Response: {text}"
+            else:
+                return False, f"Azure OpenAI connection failed: {response.status_code}, {response.text}"
+        except Exception as e:
+            return False, f"Azure OpenAI connection failed: {e}"
 
-User Request:
-{user_prompt}
+    def test_all(self):
+        """
+        Run all connection tests and return results as a dict.
+        This ensures one failure doesn't stop other checks.
+        """
+        results = {}
+        if self.postgres_config:
+            results["Postgres"] = self.test_postgres()
+        if self.snowflake_config:
+            results["Snowflake"] = self.test_snowflake()
+        if self.azure_openai_config:
+            results["AzureOpenAI"] = self.test_azure_openai()
+        return results
 
-Return ONLY a JSON array. Example:
-["call_report"]
-or
-["news", "call_report"]
-"""
-    raw_output = call_llm(decision_prompt)
-    try:
-        return json.loads(raw_output)
-    except json.JSONDecodeError:
-        raise ValueError(f"Unexpected LLM output: {raw_output}")
 
-# -----------------------------
-# Step 2: Fetch Context
-# -----------------------------
-def fetch_context(source_list: List[str]) -> Dict[str, Any]:
-    """
-    Fetches the required contexts based on sources selected by LLM.
-    - For call_report: previous context + new call report data with citations.
-    - For news: latest news data + citations.
-    - For website_news: latest website press releases.
-    """
-    context = {}
-
-    if "call_report" in source_list:
-        previous_call_report = get_previous_call_report_context()
-        new_call_report = get_new_call_report_data()  # includes call_report_ids & titles
-        context["call_report"] = {
-            "previous": previous_call_report,
-            "new": new_call_report
-        }
-
-    if "news" in source_list:
-        context["news"] = get_latest_news_data()  # includes news content & citations
-
-    if "website_news" in source_list:
-        context["website_news"] = get_website_news()
-
-    return context
-
-# -----------------------------
-# Step 3: Decide Section Updates
-# -----------------------------
-def decide_section_updates(user_prompt: str, existing_content_json: Dict[str, Any], new_context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Given user prompt, existing JSON content, and fetched new context,
-    returns only updated sections with merged citations.
-    """
-    update_prompt = f"""
-You are a content update planner for a structured company profile JSON.
-
-Sections in the profile:
-1. "about_the_company" - From website_news only.
-2. "relationship_summary" - From call_report only.
-3. "investment_goals" - From call_report only.
-4. "risks" - From news and/or call_report.
-5. "opportunities" - From news and/or call_report.
-
-You will be given:
-- User's request
-- Existing JSON content for all sections
-- New context from the required sources
-- Citation IDs and titles for call report context
-- Citations for news context (if applicable)
-
-Your task:
-1. Decide which section(s) need updates.
-2. For each section:
-   - Decide if the new information should be appended to the existing content or replace it.
-   - Keep relevant old content if it still applies.
-   - Integrate new citations:
-       * For call report data, keep existing call report citations unless replaced.
-       * For news data, use the provided news citations.
-3. Return an updated JSON with modified sections only.
-
-User Request:
-{user_prompt}
-
-Existing Content JSON:
-{json.dumps(existing_content_json, indent=2)}
-
-New Context:
-{json.dumps(new_context, indent=2)}
-
-Return ONLY the updated sections in JSON format with updated citations.
-"""
-    raw_output = call_llm(update_prompt)
-    try:
-        return json.loads(raw_output)
-    except json.JSONDecodeError:
-        raise ValueError(f"Unexpected LLM output: {raw_output}")
-
-# -----------------------------
-# Example Placeholder Fetch Functions
-# -----------------------------
-def get_previous_call_report_context():
-    return {"relationship_summary": "Existing relationship summary...", "investment_goals": "Existing goals..."}
-
-def get_new_call_report_data():
-    return {
-        "relationship_summary": "New discussion points from call...",
-        "investment_goals": "New investment objectives discussed...",
-        "citations": [
-            {"id": "CR123", "title": "Call Report March"}
-        ]
-    }
-
-def get_latest_news_data():
-    return {
-        "risks": "Company faces supply chain disruptions...",
-        "opportunities": "Expansion into Asian markets...",
-        "citations": [
-            {"id": "NEWS001", "url": "https://news.example.com/article1"}
-        ]
-    }
-
-def get_website_news():
-    return {
-        "about_the_company": "Updated mission and values from company website..."
-    }
-
-# -----------------------------
-# Main Orchestration
-# -----------------------------
-def run_update_pipeline(user_prompt: str, existing_content_json: Dict[str, Any]):
-    # Step 1: Decide sources
-    sources = decide_sources(user_prompt)
-    print(f"Sources selected: {sources}")
-
-    # Step 2: Fetch context
-    new_context = fetch_context(sources)
-
-    # Step 3: Decide updates
-    updated_sections = decide_section_updates(user_prompt, existing_content_json, new_context)
-    print("Updated Sections:", json.dumps(updated_sections, indent=2))
-
-    return updated_sections
-
-# -----------------------------
-# Example Run
-# -----------------------------
 if __name__ == "__main__":
-    user_prompt = "Add the latest quarterly call highlights and mention any new risks found in news."
-    existing_content = {
-        "about_the_company": "Company overview text...",
-        "relationship_summary": "Old summary...",
-        "investment_goals": "Old goals...",
-        "risks": "Old risks...",
-        "opportunities": "Old opportunities..."
+    postgres_cfg = {
+        "host": "localhost",
+        "port": 5432,
+        "dbname": "postgres",
+        "user": "postgres",
+        "password": "postgres"
     }
 
-    run_update_pipeline(user_prompt, existing_content)
+    snowflake_cfg = {
+        "user": "dummy_user",
+        "password": "dummy_pass",
+        "account": "dummy_account",
+        "warehouse": "dummy_wh",
+        "database": "dummy_db",
+        "schema": "dummy_schema"
+    }
+
+    azure_openai_cfg = {
+        "endpoint": "https://your-resource-name.openai.azure.com",
+        "api_key": "dummy_key",
+        "deployment_name": "gpt-35-turbo",
+        "api_version": "2024-05-01-preview"
+    }
+
+    tester = TestConnections(postgres_cfg, snowflake_cfg, azure_openai_cfg)
+    results = tester.test_all()
+
+    print("\nConnection Test Results:")
+    for service, (ok, message) in results.items():
+        print(f"{service}: {message}")
