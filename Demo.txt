@@ -1,121 +1,32 @@
-import psycopg2
-import snowflake.connector
-import requests
+Got it 👍 — here’s a **refined, professional prompt** you can directly give to your Agent with Bing search tool. It’s optimized for clarity, reliability, and structured output:
 
+---
 
-class TestConnections:
-    """
-    Class to test connections for Postgres, Snowflake, and Azure OpenAI.
-    Runs a small query/request to ensure the service is functional.
-    """
+**Prompt:**
 
-    def __init__(self, postgres_config=None, snowflake_config=None, azure_openai_config=None):
-        self.postgres_config = postgres_config
-        self.snowflake_config = snowflake_config
-        self.azure_openai_config = azure_openai_config
+You are an AI assistant with access to the Bing search tool.
+Do **not** use internal knowledge. Always perform an **external web search** using Bing to gather the latest and most accurate information.
 
-    def test_postgres(self):
-        """Test PostgreSQL connection and run a sample query."""
-        try:
-            conn = psycopg2.connect(
-                host=self.postgres_config["host"],
-                port=self.postgres_config.get("port", 5432),
-                dbname=self.postgres_config["dbname"],
-                user=self.postgres_config["user"],
-                password=self.postgres_config["password"]
-            )
-            cur = conn.cursor()
-            cur.execute("SELECT version();")  # simple query
-            version = cur.fetchone()[0]
-            conn.close()
-            return True, f"Postgres connection successful. Version: {version}"
-        except Exception as e:
-            return False, f"Postgres connection failed: {e}"
+Your task is to create a **concise company summary**. Follow these steps:
 
-    def test_snowflake(self):
-        """Test Snowflake connection and run a sample query."""
-        try:
-            conn = snowflake.connector.connect(
-                user=self.snowflake_config["user"],
-                password=self.snowflake_config["password"],
-                account=self.snowflake_config["account"],
-                warehouse=self.snowflake_config.get("warehouse"),
-                database=self.snowflake_config.get("database"),
-                schema=self.snowflake_config.get("schema"),
-            )
-            cur = conn.cursor()
-            cur.execute("SELECT CURRENT_VERSION();")
-            version = cur.fetchone()[0]
-            conn.close()
-            return True, f"Snowflake connection successful. Version: {version}"
-        except Exception as e:
-            return False, f"Snowflake connection failed: {e}"
+1. Search for the company using authoritative and reliable sources (official website, annual reports, reputable outlets like Bloomberg, Reuters, Crunchbase, or Forbes).
+2. Extract only **verified and recent information**.
+3. Summarize the findings in **3–4 bullet points**, each bullet covering one of the following:
 
-    def test_azure_openai(self):
-        """Test Azure OpenAI endpoint connection with a small prompt."""
-        try:
-            url = f"{self.azure_openai_config['endpoint']}/openai/deployments/{self.azure_openai_config['deployment_name']}/chat/completions?api-version={self.azure_openai_config['api_version']}"
-            headers = {
-                "Content-Type": "application/json",
-                "api-key": self.azure_openai_config["api_key"]
-            }
-            data = {
-                "messages": [{"role": "user", "content": "Say 'pong' if you can read this."}],
-                "max_tokens": 5
-            }
-            response = requests.post(url, headers=headers, json=data, timeout=10)
+   * What the company does and its main operations.
+   * Mission or vision statement (if available).
+   * Founding year and headquarters location.
+   * Key products, services, or industries served.
+4. Keep the language factual, neutral, and concise.
+5. At the end, list your sources with proper citations (e.g., \[1], \[2]).
 
-            if response.status_code == 200:
-                text = response.json()["choices"][0]["message"]["content"]
-                return True, f"Azure OpenAI connection successful. Response: {text}"
-            else:
-                return False, f"Azure OpenAI connection failed: {response.status_code}, {response.text}"
-        except Exception as e:
-            return False, f"Azure OpenAI connection failed: {e}"
+**Output format:**
 
-    def test_all(self):
-        """
-        Run all connection tests and return results as a dict.
-        This ensures one failure doesn't stop other checks.
-        """
-        results = {}
-        if self.postgres_config:
-            results["Postgres"] = self.test_postgres()
-        if self.snowflake_config:
-            results["Snowflake"] = self.test_snowflake()
-        if self.azure_openai_config:
-            results["AzureOpenAI"] = self.test_azure_openai()
-        return results
+* A 3–4 bullet point summary.
+* Citations for each fact from external sources.
 
+---
 
-if __name__ == "__main__":
-    postgres_cfg = {
-        "host": "localhost",
-        "port": 5432,
-        "dbname": "postgres",
-        "user": "postgres",
-        "password": "postgres"
-    }
+👉 This way the Agent is *forced to perform Bing search*, *extract structured info*, and *present it cleanly*.
 
-    snowflake_cfg = {
-        "user": "dummy_user",
-        "password": "dummy_pass",
-        "account": "dummy_account",
-        "warehouse": "dummy_wh",
-        "database": "dummy_db",
-        "schema": "dummy_schema"
-    }
-
-    azure_openai_cfg = {
-        "endpoint": "https://your-resource-name.openai.azure.com",
-        "api_key": "dummy_key",
-        "deployment_name": "gpt-35-turbo",
-        "api_version": "2024-05-01-preview"
-    }
-
-    tester = TestConnections(postgres_cfg, snowflake_cfg, azure_openai_cfg)
-    results = tester.test_all()
-
-    print("\nConnection Test Results:")
-    for service, (ok, message) in results.items():
-        print(f"{service}: {message}")
+Do you also want me to **add a JSON-style output option** (with fields like `company_overview`, `mission`, `founded`, `products_services`) in case you plan to parse this downstream in your pipeline?
