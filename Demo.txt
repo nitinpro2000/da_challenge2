@@ -1,11 +1,23 @@
-from pydantic import BaseModel, constr, Field
-from uuid import UUID
+def fix_mojibake(text: str) -> str:
+    replacements = {
+        "â€™": "’",   # right single quotation mark (apostrophe)
+        "â€˜": "‘",   # left single quotation mark
+        "â€”": "—",   # em dash
+        "â€“": "–",   # en dash
+        "â€œ": "“",   # left double quote
+        "â€": "”",   # right double quote
+        "â€¦": "…",   # ellipsis
+    }
 
-class RegenerateRequest(BaseModel):
-    user_id: UUID
-    memo_id: UUID
-    section: constr(strip_whitespace=True, min_length=1)
-    user_prompt: str | None = Field(None, alias="user prompt")
+    for wrong, correct in replacements.items():
+        text = text.replace(wrong, correct)
 
-    class Config:
-        allow_population_by_field_name = True  # accepts both "user_prompt" and "user prompt"
+    return text
+
+
+# Example usage
+raw_text = """Yale Universityâ€™s endowment delivered a 5.7% return â€” trailing peers.
+In Q2â€“Q3 2025, Yale said: â€œProject Gatsbyâ€ begins..."""
+
+cleaned_text = fix_mojibake(raw_text)
+print(cleaned_text)
