@@ -1,23 +1,28 @@
+import openpyxl
+
 def fix_mojibake(text: str) -> str:
+    if not isinstance(text, str):
+        return text
     replacements = {
-        "â€™": "’",   # right single quotation mark (apostrophe)
-        "â€˜": "‘",   # left single quotation mark
-        "â€”": "—",   # em dash
-        "â€“": "–",   # en dash
-        "â€œ": "“",   # left double quote
-        "â€": "”",   # right double quote
-        "â€¦": "…",   # ellipsis
+        "â€™": "’",  # apostrophe
+        "â€œ": "“",
+        "â€�": "”",
+        "â€“": "–",  # en dash
+        "â€”": "—",  # em dash
+        "â€¦": "…",
+        "â€": "”",  # sometimes stray quotes
     }
-
-    for wrong, correct in replacements.items():
-        text = text.replace(wrong, correct)
-
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
     return text
 
+# Load and fix workbook
+wb = openpyxl.load_workbook("input.xlsx")
+for sheet in wb.sheetnames:
+    ws = wb[sheet]
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str):
+                cell.value = fix_mojibake(cell.value)
 
-# Example usage
-raw_text = """Yale Universityâ€™s endowment delivered a 5.7% return â€” trailing peers.
-In Q2â€“Q3 2025, Yale said: â€œProject Gatsbyâ€ begins..."""
-
-cleaned_text = fix_mojibake(raw_text)
-print(cleaned_text)
+wb.save("fixed.xlsx")
