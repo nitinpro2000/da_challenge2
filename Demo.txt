@@ -1,162 +1,40 @@
-from typing import Any
-from azure.ai.projects import AIProjectClient
-from azure.ai.agents.models import MessageRole, BingGroundingTool
-from azure.core.pipeline.transport import AsyncHttpTransport
-from azure.identity import DefaultAzureCredential
-from environment import EnvironmentConfig
-from src.utils.logger import setup_logger
-from src.utils.guardrails import response_guardrails
-from ftfy import fix_text
-import os
-import ssl
+from src.agents.external_info_agent.bing_search_plugin import BingSearchPlugin
+from src.variables import BING_SEARCH_RETRY_THRESHOLD
+import json
 
 
-class BingSearchPlugin:
-    def __init__(self):
-        self.env = EnvironmentConfig()
-        self.model = self.env.AZURE_OPENAI_MODEL_BING
-        self.client = None  # Placeholder for client management, if needed
-        self.agent = None   # Placeholder for agent management, if needed
-        self.thread = None
-        self.logger = setup_logger(__name__)
+def run_bing_agent(content: str, instructions: str):
+    retry = True
+    run_count = 0
+    messages = {}
 
-        # Example for SSL context if needed
-        # self.ssl_context = ssl.create_default_context(cafile=os.environ["SSL_CERT_FILE"])
-        # self.transport = AsyncHttpTransport(ssl_context=self.ssl_context)
-        # self.transport = AsyncHttpTransport(connection_verify=False)
+    while retry and run_count < BING_SEARCH_RETRY_THRESHOLD:
+        bingFoundryProjectCompanyNews = BingSearchPlugin()
+        bingFoundryProjectCompanyNews.auth()
 
-    def __enter__(self):
-        self.client.__enter__()
-        return self
-
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        self.client.__exit__(exc_type, exc_value, traceback)
-        return self
-
-    def fix_mojibake(self, text: str) -> str:
-        replacements = {
-            "Ã¤": "ä",
-            "Ã„": "Ä",
-            "Ã¼": "ü",
-            "Ãœ": "Ü",
-            "Ã¶": "ö",
-            "Ã–": "Ö",
-            "ÃŸ": "ß",
-        }
-        for wrong, correct in replacements.items():
-            text = text.replace(wrong, correct)
-        return text
-
-    def auth(self):
-        project_client = AIProjectClient(
-            endpoint=self.env.AZURE_FOUNDRY_PROJECT_ENDPOINT_BING,
-            credential=DefaultAzureCredential(),
+        client = bingFoundryProjectCompanyNews.client
+        agent = bingFoundryProjectCompanyNews.createAgent(
+            client=client, instructions=instructions
         )
-        self.logger.info("Foundry Project Client created successfully.")
-        self.client = project_client
-        return project_client
-
-    def createAgent(self, client: AIProjectClient, instructions: str):
-        if not client:
-            raise ValueError("Client must be initialized before creating an agent.")
-
-        self.logger.info("Creating agent...")
-        bing = BingGroundingTool(connection_id=self.env.AZURE_BING_CONNECTION_ID)
-        agents_client = client.agents
-
-        # Create an agent with the Bing Grounding tool
-        agent = agents_client.create_agent(
-            model=self.model,
-            name="news_agent",
-            instructions=instructions,
-            tools=bing.definitions,
+        thread = bingFoundryProjectCompanyNews.createThread(
+            client=client, agent=agent, content=content
         )
-        self.logger.info(f"Created agent, ID: {agent.id}")
-        self.agent = agent
-        return agent
-
-    def createThread(self, client: AIProjectClient, agent=None, content: str = None):
-        if not agent:
-            raise ValueError("Agent must be initialized before creating a thread.")
-
-        thread = client.agents.threads.create()
-        self.logger.info(f"Created thread, ID: {thread.id}")
-
-        # Add a message to the thread
-        message = client.agents.messages.create(
-            thread_id=thread.id,
-            role=MessageRole.USER,
-            content=content,
-        )
-        self.logger.info(f"Created message, ID: {message['id']}")
-
-        self.thread = thread
-        return thread
-
-    def createRun(self, client: AIProjectClient, agent=None, thread=None):
-        self.logger.info("Start of create run")
-        if not thread:
-            raise ValueError("Thread must be initialized before creating a run.")
-
-        retry = False
-        run = client.agents.runs.create_and_process(
-            thread_id=thread.id,
-            agent_id=agent.id,
-            tool_choice={"type": "bing_grounding"},
+        messages, retry = bingFoundryProjectCompanyNews.createRun(
+            client=client, agent=agent, thread=thread
         )
 
-        self.logger.info(f"Run finished with status: {run.status}")
+        bingFoundryProjectCompanyNews.deleteAgent(client=client, agent=agent)
 
-        if run.status == "failed":
-            self.logger.info(f"Run failed with error: {run.last_error}")
-
-        if run.status in ["failed", "incomplete"]:
+        # If no citations are found, force retry
+        if not messages.get("citations"):
             retry = True
 
-        # Collect messages
-        messages = client.agents.messages.list(thread_id=thread.id)
-        messages_list = []
-        citations = {}
-
-        for message in messages:
-            messages_list.append([message.role, message.content])
-
         try:
-            text = (
-                messages_list[-2][1][0]["text"]["value"]
-                .replace("```markdown\n", "")
-                .replace("```", "")
-            )
-            annotations = messages_list[-2][1][0]["text"]["annotations"]
-        except Exception as e:
-            self.logger.exception(f"{e}")
-            return {"text": "Exception when parsing output from bing search.", "citations": {}}, True
-
-        # Extract citations
-        for index, annotation in enumerate(annotations, 1):
-            annotation_text = annotation["text"]
-            text = text.replace(annotation_text, f"[{index}]")
-            citations[index] = annotation["url_citation"]["url"]
-
-        try:
-            text = self.fix_mojibake(str(text))
+            # Validate that the output text is valid JSON
+            json_output_validation = json.loads(messages["text"])
         except Exception:
-            print("Mojibake not replaced.")
-            pass
+            retry = True
 
-        self.logger.info(f"text: {text}, citations: {citations}")
+        run_count += 1
 
-        flag = response_guardrails(text)
-        if flag.get("flag"):
-            self.logger.info("Generation failed due to guardrails error")
-            return {"text": flag.get("response"), "citations": citations}, False
-
-        return {"text": text, "citations": citations}, retry
-
-    def deleteAgent(self, client: AIProjectClient, agent=None):
-        if not agent:
-            raise ValueError("Agent must be initialized before deletion.")
-
-        self.logger.info(f"Deleting agent with ID: {agent.id}")
-        client.agents.delete_agent(agent.id)
-        self.logger.info("Deleted agent")
+    return messages
