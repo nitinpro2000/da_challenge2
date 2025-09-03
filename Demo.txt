@@ -3,7 +3,6 @@ import asyncio
 import aiohttp
 from importlib import EnvironmentConfig
 
-
 async def call_guardrails_check(session, url, headers, query, env):
     data = {
         "query": query,
@@ -37,6 +36,19 @@ async def call_guardrails_response(session, url, headers, response, env):
             "message": result.get("response", response)  # fallback to original
         }
 
+def chunk_by_words(text, word_limit):
+    """
+    Splits a string into chunks of a specified number of words.
+    """
+    words = text.split()
+    chunks = []
+    
+    # Use a loop to create chunks of words
+    for i in range(0, len(words), word_limit):
+        chunk_words = words[i:i + word_limit]
+        chunks.append(' '.join(chunk_words))
+    
+    return chunks
 
 async def check_guardrails(response):
     env = EnvironmentConfig()
@@ -46,8 +58,8 @@ async def check_guardrails(response):
         'Content-Type': 'application/json'
     }
 
-    # Split into 80-char chunks
-    chunks = [response[i:i+80] for i in range(0, len(response), 80)] if len(response) > 80 else [response]
+    # Split into 80-word chunks
+    chunks = chunk_by_words(response, 80)
 
     async with aiohttp.ClientSession() as session:
         tasks = [call_guardrails_check(session, url, headers, chunk, env) for chunk in chunks]
@@ -68,8 +80,8 @@ async def response_guardrails(response):
         'Content-Type': 'application/json'
     }
 
-    # Split into 80-char chunks
-    chunks = [response[i:i+80] for i in range(0, len(response), 80)] if len(response) > 80 else [response]
+    # Split into 80-word chunks
+    chunks = chunk_by_words(response, 80)
 
     async with aiohttp.ClientSession() as session:
         tasks = [call_guardrails_response(session, url, headers, chunk, env) for chunk in chunks]
