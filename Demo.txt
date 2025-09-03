@@ -4,79 +4,113 @@ import aiohttp
 from importlib import EnvironmentConfig
 
 
-async def call_guardrails_check(session, url, headers, query, env):
-    data = {
-        "query": query,
-        "memory": [],
-        "tenant": env.GUARDRAILS_TENANT,
-        "requestId": "1234",
-        "userName": env.GUARDRAILS_TENANT
-    }
+# -----------------------
+# Internal async helpers
+# -----------------------
 
-    async with session.post(url, headers=headers, data=json.dumps(data), ssl=False) as resp:
-        result = await resp.json()
-        return {
-            "flag": result.get("flag", False),
-            "message": result.get("response", query)  # fallback to original
+async def _call_guardrails_check(session, url, headers, query, env):
+    try:
+        data = {
+            "query": query,
+            "memory": [],
+            "tenant": env.GUARDRAILS_TENANT,
+            "requestId": "1234",
+            "userName": env.GUARDRAILS_TENANT
         }
 
+        async with session.post(url, headers=headers, data=json.dumps(data), ssl=False) as resp:
+            result = await resp.json()
+            return {
+                "flag": result.get("flag", False),
+                "message": result.get("response", query)
+            }
+    except Exception as e:
+        return {"flag": False, "message": f"Error in check_guardrails: {str(e)}"}
 
-async def call_guardrails_response(session, url, headers, response, env):
-    data = {
-        "response": response,
-        "rewrite": True,
-        "tenant": env.GUARDRAILS_TENANT,
-        "requestId": "1234",
-        "userName": env.GUARDRAILS_TENANT
-    }
 
-    async with session.post(url, headers=headers, data=json.dumps(data), ssl=False) as resp:
-        result = await resp.json()
-        return {
-            "flag": result.get("flag", False),
-            "message": result.get("response", response)  # fallback to original
+async def _call_guardrails_response(session, url, headers, response, env):
+    try:
+        data = {
+            "response": response,
+            "rewrite": True,
+            "tenant": env.GUARDRAILS_TENANT,
+            "requestId": "1234",
+            "userName": env.GUARDRAILS_TENANT
         }
 
-
-async def check_guardrails(response):
-    env = EnvironmentConfig()
-    url = env.GUARDRAILS_ENDPOINT
-    headers = {
-        'accept': 'application/json',
-        'Content-Type': 'application/json'
-    }
-
-    # Split into 80-char chunks
-    chunks = [response[i:i+80] for i in range(0, len(response), 80)] if len(response) > 80 else [response]
-
-    async with aiohttp.ClientSession() as session:
-        tasks = [call_guardrails_check(session, url, headers, chunk, env) for chunk in chunks]
-        results = await asyncio.gather(*tasks)
-
-    # Return first True, else last False
-    for res in results:
-        if res["flag"]:
-            return res
-    return {"flag": False, "message": results[-1]["message"]}
+        async with session.post(url, headers=headers, data=json.dumps(data), ssl=False) as resp:
+            result = await resp.json()
+            return {
+                "flag": result.get("flag", False),
+                "message": result.get("response", response)
+            }
+    except Exception as e:
+        return {"flag": False, "message": f"Error in response_guardrails: {str(e)}"}
 
 
-async def response_guardrails(response):
-    env = EnvironmentConfig()
-    url = env.GUARDRAILS_RESPONSE_ENDPOINT
-    headers = {
-        'accept': 'application/json',
-        'Content-Type': 'application/json'
-    }
+async def _check_guardrails_async(response, env):
+    try:
+        url = env.GUARDRAILS_ENDPOINT
+        headers = {'accept': 'application/json', 'Content-Type': 'application/json'}
 
-    # Split into 80-char chunks
-    chunks = [response[i:i+80] for i in range(0, len(response), 80)] if len(response) > 80 else [response]
+        # Split into 80-char chunks
+        chunks = [response[i:i+80] for i in range(0, len(response), 80)] if len(response) > 80 else [response]
 
-    async with aiohttp.ClientSession() as session:
-        tasks = [call_guardrails_response(session, url, headers, chunk, env) for chunk in chunks]
-        results = await asyncio.gather(*tasks)
+        async with aiohttp.ClientSession() as session:
+            tasks = [_call_guardrails_check(session, url, headers, chunk, env) for chunk in chunks]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    # Return first True, else last False
-    for res in results:
-        if res["flag"]:
-            return res
-    return {"flag": False, "message": results[-1]["message"]}
+        # If any flag True, return that result
+        for res in results:
+            if isinstance(res, dict) and res.get("flag"):
+                return res
+
+        # Return last valid result, or fallback
+        last_res = results[-1] if isinstance(results[-1], dict) else {"flag": False, "message": str(results[-1])}
+        return {"flag": False, "message": last_res.get("message", "Unknown error")}
+    except Exception as e:
+        return {"flag": False, "message": f"Unexpected error in check_guardrails: {str(e)}"}
+
+
+async def _response_guardrails_async(response, env):
+    try:
+        url = env.GUARDRAILS_RESPONSE_ENDPOINT
+        headers = {'accept': 'application/json', 'Content-Type': 'application/json'}
+
+        # Split into 80-char chunks
+        chunks = [response[i:i+80] for i in range(0, len(response), 80)] if len(response) > 80 else [response]
+
+        async with aiohttp.ClientSession() as session:
+            tasks = [_call_guardrails_response(session, url, headers, chunk, env) for chunk in chunks]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # If any flag True, return that result
+        for res in results:
+            if isinstance(res, dict) and res.get("flag"):
+                return res
+
+        # Return last valid result, or fallback
+        last_res = results[-1] if isinstance(results[-1], dict) else {"flag": False, "message": str(results[-1])}
+        return {"flag": False, "message": last_res.get("message", "Unknown error")}
+    except Exception as e:
+        return {"flag": False, "message": f"Unexpected error in response_guardrails: {str(e)}"}
+
+
+# -----------------------
+# Public sync functions
+# -----------------------
+
+def check_guardrails(response):
+    try:
+        env = EnvironmentConfig()
+        return asyncio.run(_check_guardrails_async(response, env))
+    except Exception as e:
+        return {"flag": False, "message": f"Fatal error in check_guardrails: {str(e)}"}
+
+
+def response_guardrails(response):
+    try:
+        env = EnvironmentConfig()
+        return asyncio.run(_response_guardrails_async(response, env))
+    except Exception as e:
+        return {"flag": False, "message": f"Fatal error in response_guardrails: {str(e)}"}
