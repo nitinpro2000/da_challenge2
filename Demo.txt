@@ -1,70 +1,82 @@
-import os
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWSError, jwk
-import httpx
+import json
+import asyncio
+import aiohttp
+from importlib import EnvironmentConfig
 
-# Azure AD details
-TENANT_ID = os.getenv("AZURE_TENANT_ID", "")
-CLIENT_ID = os.getenv("AZURE_CLIENT_ID", "")
-ISSUER_JWKS = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
-JWKS_URL = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
-AUDIENCE = os.getenv("AUDIENCE", "")
-ISSUER = f"https://sts.windows.net/{TENANT_ID}/"
 
-auth_scheme = HTTPBearer()
-jwks_cache = {}
-
-# Fetch and cache JWKS public keys
-async def get_jwks():
-    if not jwks_cache:
-        async with httpx.AsyncClient(verify=False) as client:
-            resp = await client.get(JWKS_URL)
-            resp.raise_for_status()
-            jwks_cache.update({"keys": resp.json()["keys"]})
-    return jwks_cache["keys"]
-
-# Validate token and decode payload
-async def verify_jwt(token: str):
-    try:
-        keys = await get_jwks()
-        header = jwt.get_unverified_header(token)
-        public_key = next((jwk.construct(k) for k in keys if k.get("kid") == header.get("kid")), None)
-        if not public_key:
-            raise HTTPException(status_code=403, detail="Invalid token header.")
-        
-        if "alg" not in header:
-            header["alg"] = "RS256"
-            
-        payload = jwt.decode(
-            token,
-            public_key,
-            algorithms=[header.get("alg")],
-            audience=AUDIENCE,
-            issuer=ISSUER,
-            options={"verify_signature": False} # Set to True in production
-        )
-        return payload
-    except JWSError as e:
-        raise HTTPException(status_code=403, detail=f"Token validation error: {e}")
-
-# FastAPI dependency for route protection
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme)):
-    token = credentials.credentials
-    payload = await verify_jwt(token)
-    user_id = payload.get("oid") or payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=403, detail="User ID not found in token")
-    
-    return {
-        "user_id": user_id,
-        "username": payload.get("unique_name", ""),
-        "name": payload.get("name", ""),
-        "email": payload.get("upn", ""),
+async def call_guardrails_check(session, url, headers, query, env):
+    data = {
+        "query": query,
+        "memory": [],
+        "tenant": env.GUARDRAILS_TENANT,
+        "requestId": "1234",
+        "userName": env.GUARDRAILS_TENANT
     }
 
-# Example usage in a FastAPI route
-# @app.delete("/memo/{memo_id}")
-# async def delete_memo(memo_id: UUID, user: dict = Depends(get_current_user)):
-#     # Your deletion logic here
-#     return {"message": f"Memo {memo_id} deleted by user {user['user_id']}"}
+    async with session.post(url, headers=headers, data=json.dumps(data), ssl=False) as resp:
+        result = await resp.json()
+        return {
+            "flag": result.get("flag", False),
+            "message": result.get("response", query)  # fallback to original
+        }
+
+
+async def call_guardrails_response(session, url, headers, response, env):
+    data = {
+        "response": response,
+        "rewrite": True,
+        "tenant": env.GUARDRAILS_TENANT,
+        "requestId": "1234",
+        "userName": env.GUARDRAILS_TENANT
+    }
+
+    async with session.post(url, headers=headers, data=json.dumps(data), ssl=False) as resp:
+        result = await resp.json()
+        return {
+            "flag": result.get("flag", False),
+            "message": result.get("response", response)  # fallback to original
+        }
+
+
+async def check_guardrails(response):
+    env = EnvironmentConfig()
+    url = env.GUARDRAILS_ENDPOINT
+    headers = {
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+
+    # Split into 80-char chunks
+    chunks = [response[i:i+80] for i in range(0, len(response), 80)] if len(response) > 80 else [response]
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [call_guardrails_check(session, url, headers, chunk, env) for chunk in chunks]
+        results = await asyncio.gather(*tasks)
+
+    # Return first True, else last False
+    for res in results:
+        if res["flag"]:
+            return res
+    return {"flag": False, "message": results[-1]["message"]}
+
+
+async def response_guardrails(response):
+    env = EnvironmentConfig()
+    url = env.GUARDRAILS_RESPONSE_ENDPOINT
+    headers = {
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+
+    # Split into 80-char chunks
+    chunks = [response[i:i+80] for i in range(0, len(response), 80)] if len(response) > 80 else [response]
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [call_guardrails_response(session, url, headers, chunk, env) for chunk in chunks]
+        results = await asyncio.gather(*tasks)
+
+    # Return first True, else last False
+    for res in results:
+        if res["flag"]:
+            return res
+    return {"flag": False, "message": results[-1]["message"]}
