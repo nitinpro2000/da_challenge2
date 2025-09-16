@@ -1,28 +1,8 @@
-import asyncpg
-import asyncio
+import re
 
-async def fetch_latest_version_value(record_id: int):
-    conn = await asyncpg.connect(
-        user="your_user",
-        password="your_password",
-        database="your_db",
-        host="localhost",
-        port=5432
-    )
-    
-    query = """
-        SELECT *
-        FROM your_table
-        WHERE id = $1
-        ORDER BY version DESC
-        LIMIT 1;
-    """
-    row = await conn.fetchrow(query, record_id)
-    await conn.close()
-    return row
+text = "Here is a link [123](http://example.com) and another [45](url)."
 
-async def main():
-    latest_record = await fetch_latest_version_value(123)  # example id
-    print(latest_record)
+# Replace [digit]( with [[digit]](
+result = re.sub(r"\[(\d+)\]\(", r"[[\1]](", text)
 
-asyncio.run(main())
+print(result)
