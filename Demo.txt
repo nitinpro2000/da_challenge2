@@ -1,8 +1,46 @@
-import re
+Got it 👍 — here’s a clean breakdown of the **User Story statement, description, and acceptance criteria** for instructing an RM on generating AI sections with Co-Pilot:
 
-text = "Here is a link [123](http://example.com) and another [45](url)."
+---
 
-# Replace [digit]( with [[digit]](
-result = re.sub(r"\[(\d+)\]\(", r"[[\1]](", text)
+### **User Story Statement**
 
-print(result)
+As an RM (Relationship Manager), I want clear instructions on how to generate AI-driven sections using Co-Pilot, so that I can quickly and consistently prepare client deliverables with accurate, pre-populated insights.
+
+---
+
+### **Description**
+
+RMs often need to generate client deliverables that include AI-generated sections such as *Risks & Opportunities, Sector News, and Investment Goals*. To ensure consistency and efficiency, RMs should be provided with standard instructions and copy-paste friendly prompts for Co-Pilot. These prompts should guide the AI to generate concise, professional, and client-relevant summaries. The instructions should also outline how to review and validate AI outputs before finalizing them in the client deliverable.
+
+---
+
+### **Acceptance Criteria**
+
+1. **Instructions Availability**
+
+   * Clear step-by-step instructions are provided to RMs on how to use Co-Pilot.
+   * Pre-written prompts for each section are available and easy to copy-paste.
+
+2. **Coverage of Sections**
+
+   * Instructions specify which sections are AI-generated (e.g., Risks & Opportunities, Sector News, Investment Goals).
+   * Each section has a standard prompt template.
+
+3. **Ease of Use**
+
+   * Prompts are simple and consistent across all clients.
+   * Instructions are accessible within the RM’s workspace/documentation.
+
+4. **Output Review**
+
+   * RMs can validate and edit Co-Pilot outputs before finalizing.
+   * Guidance is provided on how to handle incomplete or irrelevant AI responses.
+
+5. **Consistency & Standardization**
+
+   * All RMs use the same process and prompts, ensuring standardized outputs across deliverables.
+   * Outputs align with the client deliverable format and tone guidelines.
+
+---
+
+Would you like me to also **draft the exact standard prompts per section** (e.g., one for *Sector News*, one for *Investment Goals*, etc.) so RMs can just copy-paste directly into Co-Pilot?
