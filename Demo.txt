@@ -1,94 +1,28 @@
-import json
+import asyncpg
 import asyncio
-import aiohttp
-from importlib import EnvironmentConfig
 
-async def call_guardrails_check(session, url, headers, query, env):
-    data = {
-        "query": query,
-        "memory": [],
-        "tenant": env.GUARDRAILS_TENANT,
-        "requestId": "1234",
-        "userName": env.GUARDRAILS_TENANT
-    }
-
-    async with session.post(url, headers=headers, data=json.dumps(data), ssl=False) as resp:
-        result = await resp.json()
-        return {
-            "flag": result.get("flag", False),
-            "message": result.get("response", query)  # fallback to original
-        }
-
-
-async def call_guardrails_response(session, url, headers, response, env):
-    data = {
-        "response": response,
-        "rewrite": True,
-        "tenant": env.GUARDRAILS_TENANT,
-        "requestId": "1234",
-        "userName": env.GUARDRAILS_TENANT
-    }
-
-    async with session.post(url, headers=headers, data=json.dumps(data), ssl=False) as resp:
-        result = await resp.json()
-        return {
-            "flag": result.get("flag", False),
-            "message": result.get("response", response)  # fallback to original
-        }
-
-def chunk_by_words(text, word_limit):
-    """
-    Splits a string into chunks of a specified number of words.
-    """
-    words = text.split()
-    chunks = []
+async def fetch_latest_version_value(record_id: int):
+    conn = await asyncpg.connect(
+        user="your_user",
+        password="your_password",
+        database="your_db",
+        host="localhost",
+        port=5432
+    )
     
-    # Use a loop to create chunks of words
-    for i in range(0, len(words), word_limit):
-        chunk_words = words[i:i + word_limit]
-        chunks.append(' '.join(chunk_words))
-    
-    return chunks
+    query = """
+        SELECT *
+        FROM your_table
+        WHERE id = $1
+        ORDER BY version DESC
+        LIMIT 1;
+    """
+    row = await conn.fetchrow(query, record_id)
+    await conn.close()
+    return row
 
-async def check_guardrails(response):
-    env = EnvironmentConfig()
-    url = env.GUARDRAILS_ENDPOINT
-    headers = {
-        'accept': 'application/json',
-        'Content-Type': 'application/json'
-    }
+async def main():
+    latest_record = await fetch_latest_version_value(123)  # example id
+    print(latest_record)
 
-    # Split into 80-word chunks
-    chunks = chunk_by_words(response, 80)
-
-    async with aiohttp.ClientSession() as session:
-        tasks = [call_guardrails_check(session, url, headers, chunk, env) for chunk in chunks]
-        results = await asyncio.gather(*tasks)
-
-    # Return first True, else last False
-    for res in results:
-        if res["flag"]:
-            return res
-    return {"flag": False, "message": results[-1]["message"]}
-
-
-async def response_guardrails(response):
-    env = EnvironmentConfig()
-    url = env.GUARDRAILS_RESPONSE_ENDPOINT
-    headers = {
-        'accept': 'application/json',
-        'Content-Type': 'application/json'
-    }
-
-    # Split into 80-word chunks
-    chunks = chunk_by_words(response, 80)
-
-    async with aiohttp.ClientSession() as session:
-        tasks = [call_guardrails_response(session, url, headers, chunk, env) for chunk in chunks]
-        results = await asyncio.gather(*tasks)
-
-    # Return first True, else last False
-    for res in results:
-        if res["flag"]:
-            return res
-    return {"flag": False, "message": results[-1]["message"]}
+asyncio.run(main())
