@@ -1,46 +1,59 @@
-Got it 👍 — here’s a clean breakdown of the **User Story statement, description, and acceptance criteria** for instructing an RM on generating AI sections with Co-Pilot:
+Here’s a **User Story** for **Prompt Refinements for Company Overview** after the MVP1 scope changes you defined (removing NBA & Wallet Share, pre-populating Client/Sector News, etc.):
 
 ---
 
-### **User Story Statement**
+## User Story
 
-As an RM (Relationship Manager), I want clear instructions on how to generate AI-driven sections using Co-Pilot, so that I can quickly and consistently prepare client deliverables with accurate, pre-populated insights.
+**Title:** Refine Company Overview Prompt after MVP1 Scope Changes
 
----
-
-### **Description**
-
-RMs often need to generate client deliverables that include AI-generated sections such as *Risks & Opportunities, Sector News, and Investment Goals*. To ensure consistency and efficiency, RMs should be provided with standard instructions and copy-paste friendly prompts for Co-Pilot. These prompts should guide the AI to generate concise, professional, and client-relevant summaries. The instructions should also outline how to review and validate AI outputs before finalizing them in the client deliverable.
+**As a** Product Owner,
+**I want** the prompt used to generate the **Company Overview** section to be refined,
+**So that** the generated summaries are aligned with the updated MVP1 scope (no NBA, no Wallet Share, improved focus on Client Summary, Client News, and Sector News).
 
 ---
 
-### **Acceptance Criteria**
+## Description
 
-1. **Instructions Availability**
+* The original prompt for Company Overview included references to sections that are now **removed or renamed** (e.g., NBA, Wallet Share).
+* The refined prompt should only generate content for the **current MVP1 scope**:
 
-   * Clear step-by-step instructions are provided to RMs on how to use Co-Pilot.
-   * Pre-written prompts for each section are available and easy to copy-paste.
-
-2. **Coverage of Sections**
-
-   * Instructions specify which sections are AI-generated (e.g., Risks & Opportunities, Sector News, Investment Goals).
-   * Each section has a standard prompt template.
-
-3. **Ease of Use**
-
-   * Prompts are simple and consistent across all clients.
-   * Instructions are accessible within the RM’s workspace/documentation.
-
-4. **Output Review**
-
-   * RMs can validate and edit Co-Pilot outputs before finalizing.
-   * Guidance is provided on how to handle incomplete or irrelevant AI responses.
-
-5. **Consistency & Standardization**
-
-   * All RMs use the same process and prompts, ensuring standardized outputs across deliverables.
-   * Outputs align with the client deliverable format and tone guidelines.
+  * About the Company (client summary)
+  * Client News
+  * Sector News
+  * Risks & Opportunities (renamed as "Next Best Actions" → dropped in MVP1, so not included)
+* Ensure the prompt explicitly **excludes NBA and Wallet Share**.
+* Prompt must be clear, concise, and usable by RMs for consistent Copilot interactions.
 
 ---
 
-Would you like me to also **draft the exact standard prompts per section** (e.g., one for *Sector News*, one for *Investment Goals*, etc.) so RMs can just copy-paste directly into Co-Pilot?
+## Acceptance Criteria
+
+### Functional Criteria
+
+1. A refined prompt for Company Overview is created.
+2. Prompt excludes **NBA** and **Wallet Share** references.
+3. Prompt includes only:
+
+   * About the Company (client summary)
+   * Client News (if available)
+   * Sector News (if available)
+4. Prompt must clearly instruct Copilot to generate concise, relevant, and structured outputs.
+
+### Non-Functional Criteria
+
+1. Prompt language must be RM-friendly (easy to copy-paste).
+2. Output format must align with backend schema (`title`, `content`, `category`).
+3. Prompt must be tested with sample client inputs to validate usefulness.
+4. Version-controlled and documented alongside other RM prompts.
+
+---
+
+✅ **Done When:**
+
+* A finalized Company Overview prompt is available.
+* RMs can copy-paste it into Copilot to generate summaries aligned with MVP1 scope.
+* Test outputs confirm prompt does not include NBA or Wallet Share.
+
+---
+
+Would you like me to also **draft the refined Copilot prompt text** for the Company Overview so your RMs can use it right away?
