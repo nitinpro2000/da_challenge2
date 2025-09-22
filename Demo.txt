@@ -1,59 +1,27 @@
-Here’s a **User Story** for **Prompt Refinements for Company Overview** after the MVP1 scope changes you defined (removing NBA & Wallet Share, pre-populating Client/Sector News, etc.):
+async def update_content(company_name: str, content_type: str, content: str):
+    """
+    Update pregenerated content for a given company and content type.
 
----
+    This function fetches the latest pregenerated version for the specified
+    company and content type, increments the version if necessary, and
+    inserts the new content into the database. It also logs the update request
+    and database operations for traceability.
 
-## User Story
+    Args:
+        company_name (str): The name of the company for which content is being updated.
+        content_type (str): The type of content to update. Must be one of
+            ["Client News", "Sector News", "Summary"].
+        content (str): The pregenerated content to be stored.
 
-**Title:** Refine Company Overview Prompt after MVP1 Scope Changes
+    Raises:
+        BadRequest: If required parameters (e.g., memo_id) are missing or invalid.
+        NotFound: If no existing memo is found for the given company or content type.
+        RuntimeError: If a database query or insertion fails unexpectedly.
 
-**As a** Product Owner,
-**I want** the prompt used to generate the **Company Overview** section to be refined,
-**So that** the generated summaries are aligned with the updated MVP1 scope (no NBA, no Wallet Share, improved focus on Client Summary, Client News, and Sector News).
-
----
-
-## Description
-
-* The original prompt for Company Overview included references to sections that are now **removed or renamed** (e.g., NBA, Wallet Share).
-* The refined prompt should only generate content for the **current MVP1 scope**:
-
-  * About the Company (client summary)
-  * Client News
-  * Sector News
-  * Risks & Opportunities (renamed as "Next Best Actions" → dropped in MVP1, so not included)
-* Ensure the prompt explicitly **excludes NBA and Wallet Share**.
-* Prompt must be clear, concise, and usable by RMs for consistent Copilot interactions.
-
----
-
-## Acceptance Criteria
-
-### Functional Criteria
-
-1. A refined prompt for Company Overview is created.
-2. Prompt excludes **NBA** and **Wallet Share** references.
-3. Prompt includes only:
-
-   * About the Company (client summary)
-   * Client News (if available)
-   * Sector News (if available)
-4. Prompt must clearly instruct Copilot to generate concise, relevant, and structured outputs.
-
-### Non-Functional Criteria
-
-1. Prompt language must be RM-friendly (easy to copy-paste).
-2. Output format must align with backend schema (`title`, `content`, `category`).
-3. Prompt must be tested with sample client inputs to validate usefulness.
-4. Version-controlled and documented alongside other RM prompts.
-
----
-
-✅ **Done When:**
-
-* A finalized Company Overview prompt is available.
-* RMs can copy-paste it into Copilot to generate summaries aligned with MVP1 scope.
-* Test outputs confirm prompt does not include NBA or Wallet Share.
-
----
-
-Would you like me to also **draft the refined Copilot prompt text** for the Company Overview so your RMs can use it right away?
+    Returns:
+        dict: A dictionary containing:
+            - company_name (str): The target company name.
+            - content_type (str): The type of content updated.
+            - version (int): The new pregenerated version number.
+            - status (str): Confirmation message indicating success.
+    """
