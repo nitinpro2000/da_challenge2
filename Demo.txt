@@ -1,27 +1,43 @@
-async def update_content(company_name: str, content_type: str, content: str):
-    """
-    Update pregenerated content for a given company and content type.
+Here are two **user stories** tailored for your **Liquibase setup on Azure PostgreSQL** migration pipeline.
 
-    This function fetches the latest pregenerated version for the specified
-    company and content type, increments the version if necessary, and
-    inserts the new content into the database. It also logs the update request
-    and database operations for traceability.
+---
 
-    Args:
-        company_name (str): The name of the company for which content is being updated.
-        content_type (str): The type of content to update. Must be one of
-            ["Client News", "Sector News", "Summary"].
-        content (str): The pregenerated content to be stored.
+## **User Story 1: Dev → Int Migration**
 
-    Raises:
-        BadRequest: If required parameters (e.g., memo_id) are missing or invalid.
-        NotFound: If no existing memo is found for the given company or content type.
-        RuntimeError: If a database query or insertion fails unexpectedly.
+**Story Statement**
+As a developer, I want to automate schema migration from the Dev Azure PostgreSQL database to the Int Azure PostgreSQL database using Liquibase so that schema changes are consistent, version-controlled, and repeatable across environments.
 
-    Returns:
-        dict: A dictionary containing:
-            - company_name (str): The target company name.
-            - content_type (str): The type of content updated.
-            - version (int): The new pregenerated version number.
-            - status (str): Confirmation message indicating success.
-    """
+**Description**
+We need to configure Liquibase in CI/CD so that whenever a schema update is applied in the Dev environment and committed to the changelog repository, the same changes can be promoted and applied to the Int environment. This ensures environment consistency and prevents manual migration errors.
+
+**Acceptance Criteria**
+
+* Liquibase changelog XML (or YAML/SQL/JSON) is stored in a GitHub repository.
+* CI/CD pipeline triggers Liquibase migration when schema changes are merged into the main branch.
+* Pipeline connects securely to both Dev and Int PostgreSQL databases using Azure credentials/secrets.
+* Schema differences between Dev and Int are reconciled by Liquibase without manual intervention.
+* Migration logs are stored and visible in the pipeline execution output.
+* Rollback scripts are generated and tested for failed migrations.
+
+---
+
+## **User Story 2: Int → UAT Migration**
+
+**Story Statement**
+As a release manager, I want to promote schema changes from the Int Azure PostgreSQL database to the UAT environment using Liquibase so that UAT has the latest tested schema before release validation.
+
+**Description**
+Liquibase should be configured to apply schema changes to the UAT environment once they are validated in Int. The CI/CD pipeline should enforce approval gates before UAT deployment. This ensures that only tested and approved schema changes are deployed, maintaining stability in UAT.
+
+**Acceptance Criteria**
+
+* UAT migration is triggered only after successful Int migration.
+* Pipeline includes a manual approval stage before applying changes to UAT.
+* Liquibase changelogs applied to UAT match those in Int with version tracking.
+* Migration history is logged and auditable via Liquibase tables (`DATABASECHANGELOG` and `DATABASECHANGELOGLOCK`).
+* Any failed migration in UAT should stop the pipeline and send alerts to the release team.
+* Rollback capability is available and tested for UAT.
+
+---
+
+Do you also want me to write these in **Azure DevOps user story format (Title, Description, Acceptance Criteria in bullet points)** so you can directly use them in your backlog?
