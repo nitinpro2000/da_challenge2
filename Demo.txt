@@ -1,43 +1,37 @@
-Here are two **user stories** tailored for your **Liquibase setup on Azure PostgreSQL** migration pipeline.
+Here’s a well-structured **user story** for your scenario of updating authentication using Azure AD to connect to PostgreSQL in the backend:
 
 ---
 
-## **User Story 1: Dev → Int Migration**
+### **User Story Statement**
 
-**Story Statement**
-As a developer, I want to automate schema migration from the Dev Azure PostgreSQL database to the Int Azure PostgreSQL database using Liquibase so that schema changes are consistent, version-controlled, and repeatable across environments.
-
-**Description**
-We need to configure Liquibase in CI/CD so that whenever a schema update is applied in the Dev environment and committed to the changelog repository, the same changes can be promoted and applied to the Int environment. This ensures environment consistency and prevents manual migration errors.
-
-**Acceptance Criteria**
-
-* Liquibase changelog XML (or YAML/SQL/JSON) is stored in a GitHub repository.
-* CI/CD pipeline triggers Liquibase migration when schema changes are merged into the main branch.
-* Pipeline connects securely to both Dev and Int PostgreSQL databases using Azure credentials/secrets.
-* Schema differences between Dev and Int are reconciled by Liquibase without manual intervention.
-* Migration logs are stored and visible in the pipeline execution output.
-* Rollback scripts are generated and tested for failed migrations.
+As a **backend developer**, I want to update the authentication mechanism so that the backend API connects to **Azure PostgreSQL using Azure Active Directory authentication** instead of username/password, so that we can improve **security, compliance, and centralized identity management**.
 
 ---
 
-## **User Story 2: Int → UAT Migration**
+### **Description**
 
-**Story Statement**
-As a release manager, I want to promote schema changes from the Int Azure PostgreSQL database to the UAT environment using Liquibase so that UAT has the latest tested schema before release validation.
+Currently, the backend services connect to Azure PostgreSQL using static credentials (username/password) stored in configuration files or secrets. This approach has risks related to credential leakage, rotation, and compliance.
+We need to replace this with **Azure AD authentication** so that the backend services authenticate using a **Managed Identity (for Azure-hosted apps)** or an **Azure AD service principal**. This ensures:
 
-**Description**
-Liquibase should be configured to apply schema changes to the UAT environment once they are validated in Int. The CI/CD pipeline should enforce approval gates before UAT deployment. This ensures that only tested and approved schema changes are deployed, maintaining stability in UAT.
+* Passwordless and token-based authentication.
+* Centralized access control via Azure AD.
+* Compliance with enterprise security policies.
+* Easier credential rotation and secret management.
 
-**Acceptance Criteria**
-
-* UAT migration is triggered only after successful Int migration.
-* Pipeline includes a manual approval stage before applying changes to UAT.
-* Liquibase changelogs applied to UAT match those in Int with version tracking.
-* Migration history is logged and auditable via Liquibase tables (`DATABASECHANGELOG` and `DATABASECHANGELOGLOCK`).
-* Any failed migration in UAT should stop the pipeline and send alerts to the release team.
-* Rollback capability is available and tested for UAT.
+The backend must be updated to acquire **Azure AD tokens** and use them for database connections. Proper role assignments (e.g., `db_datareader`, `db_datawriter`) should be created for the AD identity in Azure PostgreSQL.
 
 ---
 
-Do you also want me to write these in **Azure DevOps user story format (Title, Description, Acceptance Criteria in bullet points)** so you can directly use them in your backlog?
+### **Acceptance Criteria**
+
+✅ Backend application can successfully connect to Azure PostgreSQL using **Azure AD tokens** instead of static credentials.
+✅ Proper **role-based access control** is configured in PostgreSQL for the Azure AD identity (e.g., Managed Identity or Service Principal).
+✅ Database credentials (username/password) are **completely removed** from the codebase, environment variables, and secrets vault.
+✅ Authentication flow supports **token renewal** to avoid downtime.
+✅ Connection works in **dev, int, and UAT** environments with Azure AD.
+✅ If authentication fails, clear error logs are generated for troubleshooting.
+✅ Documentation is updated with steps to configure and maintain Azure AD-based authentication for PostgreSQL.
+
+---
+
+Do you want me to also **add a technical task breakdown** (like updating connection string, assigning roles in PostgreSQL, updating code for token acquisition), so this story is ready for sprint planning?
