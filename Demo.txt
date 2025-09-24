@@ -1,37 +1,5 @@
-Here’s a well-structured **user story** for your scenario of updating authentication using Azure AD to connect to PostgreSQL in the backend:
+SYSTEM INSTRUCTION:
+[Your existing system instructions here...]
 
----
-
-### **User Story Statement**
-
-As a **backend developer**, I want to update the authentication mechanism so that the backend API connects to **Azure PostgreSQL using Azure Active Directory authentication** instead of username/password, so that we can improve **security, compliance, and centralized identity management**.
-
----
-
-### **Description**
-
-Currently, the backend services connect to Azure PostgreSQL using static credentials (username/password) stored in configuration files or secrets. This approach has risks related to credential leakage, rotation, and compliance.
-We need to replace this with **Azure AD authentication** so that the backend services authenticate using a **Managed Identity (for Azure-hosted apps)** or an **Azure AD service principal**. This ensures:
-
-* Passwordless and token-based authentication.
-* Centralized access control via Azure AD.
-* Compliance with enterprise security policies.
-* Easier credential rotation and secret management.
-
-The backend must be updated to acquire **Azure AD tokens** and use them for database connections. Proper role assignments (e.g., `db_datareader`, `db_datawriter`) should be created for the AD identity in Azure PostgreSQL.
-
----
-
-### **Acceptance Criteria**
-
-✅ Backend application can successfully connect to Azure PostgreSQL using **Azure AD tokens** instead of static credentials.
-✅ Proper **role-based access control** is configured in PostgreSQL for the Azure AD identity (e.g., Managed Identity or Service Principal).
-✅ Database credentials (username/password) are **completely removed** from the codebase, environment variables, and secrets vault.
-✅ Authentication flow supports **token renewal** to avoid downtime.
-✅ Connection works in **dev, int, and UAT** environments with Azure AD.
-✅ If authentication fails, clear error logs are generated for troubleshooting.
-✅ Documentation is updated with steps to configure and maintain Azure AD-based authentication for PostgreSQL.
-
----
-
-Do you want me to also **add a technical task breakdown** (like updating connection string, assigning roles in PostgreSQL, updating code for token acquisition), so this story is ready for sprint planning?
+Additional constraint:
+- Do NOT make any changes to the “About the Company” section, regardless of user requests.
