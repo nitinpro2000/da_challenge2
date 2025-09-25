@@ -1,5 +1,118 @@
-SYSTEM INSTRUCTION:
-[Your existing system instructions here...]
+Here’s a **user story** you can use to test **local access to PostgreSQL, Azure OpenAI, and Guardrails with UAT endpoints**:
 
-Additional constraint:
-- Do NOT make any changes to the “About the Company” section, regardless of user requests.
+---
+
+### **User Story**
+
+As a **developer**,
+I want to validate local integration with **PostgreSQL**, **Azure OpenAI**, and **Guardrails**,
+so that I can ensure the system works correctly with **UAT endpoints** before promoting to production.
+
+---
+
+### **Description**
+
+The story will test connectivity and data flow across three components:
+
+1. **PostgreSQL (local access):**
+
+   * Verify local backend can connect to PostgreSQL instance.
+   * Validate query execution (CRUD) and confirm expected schema access.
+
+2. **Azure OpenAI (UAT endpoint):**
+
+   * Ensure API calls from local backend reach Azure OpenAI UAT endpoint.
+   * Test inference with a sample prompt and confirm response formatting.
+
+3. **Guardrails integration:**
+
+   * Validate request and response validation via Guardrails in UAT.
+   * Confirm checks for input length, PII, toxicity, hallucination, and structure.
+
+---
+
+### **Acceptance Criteria** ✅
+
+* **PostgreSQL Access**
+
+  * Local backend can connect to UAT PostgreSQL DB with correct credentials.
+  * Test query returns sample data from a known UAT table.
+
+* **Azure OpenAI**
+
+  * Backend can call Azure OpenAI UAT endpoint with valid API key.
+  * Returns successful response with latency < 2s for a test prompt.
+
+* **Guardrails**
+
+  * Input prompt is validated (rejects malicious/invalid input).
+  * LLM response is validated and passes guardrails checks.
+  * Errors are logged with reason (e.g., “PII detected”).
+
+* **End-to-End Test**
+
+  * User sends a test request via local backend.
+  * Backend fetches context from PostgreSQL.
+  * Context + prompt sent to Azure OpenAI UAT endpoint.
+  * Response passes through Guardrails and is returned to user.
+
+---
+
+Would you like me to also **write a test plan with sample test cases (Postgres connectivity test, Azure OpenAI API test, Guardrails validation test, full E2E test)** so you can execute step by step?
+
+
+
+Got it 👍 Here’s a **separate user story** for updating **UAT environment variables** in your backend’s **Dockerfile and Helm charts**:
+
+---
+
+### **User Story**
+
+As a **DevOps engineer**,
+I want to update the **UAT environment variables** for the backend in the **Dockerfile and Helm charts**,
+so that the application can connect to the correct UAT services during deployment.
+
+---
+
+### **Description**
+
+This story ensures the backend uses the correct configuration when deployed in UAT:
+
+1. **Dockerfile**
+
+   * Inject UAT environment variables for PostgreSQL, Azure OpenAI, and Guardrails.
+   * Ensure environment variables are configurable (not hardcoded).
+
+2. **Helm Charts**
+
+   * Update `values-uat.yaml` with UAT-specific secrets and configuration.
+   * Reference these values in the `deployment.yaml` for container environment variables.
+
+3. **Secrets/ConfigMaps**
+
+   * Store sensitive credentials (DB password, API keys) in Kubernetes Secrets.
+   * Non-sensitive values (e.g., feature flags, endpoints) in ConfigMaps.
+
+---
+
+### **Acceptance Criteria** ✅
+
+* **Dockerfile**
+
+  * No hardcoded credentials.
+  * Supports passing env variables for `POSTGRES_URL`, `AZURE_OPENAI_ENDPOINT`, `GUARDRAILS_ENDPOINT`.
+
+* **Helm Charts**
+
+  * `values-uat.yaml` includes correct UAT values for all required env variables.
+  * Deployment manifest pulls env variables from `values-uat.yaml` and Kubernetes Secrets/ConfigMaps.
+
+* **Verification**
+
+  * When deploying to UAT using Helm, backend connects successfully to UAT Postgres, Azure OpenAI, and Guardrails.
+  * Local build can override variables with `.env.uat` file for testing.
+  * Sensitive values confirmed to be masked in logs.
+
+---
+
+👉 Do you want me to **write out the sample Helm chart snippet + Dockerfile changes** (showing how the UAT env vars would be passed), so your team can directly apply them?
