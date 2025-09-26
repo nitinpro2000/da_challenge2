@@ -1,52 +1,98 @@
-Here’s a more detailed expansion of your **Troubleshooting** section with clear checks and actions for each error type:
+Perfect — let’s make your **Troubleshooting** section fully comprehensive by also covering **async pitfalls** along with DB, Auth, Agent, Import, and Docker issues.
 
 ---
 
-### Troubleshooting
+## Troubleshooting
 
-#### **Database (DB) Errors**
+### **Database (DB) Errors**
 
-* **Check connection parameters**: Ensure `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` are correctly set in the `.env` file.
-* **Network/firewall issues**: Confirm the database host is reachable from your environment (try `ping` or `psql`).
-* **Authentication issues**: Validate that the user has the correct permissions for the target database.
-* **Migrations**: If tables are missing, check that database migrations have been applied.
+* **Connection parameters**: Verify `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in `.env`.
+* **Network/firewall**: Ensure DB host is reachable (`ping`, `psql`).
+* **Permissions**: Confirm DB user has correct privileges.
+* **Migrations**: Run DB migrations if schema/tables are missing.
+* **SSL/Encryption**: Add SSL parameters if required by the DB provider.
 
 ---
 
-#### **Authentication (Auth) Errors**
+### **Authentication (Auth) Errors**
 
-* **Bearer token**: Ensure the token is included in the request header:
+* **Bearer token format**:
 
   ```
   Authorization: Bearer <token>
   ```
-* **Token expiry**: Verify that the token has not expired. Refresh or regenerate if needed.
-* **Audience/scope mismatch**: Make sure the token has the correct scopes/roles for the API.
-* **Environment mismatch**: Double-check you are using the correct UAT/DEV/PROD tokens.
+* **Expiry**: Refresh or regenerate tokens if expired.
+* **Scopes/audience**: Ensure token has correct claims.
+* **Env mismatch**: Double-check UAT/DEV/PROD configs.
+* **Debugging**: Decode JWT with tools like `jwt.io` to inspect claims.
 
 ---
 
-#### **Agent Errors**
+### **Agent Errors**
 
-* **API Key validity**: Ensure `AZURE_OPENAI_API_KEY` (or `OPENAI_API_KEY`) is set and valid.
-* **Deployment name**: Confirm that the correct model deployment (`AZURE_OPENAI_TEXT_DEPLOYMENT_NAME`, etc.) is referenced.
-* **Logs**: Review application logs for detailed error messages (timeouts, invalid payloads, rate limits).
-* **Quota issues**: Check if your Azure/OpenAI subscription has enough quota/credits.
-* **Retries**: If requests fail intermittently, implement retry logic with exponential backoff.
+* **API Key**: Confirm `AZURE_OPENAI_API_KEY` / `OPENAI_API_KEY` is set.
+* **Deployment names**: Validate `AZURE_OPENAI_TEXT_DEPLOYMENT_NAME` and embeddings deployment.
+* **Logs**: Inspect agent logs for timeouts, invalid payloads, or rate limits.
+* **Quota**: Check subscription quota and rate-limiting dashboards.
+* **Retries**: Implement exponential backoff for transient failures.
 
 ---
 
-#### **Import Errors**
+### **Import Errors**
 
-* **PYTHONPATH**: Ensure the `src/` directory is added to your `PYTHONPATH`. Example:
+* **PYTHONPATH**: Ensure `src/` is added:
 
   ```bash
   export PYTHONPATH=./src:$PYTHONPATH
   ```
-* **Relative imports**: Use explicit relative imports (`from .module import Class`) when working inside packages.
-* **Virtual environment**: Activate the correct venv where dependencies are installed.
-* **Dependencies**: Run `pip install -r requirements.txt` to confirm all required packages are installed.
+* **Relative imports**: Use explicit relative imports inside packages.
+* **Virtual environment**: Run in correct venv with all dependencies installed.
+* **Dependencies**:
+
+  ```bash
+  pip install -r requirements.txt
+  ```
+* **Circular imports**: Refactor code structure to break cycles.
 
 ---
 
-👉 Do you want me to also add **step-by-step commands/checks** (like `psql`, `curl`, `python -m` examples) so the troubleshooting section becomes more practical?
+### **Docker Issues**
+
+* **Environment variables**: Confirm `.env` values are passed to containers.
+* **Build caching**: If changes don’t reflect:
+
+  ```bash
+  docker-compose build --no-cache
+  ```
+* **Networking**: Use service names (`db:5432`) instead of `localhost`.
+* **Volume mounts**: Ensure local source code is mounted properly.
+* **Logs**: View logs with:
+
+  ```bash
+  docker-compose logs <service>
+  ```
+* **Health checks**: Define proper `healthcheck` in compose/K8s manifests.
+* **Permissions**: Watch for UID/GID mismatches between host and container.
+* **Image optimization**: Use multi-stage builds and slim base images.
+
+---
+
+### **Async Pitfalls**
+
+* **Blocking code in async functions**: Avoid using `time.sleep()`, `requests`, or blocking DB drivers inside `async def`. Use `asyncio.sleep()`, `httpx`, or async DB clients (`asyncpg`).
+* **Unawaited coroutines**: Always `await` coroutines; otherwise, they won’t execute as expected.
+* **Event loop conflicts**: Running multiple loops (e.g., `asyncio.run()` inside FastAPI/Uvicorn) can cause crashes. Use `await` within the running loop instead.
+* **Concurrent DB access**: Use connection pools with async drivers to avoid race conditions.
+* **Error handling**: Wrap coroutines in `try/except` to prevent silent failures.
+* **Task leaks**: Ensure background tasks created with `asyncio.create_task()` are properly awaited or cancelled on shutdown.
+* **Resource cleanup**: Close DB connections, sessions, and files with async context managers (`async with`).
+* **Debugging async code**: Enable debug mode for asyncio:
+
+  ```python
+  import asyncio
+  asyncio.get_event_loop().set_debug(True)
+  ```
+
+---
+
+👉 Do you want me to **add example code snippets** for these async pitfalls (like bad vs good patterns) so the troubleshooting guide is more actionable?
