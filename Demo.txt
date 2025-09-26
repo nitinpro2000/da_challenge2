@@ -1,4 +1,4 @@
-Got it 🚀 — here’s a **Backend Onboarding FAQ** tailored for your stack (FastAPI + Semantic Kernel for AI agents). I’ve grouped questions so a new developer onboarding into your backend will quickly find answers.
+Perfect ✅ — let’s enrich the **Backend Onboarding FAQ** with a dedicated section on **Testing Framework & Strategy**, incorporating your current process (FastAPI Swagger UI, Postman for QA, AI result validation, and static data checks).
 
 ---
 
@@ -6,163 +6,108 @@ Got it 🚀 — here’s a **Backend Onboarding FAQ** tailored for your stack (F
 
 ### **1. Project Setup**
 
-**Q: How do I set up the backend locally?**
-
-* Clone the repo.
-* Create and activate a Python virtual environment.
-* Install dependencies:
-
-  ```bash
-  pip install -r requirements.txt
-  ```
-* Start the app:
-
-  ```bash
-  uvicorn src.main:app --reload
-  ```
-
-**Q: What Python version should I use?**
-
-* Use **Python 3.10+** (ensure it matches what’s defined in `pyproject.toml` or `requirements.txt`).
-
-**Q: How do I manage environment variables?**
-
-* Copy `.env.example` → `.env`.
-* Fill in values like DB connection string, OpenAI/Azure keys, Semantic Kernel configs.
-* In Docker, env vars are loaded automatically via `docker-compose.yml` or Helm charts.
+*(same as before – environment, dependencies, run locally…)*
 
 ---
 
 ### **2. FastAPI Basics**
 
-**Q: Where is the entrypoint for the API?**
-
-* The main file is usually `src/main.py`, which initializes FastAPI and routes.
-
-**Q: How are routes structured?**
-
-* Routes live under `src/api/` or `src/routers/`.
-* They are registered in `main.py`.
-
-**Q: How do I add a new API endpoint?**
-
-* Create a new file in `src/api/` (e.g., `src/api/my_route.py`).
-* Define your route with `@router.get` / `@router.post`.
-* Register the router in `main.py`.
-
-**Q: How do I test APIs locally?**
-
-* Use Swagger UI: `http://127.0.0.1:8000/docs`.
-* Or use Postman/VS Code REST Client.
+*(routes, entrypoint, docs, adding new endpoints…)*
 
 ---
 
 ### **3. Semantic Kernel (AI Agents)**
 
-**Q: What is Semantic Kernel used for here?**
-
-* Orchestrating AI agents (chaining LLMs, plugins, memory, embeddings).
-* Wrapping OpenAI/Azure models into reusable “skills” for agents.
-
-**Q: Where are Semantic Kernel skills and agents defined?**
-
-* Typically in `src/agents/` or `src/skills/`.
-* Each agent is a combination of prompt templates, plugins, and configuration.
-
-**Q: How do I add a new agent?**
-
-* Define a new skill/plugin in `src/skills/`.
-* Register it in the agent orchestrator (`src/agents/manager.py`).
-* Expose endpoints in FastAPI for calling the new agent.
-
-**Q: How do agents get model context?**
-
-* Context is pulled from the DB (using pgvector or FAISS) and passed to Semantic Kernel.
-* Guardrails validate both input context and output before returning.
+*(skills, agents, adding new agent, context handling…)*
 
 ---
 
 ### **4. Database**
 
-**Q: What database are we using?**
-
-* **PostgreSQL** with `pgvector` for semantic search.
-
-**Q: How do I connect to the DB?**
-
-* Update `.env` with `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
-* Use async DB client (`asyncpg`).
-
-**Q: How are migrations handled?**
-
-* With **Liquibase** or **Alembic** (check `migrations/` folder).
-* To run migrations:
-
-  ```bash
-  alembic upgrade head
-  ```
+*(Postgres, pgvector, migrations, connection strings…)*
 
 ---
 
 ### **5. Docker & Deployment**
 
-**Q: How do I run the backend in Docker?**
-
-* Build and run:
-
-  ```bash
-  docker-compose up --build
-  ```
-
-**Q: Why is DB connection failing in Docker?**
-
-* Use the service name (e.g., `db`) instead of `localhost`.
-* Check `docker-compose logs`.
-
-**Q: How do I deploy to UAT/Prod?**
-
-* Using Helm charts + Kubernetes.
-* CI/CD pipelines (Azure DevOps) build and push Docker images, then deploy via Helm.
+*(docker-compose, Helm, Kubernetes, CI/CD…)*
 
 ---
 
 ### **6. Async Pitfalls**
 
-**Q: Why is my FastAPI request hanging?**
-
-* You may be using blocking code (`time.sleep`, `requests`) inside `async def`. Use async alternatives (`asyncio.sleep`, `httpx`).
-
-**Q: How do I avoid DB bottlenecks?**
-
-* Use async DB drivers (`asyncpg`) with connection pooling.
-
-**Q: How do I handle background tasks?**
-
-* Use `asyncio.create_task()` carefully. Ensure tasks are awaited or cancelled during shutdown.
+*(blocking code, unawaited coroutines, background tasks, event loops…)*
 
 ---
 
-### **7. Troubleshooting**
+### **7. Testing Framework & Strategy**
 
-**Q: How do I debug agent errors?**
+#### **Frameworks/Tools in Use**
 
-* Check Semantic Kernel logs.
-* Verify OpenAI/Azure API keys and deployment names.
+* **FastAPI Swagger UI** (`/docs`) → For initial smoke tests and quick endpoint validation.
+* **Postman (QA team)** → For manual/automated test collections in different environments (DEV/UAT/PROD).
+* **Pytest** (recommended for devs) → For writing unit/integration tests.
 
-**Q: What if imports fail?**
+#### **Testing Strategy**
 
-* Add `src/` to `PYTHONPATH`.
-* Check for circular imports.
+1. **API Endpoint Testing**
 
-**Q: How do I troubleshoot Docker issues?**
+   * Developers: Use **Swagger UI** during development to confirm inputs/outputs.
+   * QA: Use **Postman collections** with environment variables for repeatable test runs.
 
-* Rebuild images with `--no-cache`.
-* Inspect logs with `docker-compose logs <service>`.
+2. **AI-Generated Results**
 
-**Q: What if async errors show "event loop already running"?**
+   * Compare LLM/agent output against:
 
-* Don’t call `asyncio.run()` inside FastAPI; just `await` coroutines.
+     * **Source call reports** (to validate factual correctness).
+     * **External datasets/APIs** (to verify grounding and reduce hallucinations).
+   * Apply **Guardrails validation** on both input and output for PII, toxicity, and hallucination checks.
+
+3. **Static Data APIs**
+
+   * Compare **API output vs. database state** directly.
+   * Example: query DB with `psql` or `asyncpg` and match against FastAPI response.
+   * Ensures no transformation/serialization errors.
+
+4. **Automated Unit Tests (Dev)**
+
+   * Write **pytest** tests under `tests/` folder.
+   * Use FastAPI’s `TestClient` for endpoint testing:
+
+     ```python
+     from fastapi.testclient import TestClient
+     from src.main import app
+
+     client = TestClient(app)
+
+     def test_health_check():
+         response = client.get("/health")
+         assert response.status_code == 200
+         assert response.json() == {"status": "ok"}
+     ```
+
+5. **Integration Tests**
+
+   * Spin up services with `docker-compose -f docker-compose.test.yml up`.
+   * Run API calls against the running stack.
+   * Validate DB state changes and end-to-end flow (e.g., ingestion → embeddings → retrieval → response).
+
+6. **Regression Testing**
+
+   * Maintain a **Postman regression suite** with versioned expected outputs.
+   * Compare agent outputs against historical benchmarks to catch drifts.
+
+7. **Performance/Load Testing**
+
+   * Optional: Use **Locust** or **k6** to test concurrency and throughput.
+   * Useful for DB-heavy endpoints and AI calls with batching.
 
 ---
 
-👉 Do you want me to also create a **1-page Quick Reference Sheet** (commands + folder structure + env vars) to complement this FAQ, so new developers can get up and running even faster?
+### **8. Troubleshooting**
+
+*(DB, Auth, Agent, Import, Docker, Async issues…)*
+
+---
+
+👉 Do you want me to also design a **testing workflow diagram** (Dev → QA → AI validation → DB validation) so onboarding docs show **who tests what, where, and how**? That’ll make it crystal clear for new joiners.
