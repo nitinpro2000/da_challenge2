@@ -1,98 +1,168 @@
-Perfect — let’s make your **Troubleshooting** section fully comprehensive by also covering **async pitfalls** along with DB, Auth, Agent, Import, and Docker issues.
+Got it 🚀 — here’s a **Backend Onboarding FAQ** tailored for your stack (FastAPI + Semantic Kernel for AI agents). I’ve grouped questions so a new developer onboarding into your backend will quickly find answers.
 
 ---
 
-## Troubleshooting
+# Backend Onboarding FAQ (FastAPI + Semantic Kernel)
 
-### **Database (DB) Errors**
+### **1. Project Setup**
 
-* **Connection parameters**: Verify `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in `.env`.
-* **Network/firewall**: Ensure DB host is reachable (`ping`, `psql`).
-* **Permissions**: Confirm DB user has correct privileges.
-* **Migrations**: Run DB migrations if schema/tables are missing.
-* **SSL/Encryption**: Add SSL parameters if required by the DB provider.
+**Q: How do I set up the backend locally?**
 
----
-
-### **Authentication (Auth) Errors**
-
-* **Bearer token format**:
-
-  ```
-  Authorization: Bearer <token>
-  ```
-* **Expiry**: Refresh or regenerate tokens if expired.
-* **Scopes/audience**: Ensure token has correct claims.
-* **Env mismatch**: Double-check UAT/DEV/PROD configs.
-* **Debugging**: Decode JWT with tools like `jwt.io` to inspect claims.
-
----
-
-### **Agent Errors**
-
-* **API Key**: Confirm `AZURE_OPENAI_API_KEY` / `OPENAI_API_KEY` is set.
-* **Deployment names**: Validate `AZURE_OPENAI_TEXT_DEPLOYMENT_NAME` and embeddings deployment.
-* **Logs**: Inspect agent logs for timeouts, invalid payloads, or rate limits.
-* **Quota**: Check subscription quota and rate-limiting dashboards.
-* **Retries**: Implement exponential backoff for transient failures.
-
----
-
-### **Import Errors**
-
-* **PYTHONPATH**: Ensure `src/` is added:
-
-  ```bash
-  export PYTHONPATH=./src:$PYTHONPATH
-  ```
-* **Relative imports**: Use explicit relative imports inside packages.
-* **Virtual environment**: Run in correct venv with all dependencies installed.
-* **Dependencies**:
+* Clone the repo.
+* Create and activate a Python virtual environment.
+* Install dependencies:
 
   ```bash
   pip install -r requirements.txt
   ```
-* **Circular imports**: Refactor code structure to break cycles.
-
----
-
-### **Docker Issues**
-
-* **Environment variables**: Confirm `.env` values are passed to containers.
-* **Build caching**: If changes don’t reflect:
+* Start the app:
 
   ```bash
-  docker-compose build --no-cache
+  uvicorn src.main:app --reload
   ```
-* **Networking**: Use service names (`db:5432`) instead of `localhost`.
-* **Volume mounts**: Ensure local source code is mounted properly.
-* **Logs**: View logs with:
+
+**Q: What Python version should I use?**
+
+* Use **Python 3.10+** (ensure it matches what’s defined in `pyproject.toml` or `requirements.txt`).
+
+**Q: How do I manage environment variables?**
+
+* Copy `.env.example` → `.env`.
+* Fill in values like DB connection string, OpenAI/Azure keys, Semantic Kernel configs.
+* In Docker, env vars are loaded automatically via `docker-compose.yml` or Helm charts.
+
+---
+
+### **2. FastAPI Basics**
+
+**Q: Where is the entrypoint for the API?**
+
+* The main file is usually `src/main.py`, which initializes FastAPI and routes.
+
+**Q: How are routes structured?**
+
+* Routes live under `src/api/` or `src/routers/`.
+* They are registered in `main.py`.
+
+**Q: How do I add a new API endpoint?**
+
+* Create a new file in `src/api/` (e.g., `src/api/my_route.py`).
+* Define your route with `@router.get` / `@router.post`.
+* Register the router in `main.py`.
+
+**Q: How do I test APIs locally?**
+
+* Use Swagger UI: `http://127.0.0.1:8000/docs`.
+* Or use Postman/VS Code REST Client.
+
+---
+
+### **3. Semantic Kernel (AI Agents)**
+
+**Q: What is Semantic Kernel used for here?**
+
+* Orchestrating AI agents (chaining LLMs, plugins, memory, embeddings).
+* Wrapping OpenAI/Azure models into reusable “skills” for agents.
+
+**Q: Where are Semantic Kernel skills and agents defined?**
+
+* Typically in `src/agents/` or `src/skills/`.
+* Each agent is a combination of prompt templates, plugins, and configuration.
+
+**Q: How do I add a new agent?**
+
+* Define a new skill/plugin in `src/skills/`.
+* Register it in the agent orchestrator (`src/agents/manager.py`).
+* Expose endpoints in FastAPI for calling the new agent.
+
+**Q: How do agents get model context?**
+
+* Context is pulled from the DB (using pgvector or FAISS) and passed to Semantic Kernel.
+* Guardrails validate both input context and output before returning.
+
+---
+
+### **4. Database**
+
+**Q: What database are we using?**
+
+* **PostgreSQL** with `pgvector` for semantic search.
+
+**Q: How do I connect to the DB?**
+
+* Update `.env` with `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
+* Use async DB client (`asyncpg`).
+
+**Q: How are migrations handled?**
+
+* With **Liquibase** or **Alembic** (check `migrations/` folder).
+* To run migrations:
 
   ```bash
-  docker-compose logs <service>
-  ```
-* **Health checks**: Define proper `healthcheck` in compose/K8s manifests.
-* **Permissions**: Watch for UID/GID mismatches between host and container.
-* **Image optimization**: Use multi-stage builds and slim base images.
-
----
-
-### **Async Pitfalls**
-
-* **Blocking code in async functions**: Avoid using `time.sleep()`, `requests`, or blocking DB drivers inside `async def`. Use `asyncio.sleep()`, `httpx`, or async DB clients (`asyncpg`).
-* **Unawaited coroutines**: Always `await` coroutines; otherwise, they won’t execute as expected.
-* **Event loop conflicts**: Running multiple loops (e.g., `asyncio.run()` inside FastAPI/Uvicorn) can cause crashes. Use `await` within the running loop instead.
-* **Concurrent DB access**: Use connection pools with async drivers to avoid race conditions.
-* **Error handling**: Wrap coroutines in `try/except` to prevent silent failures.
-* **Task leaks**: Ensure background tasks created with `asyncio.create_task()` are properly awaited or cancelled on shutdown.
-* **Resource cleanup**: Close DB connections, sessions, and files with async context managers (`async with`).
-* **Debugging async code**: Enable debug mode for asyncio:
-
-  ```python
-  import asyncio
-  asyncio.get_event_loop().set_debug(True)
+  alembic upgrade head
   ```
 
 ---
 
-👉 Do you want me to **add example code snippets** for these async pitfalls (like bad vs good patterns) so the troubleshooting guide is more actionable?
+### **5. Docker & Deployment**
+
+**Q: How do I run the backend in Docker?**
+
+* Build and run:
+
+  ```bash
+  docker-compose up --build
+  ```
+
+**Q: Why is DB connection failing in Docker?**
+
+* Use the service name (e.g., `db`) instead of `localhost`.
+* Check `docker-compose logs`.
+
+**Q: How do I deploy to UAT/Prod?**
+
+* Using Helm charts + Kubernetes.
+* CI/CD pipelines (Azure DevOps) build and push Docker images, then deploy via Helm.
+
+---
+
+### **6. Async Pitfalls**
+
+**Q: Why is my FastAPI request hanging?**
+
+* You may be using blocking code (`time.sleep`, `requests`) inside `async def`. Use async alternatives (`asyncio.sleep`, `httpx`).
+
+**Q: How do I avoid DB bottlenecks?**
+
+* Use async DB drivers (`asyncpg`) with connection pooling.
+
+**Q: How do I handle background tasks?**
+
+* Use `asyncio.create_task()` carefully. Ensure tasks are awaited or cancelled during shutdown.
+
+---
+
+### **7. Troubleshooting**
+
+**Q: How do I debug agent errors?**
+
+* Check Semantic Kernel logs.
+* Verify OpenAI/Azure API keys and deployment names.
+
+**Q: What if imports fail?**
+
+* Add `src/` to `PYTHONPATH`.
+* Check for circular imports.
+
+**Q: How do I troubleshoot Docker issues?**
+
+* Rebuild images with `--no-cache`.
+* Inspect logs with `docker-compose logs <service>`.
+
+**Q: What if async errors show "event loop already running"?**
+
+* Don’t call `asyncio.run()` inside FastAPI; just `await` coroutines.
+
+---
+
+👉 Do you want me to also create a **1-page Quick Reference Sheet** (commands + folder structure + env vars) to complement this FAQ, so new developers can get up and running even faster?
