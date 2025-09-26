@@ -1,44 +1,52 @@
-# Azure OpenAI
-AZURE_OPENAI_API_KEY="<your-azure-openai-api-key>"
-AZURE_OPENAI_TEXT_DEPLOYMENT_NAME="<your-text-deployment-name>"
-AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME="<your-embedding-deployment-name>"
-AZURE_OPENAI_API_VERSION="<your-api-version>"
-AZURE_OPENAI_ENDPOINT="<your-openai-endpoint>"
+Here’s a more detailed expansion of your **Troubleshooting** section with clear checks and actions for each error type:
 
-# Azure AI
-AZURE_AI_ENDPOINT="<your-ai-endpoint>"
-AZURE_TENANT_ID="<your-tenant-id>"
-AZURE_CLIENT_ID="<your-client-id>"
-AUDIENCE="<your-audience-id>"
+---
 
-# Snowflake
-SNOWFLAKE_APPLICATION_ID="<your-snowflake-application-id>"
-SNOWFLAKE_SECRET_KEY="<your-snowflake-secret-key>"
-SNOWFLAKE_WAREHOUSE="<your-snowflake-warehouse>"
-SNOWFLAKE_TENANT_ID="<your-snowflake-tenant-id>"
-SNOWFLAKE_DATABASE="<your-snowflake-database>"
-SNOWFLAKE_USER="<your-snowflake-username>"
-SNOWFLAKE_SCHEMA="<your-snowflake-schema>"
-SNOWFLAKE_PRIVATELINK="<your-snowflake-privatelink>"
-SNOWFLAKE_SF_ROLE="<your-snowflake-role>"
-SNOWFLAKE_PASSPHRASE="<your-snowflake-passphrase>"
+### Troubleshooting
 
-# PostgreSQL
-POSTGRES_DB_NAME="<your-postgres-db-name>"
-POSTGRES_DB_USER="<your-postgres-db-username>"
-POSTGRES_DB_PASSWORD="<your-postgres-db-password>"
-POSTGRES_DB_PORT=5432
-POSTGRES_DB_HOST="<your-postgres-db-host>"
+#### **Database (DB) Errors**
 
-# Azure OpenAI Bing Config
-AZURE_OPENAI_ENDPOINT_BING="<your-openai-bing-endpoint>"
-AZURE_OPENAI_API_VERSION_BING="<your-openai-bing-api-version>"
-AZURE_OPENAI_MODEL_BING="<your-openai-bing-model>"
-JWT_SCOPE_ENDPOINT_BING="<your-bing-scope-endpoint>"
-AZURE_FOUNDRY_PROJECT_ENDPOINT_BING="<your-foundry-project-endpoint>"
-AZURE_BING_CONNECTION_ID="<your-bing-connection-id>"
+* **Check connection parameters**: Ensure `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` are correctly set in the `.env` file.
+* **Network/firewall issues**: Confirm the database host is reachable from your environment (try `ping` or `psql`).
+* **Authentication issues**: Validate that the user has the correct permissions for the target database.
+* **Migrations**: If tables are missing, check that database migrations have been applied.
 
-# Guardrails
-GUARDRAILS_ENDPOINT="<your-guardrails-endpoint>"
-GUARDRAILS_TENANT="<your-guardrails-tenant>"
-GUARDRAILS_RESPONSE_ENDPOINT="<your-guardrails-response-endpoint>"
+---
+
+#### **Authentication (Auth) Errors**
+
+* **Bearer token**: Ensure the token is included in the request header:
+
+  ```
+  Authorization: Bearer <token>
+  ```
+* **Token expiry**: Verify that the token has not expired. Refresh or regenerate if needed.
+* **Audience/scope mismatch**: Make sure the token has the correct scopes/roles for the API.
+* **Environment mismatch**: Double-check you are using the correct UAT/DEV/PROD tokens.
+
+---
+
+#### **Agent Errors**
+
+* **API Key validity**: Ensure `AZURE_OPENAI_API_KEY` (or `OPENAI_API_KEY`) is set and valid.
+* **Deployment name**: Confirm that the correct model deployment (`AZURE_OPENAI_TEXT_DEPLOYMENT_NAME`, etc.) is referenced.
+* **Logs**: Review application logs for detailed error messages (timeouts, invalid payloads, rate limits).
+* **Quota issues**: Check if your Azure/OpenAI subscription has enough quota/credits.
+* **Retries**: If requests fail intermittently, implement retry logic with exponential backoff.
+
+---
+
+#### **Import Errors**
+
+* **PYTHONPATH**: Ensure the `src/` directory is added to your `PYTHONPATH`. Example:
+
+  ```bash
+  export PYTHONPATH=./src:$PYTHONPATH
+  ```
+* **Relative imports**: Use explicit relative imports (`from .module import Class`) when working inside packages.
+* **Virtual environment**: Activate the correct venv where dependencies are installed.
+* **Dependencies**: Run `pip install -r requirements.txt` to confirm all required packages are installed.
+
+---
+
+👉 Do you want me to also add **step-by-step commands/checks** (like `psql`, `curl`, `python -m` examples) so the troubleshooting section becomes more practical?
