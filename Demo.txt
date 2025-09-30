@@ -1,113 +1,37 @@
-Perfect ✅ — let’s enrich the **Backend Onboarding FAQ** with a dedicated section on **Testing Framework & Strategy**, incorporating your current process (FastAPI Swagger UI, Postman for QA, AI result validation, and static data checks).
+Here’s a clear set of **news extraction steps** you can document based on your process:
 
 ---
 
-# Backend Onboarding FAQ (FastAPI + Semantic Kernel)
+### News Extraction Steps
 
-### **1. Project Setup**
+1. **Prepare Prompts**
 
-*(same as before – environment, dependencies, run locally…)*
+   * Create two prompts for each company:
 
----
+     * **Company News Prompt** – asks for latest news specific to the client/company.
+     * **Industry News Prompt** – asks for broader sector or industry-level updates.
 
-### **2. FastAPI Basics**
+2. **Use Co-Pilot for Extraction**
 
-*(routes, entrypoint, docs, adding new endpoints…)*
+   * Copy and paste the prepared prompts into Co-Pilot.
+   * Co-Pilot generates the response in **Markdown text format**.
 
----
+3. **Review & Validate Output**
 
-### **3. Semantic Kernel (AI Agents)**
+   * Check the extracted **Company News** and **Industry News** for relevance, completeness, and accuracy.
+   * If needed, refine the prompt and re-run to improve results.
 
-*(skills, agents, adding new agent, context handling…)*
+4. **Update Prefetch Sections in Database**
 
----
+   * Go to the `prefetch_sections` table in PostgreSQL.
+   * Locate the entry corresponding to the company.
+   * **Manually paste** the extracted Company News and Industry News into the respective columns.
 
-### **4. Database**
+5. **Save & Verify**
 
-*(Postgres, pgvector, migrations, connection strings…)*
-
----
-
-### **5. Docker & Deployment**
-
-*(docker-compose, Helm, Kubernetes, CI/CD…)*
-
----
-
-### **6. Async Pitfalls**
-
-*(blocking code, unawaited coroutines, background tasks, event loops…)*
+   * Save changes in the database.
+   * Run a quick query or API call (if available) to confirm that the news is correctly updated in `prefetch_sections`.
 
 ---
 
-### **7. Testing Framework & Strategy**
-
-#### **Frameworks/Tools in Use**
-
-* **FastAPI Swagger UI** (`/docs`) → For initial smoke tests and quick endpoint validation.
-* **Postman (QA team)** → For manual/automated test collections in different environments (DEV/UAT/PROD).
-* **Pytest** (recommended for devs) → For writing unit/integration tests.
-
-#### **Testing Strategy**
-
-1. **API Endpoint Testing**
-
-   * Developers: Use **Swagger UI** during development to confirm inputs/outputs.
-   * QA: Use **Postman collections** with environment variables for repeatable test runs.
-
-2. **AI-Generated Results**
-
-   * Compare LLM/agent output against:
-
-     * **Source call reports** (to validate factual correctness).
-     * **External datasets/APIs** (to verify grounding and reduce hallucinations).
-   * Apply **Guardrails validation** on both input and output for PII, toxicity, and hallucination checks.
-
-3. **Static Data APIs**
-
-   * Compare **API output vs. database state** directly.
-   * Example: query DB with `psql` or `asyncpg` and match against FastAPI response.
-   * Ensures no transformation/serialization errors.
-
-4. **Automated Unit Tests (Dev)**
-
-   * Write **pytest** tests under `tests/` folder.
-   * Use FastAPI’s `TestClient` for endpoint testing:
-
-     ```python
-     from fastapi.testclient import TestClient
-     from src.main import app
-
-     client = TestClient(app)
-
-     def test_health_check():
-         response = client.get("/health")
-         assert response.status_code == 200
-         assert response.json() == {"status": "ok"}
-     ```
-
-5. **Integration Tests**
-
-   * Spin up services with `docker-compose -f docker-compose.test.yml up`.
-   * Run API calls against the running stack.
-   * Validate DB state changes and end-to-end flow (e.g., ingestion → embeddings → retrieval → response).
-
-6. **Regression Testing**
-
-   * Maintain a **Postman regression suite** with versioned expected outputs.
-   * Compare agent outputs against historical benchmarks to catch drifts.
-
-7. **Performance/Load Testing**
-
-   * Optional: Use **Locust** or **k6** to test concurrency and throughput.
-   * Useful for DB-heavy endpoints and AI calls with batching.
-
----
-
-### **8. Troubleshooting**
-
-*(DB, Auth, Agent, Import, Docker, Async issues…)*
-
----
-
-👉 Do you want me to also design a **testing workflow diagram** (Dev → QA → AI validation → DB validation) so onboarding docs show **who tests what, where, and how**? That’ll make it crystal clear for new joiners.
+👉 Do you want me to also give you an **automated flow** (so you don’t need to manually paste into Postgres every time), e.g., using Python + asyncpg to fetch prompts, call Co-Pilot/OpenAI, and update the table?
