@@ -1,37 +1,64 @@
-Here’s a clear set of **news extraction steps** you can document based on your process:
+Got it 👍 — thanks for clarifying.
+Since you’re **not refreshing individual connections** but instead **closing the pool and creating a new one every 8 hours with a refreshed token**, the user story and acceptance criteria will be slightly different.
 
 ---
 
-### News Extraction Steps
+### **User Story**
 
-1. **Prepare Prompts**
-
-   * Create two prompts for each company:
-
-     * **Company News Prompt** – asks for latest news specific to the client/company.
-     * **Industry News Prompt** – asks for broader sector or industry-level updates.
-
-2. **Use Co-Pilot for Extraction**
-
-   * Copy and paste the prepared prompts into Co-Pilot.
-   * Co-Pilot generates the response in **Markdown text format**.
-
-3. **Review & Validate Output**
-
-   * Check the extracted **Company News** and **Industry News** for relevance, completeness, and accuracy.
-   * If needed, refine the prompt and re-run to improve results.
-
-4. **Update Prefetch Sections in Database**
-
-   * Go to the `prefetch_sections` table in PostgreSQL.
-   * Locate the entry corresponding to the company.
-   * **Manually paste** the extracted Company News and Industry News into the respective columns.
-
-5. **Save & Verify**
-
-   * Save changes in the database.
-   * Run a quick query or API call (if available) to confirm that the news is correctly updated in `prefetch_sections`.
+As a **developer**,
+I want the PostgreSQL connection pool to automatically restart every 8 hours using a newly issued authentication token,
+So that my application can maintain uninterrupted access to the database when tokens expire without requiring manual intervention.
 
 ---
 
-👉 Do you want me to also give you an **automated flow** (so you don’t need to manually paste into Postgres every time), e.g., using Python + asyncpg to fetch prompts, call Co-Pilot/OpenAI, and update the table?
+### **Description**
+
+* The system authenticates PostgreSQL using short-lived tokens (valid 8 hours).
+* Instead of refreshing individual connections, the pool will be **closed and recreated** with the refreshed token at a scheduled interval.
+* During the pool restart, existing requests should gracefully complete, and new requests should seamlessly use the new pool.
+
+---
+
+### **Acceptance Criteria**
+
+1. **Automatic Pool Restart**
+
+   * The system closes the existing connection pool and creates a new pool using the refreshed token every 8 hours.
+   * The restart occurs before the current token expires (e.g., at 7h 55m).
+
+2. **Graceful Transition**
+
+   * Existing queries on the old pool are allowed to complete without interruption.
+   * New queries after the refresh automatically route to the new pool.
+
+3. **No Downtime**
+
+   * The application continues serving requests without downtime during pool restart.
+   * No query fails solely due to pool recreation.
+
+4. **Error Handling**
+
+   * If token retrieval or pool recreation fails, the system logs the error and retries (with exponential backoff).
+   * In case of total failure, clear error messages are surfaced (`PoolRecreationFailed`, `TokenRefreshFailed`).
+
+5. **Configurable Refresh Interval**
+
+   * The refresh interval (default 8h) can be configured in application settings.
+
+6. **Logging & Monitoring**
+
+   * Logs include pool shutdown, new pool creation, and token refresh success/failure.
+   * Metrics exposed: last pool restart time, restart duration, failure count.
+
+---
+
+✅ **Definition of Done (DoD):**
+
+* Pool recreation logic implemented.
+* Application verified to run continuously beyond 8 hours without manual restart.
+* Integration tests confirm queries succeed before, during, and after pool refresh.
+* Error scenarios (failed token retrieval, failed pool recreation) tested and handled.
+
+---
+
+Would you like me to also **write a sample sequence diagram (mermaid code)** showing how this pool recreation works every 8 hours with ongoing queries? That way you can use it in design docs.
