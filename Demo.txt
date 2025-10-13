@@ -1,64 +1,45 @@
-Got it 👍 — thanks for clarifying.
-Since you’re **not refreshing individual connections** but instead **closing the pool and creating a new one every 8 hours with a refreshed token**, the user story and acceptance criteria will be slightly different.
+Here’s a well-structured **User Story**, including the **Description**, **Statement**, and **Acceptance Criteria**, for your requirement:
 
 ---
 
-### **User Story**
+### **User Story: Add Date to Call Report Titles in Citations (Regeneration Pipeline)**
 
-As a **developer**,
-I want the PostgreSQL connection pool to automatically restart every 8 hours using a newly issued authentication token,
-So that my application can maintain uninterrupted access to the database when tokens expire without requiring manual intervention.
+#### **User Story Statement**
 
----
-
-### **Description**
-
-* The system authenticates PostgreSQL using short-lived tokens (valid 8 hours).
-* Instead of refreshing individual connections, the pool will be **closed and recreated** with the refreshed token at a scheduled interval.
-* During the pool restart, existing requests should gracefully complete, and new requests should seamlessly use the new pool.
+As a **data analyst or reviewer**,
+I want the **call report titles in citations within the regeneration pipeline** to include the **report date**,
+so that I can **easily identify and differentiate reports with similar titles and ensure contextual accuracy in regenerated content.**
 
 ---
 
-### **Acceptance Criteria**
+#### **Description**
 
-1. **Automatic Pool Restart**
+Currently, the regenerated outputs and citations from the RAG or regeneration pipeline display only the **call report title** (e.g., “Q2 Earnings Call”).
+However, multiple reports may have the same title but correspond to different dates (e.g., Q2 2023 vs. Q2 2024).
+This makes it difficult for users to trace the correct document or confirm which report was used in the AI-generated response.
 
-   * The system closes the existing connection pool and creates a new pool using the refreshed token every 8 hours.
-   * The restart occurs before the current token expires (e.g., at 7h 55m).
+The enhancement involves **modifying the citation generation logic** to append the **report date** (from the metadata or document ingestion layer) to each **call report title** used in citations.
+For example:
 
-2. **Graceful Transition**
+* Current: *“Source: Q2 Earnings Call”*
+* Updated: *“Source: Q2 Earnings Call (2024-07-20)”*
 
-   * Existing queries on the old pool are allowed to complete without interruption.
-   * New queries after the refresh automatically route to the new pool.
-
-3. **No Downtime**
-
-   * The application continues serving requests without downtime during pool restart.
-   * No query fails solely due to pool recreation.
-
-4. **Error Handling**
-
-   * If token retrieval or pool recreation fails, the system logs the error and retries (with exponential backoff).
-   * In case of total failure, clear error messages are surfaced (`PoolRecreationFailed`, `TokenRefreshFailed`).
-
-5. **Configurable Refresh Interval**
-
-   * The refresh interval (default 8h) can be configured in application settings.
-
-6. **Logging & Monitoring**
-
-   * Logs include pool shutdown, new pool creation, and token refresh success/failure.
-   * Metrics exposed: last pool restart time, restart duration, failure count.
+This change will ensure better traceability, reduce ambiguity in regenerated outputs, and improve transparency for end users.
 
 ---
 
-✅ **Definition of Done (DoD):**
+#### **Acceptance Criteria**
 
-* Pool recreation logic implemented.
-* Application verified to run continuously beyond 8 hours without manual restart.
-* Integration tests confirm queries succeed before, during, and after pool refresh.
-* Error scenarios (failed token retrieval, failed pool recreation) tested and handled.
+| **ID** | **Criteria**                   | **Details / Expected Behavior**                                                                                                                                                            |
+| ------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AC-1   | **Date inclusion in citation** | Each citation referencing a call report must include the associated report date immediately after the title in parentheses (e.g., “(YYYY-MM-DD)”).                                         |
+| AC-2   | **Data source**                | The date should be fetched from the report’s metadata field (`report_date`) in the document store or ingestion schema.                                                                     |
+| AC-3   | **Formatting consistency**     | The date format should follow ISO-8601 (`YYYY-MM-DD`).                                                                                                                                     |
+| AC-4   | **Backward compatibility**     | If a report does not have a valid `report_date`, the citation should still display the title without errors (e.g., “Source: Q2 Earnings Call”).                                            |
+| AC-5   | **Pipeline integration**       | The regenerated responses (and their citation metadata) should reflect this update consistently across all regeneration modes (full regeneration, partial field regeneration, or preview). |
+| AC-6   | **Validation test**            | Unit and integration tests must verify that citations generated during regeneration include correct date values for all relevant documents.                                                |
+| AC-7   | **UI/UX output**               | When displayed in frontend (e.g., regenerated AI recommendation or audit view), the updated citation format should be human-readable and properly separated from the main text.            |
 
 ---
 
-Would you like me to also **write a sample sequence diagram (mermaid code)** showing how this pool recreation works every 8 hours with ongoing queries? That way you can use it in design docs.
+Would you like me to also include **technical implementation notes** (e.g., how to modify the citation generation function or pipeline schema to include `report_date`)?
