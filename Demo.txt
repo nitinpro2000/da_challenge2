@@ -1,45 +1,40 @@
-Here’s a well-structured **User Story**, including the **Description**, **Statement**, and **Acceptance Criteria**, for your requirement:
+import re
 
----
+async def get_company_summary(self):
+    try:
+        citation_dict = {}
 
-### **User Story: Add Date to Call Report Titles in Citations (Regeneration Pipeline)**
+        # Fetch pre-generated markdown summary for the company from DB
+        markdown_text = await db_manager.fetch(FETCH_PREGENERATED_SUMMARY, self.client_name_org)
 
-#### **User Story Statement**
+        # ✅ Match formats like [[1]](url "title") or [\[1\]](url "title")
+        pattern = re.compile(
+            r"\[+\s*\\?\[?(\d+)\\?\]?\s*\]+\s*\((.*?)\s*(?:\"(.*?)\")?\)"
+        )
 
-As a **data analyst or reviewer**,
-I want the **call report titles in citations within the regeneration pipeline** to include the **report date**,
-so that I can **easily identify and differentiate reports with similar titles and ensure contextual accuracy in regenerated content.**
+        def replacer(match):
+            num, url, title = match.groups()
+            url = url.strip()
+            title = (title or "").strip()
 
----
+            # Store as list [url, title]
+            if num not in citation_dict:
+                citation_dict[num] = [url, title]
 
-#### **Description**
+            # ✅ Return clean single-bracket citation like [1]
+            return f"[{num}]"
 
-Currently, the regenerated outputs and citations from the RAG or regeneration pipeline display only the **call report title** (e.g., “Q2 Earnings Call”).
-However, multiple reports may have the same title but correspond to different dates (e.g., Q2 2023 vs. Q2 2024).
-This makes it difficult for users to trace the correct document or confirm which report was used in the AI-generated response.
+        # Extract content from DB record
+        content = markdown_text[0].get('content')
 
-The enhancement involves **modifying the citation generation logic** to append the **report date** (from the metadata or document ingestion layer) to each **call report title** used in citations.
-For example:
+        # Replace markdown-style citations with [1], [2], etc.
+        clean_text = pattern.sub(replacer, content)
 
-* Current: *“Source: Q2 Earnings Call”*
-* Updated: *“Source: Q2 Earnings Call (2024-07-20)”*
+        # Update citation counter
+        if citation_dict:
+            self.citation_count['value'] = max(map(int, citation_dict.keys())) + 1
 
-This change will ensure better traceability, reduce ambiguity in regenerated outputs, and improve transparency for end users.
+        return clean_text, citation_dict
 
----
-
-#### **Acceptance Criteria**
-
-| **ID** | **Criteria**                   | **Details / Expected Behavior**                                                                                                                                                            |
-| ------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| AC-1   | **Date inclusion in citation** | Each citation referencing a call report must include the associated report date immediately after the title in parentheses (e.g., “(YYYY-MM-DD)”).                                         |
-| AC-2   | **Data source**                | The date should be fetched from the report’s metadata field (`report_date`) in the document store or ingestion schema.                                                                     |
-| AC-3   | **Formatting consistency**     | The date format should follow ISO-8601 (`YYYY-MM-DD`).                                                                                                                                     |
-| AC-4   | **Backward compatibility**     | If a report does not have a valid `report_date`, the citation should still display the title without errors (e.g., “Source: Q2 Earnings Call”).                                            |
-| AC-5   | **Pipeline integration**       | The regenerated responses (and their citation metadata) should reflect this update consistently across all regeneration modes (full regeneration, partial field regeneration, or preview). |
-| AC-6   | **Validation test**            | Unit and integration tests must verify that citations generated during regeneration include correct date values for all relevant documents.                                                |
-| AC-7   | **UI/UX output**               | When displayed in frontend (e.g., regenerated AI recommendation or audit view), the updated citation format should be human-readable and properly separated from the main text.            |
-
----
-
-Would you like me to also include **technical implementation notes** (e.g., how to modify the citation generation function or pipeline schema to include `report_date`)?
+    except Exception as e:
+        self.logger.info(f'Company Summary generation failed due to: {e}')
