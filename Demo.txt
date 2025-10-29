@@ -1,1 +1,117 @@
-https://persq-my.sharepoint.com/:f:/p/bhamdeo/EnOKYSBQ1UtNopB-CEYENB8BVbGj9yYN3hMS@ef-ne6zIw?e=hoitNq
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence import DocumentAnalysisClient
+
+# --- Configuration (Update with your actual values) ---
+endpoint = "https://<your-resource>.cognitiveservices.com/" # Replace with your endpoint
+key = "<your-key>" # Replace with your key
+# Choose your model ID: "custom-model-id" for custom, 
+# or a prebuilt model like "prebuilt-invoice", "prebuilt-receipt", "prebuilt-layout"
+model_id = "custom-model-id" 
+
+# Initialize the client
+document_analysis_client = DocumentAnalysisClient(
+    endpoint=endpoint, 
+    credential=AzureKeyCredential(key)
+)
+# --- End Configuration ---
+
+def getattr(obj, name, default=None):
+    """Simple safe-access utility for dictionary-like objects."""
+    try:
+        return getattr(obj, name, default)
+    except AttributeError:
+        return default
+
+def analyze_document(file_path: str):
+    """
+    Analyzes a document file using the Document Analysis Client.
+    
+    Args:
+        file_path: The local path to the document file (e.g., 'sample_invoice.pdf').
+        
+    Returns:
+        A dictionary containing extracted 'key_values', 'tables', and the 'raw' result.
+    """
+    print(f"Analyzing document: {file_path}")
+    
+    with open(file_path, "rb") as f:
+        # Start the document analysis operation
+        poller = document_analysis_client.begin_analyze_document(
+            model_id=model_id, 
+            document=f
+        )
+        # Wait for the operation to complete and get the result
+        result = poller.result()
+
+    kvs = {} # Dictionary to store key-value pairs
+    
+    # --- 1. Parse general key-value pairs (for prebuilt and custom models) ---
+    # The API returns keyValuePairs or a dictionary-like fields depending on model
+    for kv in getattr(result, "key_value_pairs", []) or []:
+        key_text = getattr(kv.key, "content", "").strip()
+        value_text = getattr(kv.value, "content", "").strip() if kv.value else None
+        confidence = getattr(kv, "confidence", None)
+        
+        if key_text:
+            kvs[key_text] = {"value": value_text, "confidence": confidence}
+
+    # --- 2. Parse custom labeled fields (for custom models and some prebuilt models) ---
+    # For custom labeled models, result.documents contains parsed named fields
+    for doc in getattr(result, "documents", []) or []:
+        for name, field in doc.fields.items():
+            # field: DocumentField (value, confidence, content)
+            kvs[name] = {
+                "value": getattr(field, "value", None) or field.content, 
+                "confidence": field.confidence
+            }
+
+    # --- 3. Parse Tables ---
+    tables = []
+    for table in getattr(result, "tables", []) or []:
+        rows = []
+        # Loop through rows (r)
+        for r in range(table.row_count):
+            row = []
+            # Loop through columns (c)
+            for c in range(table.column_count):
+                # Find the cell that corresponds to the current row (r) and column (c)
+                # Cell objects have row_index and column_index properties
+                cell = next(
+                    (cell for cell in table.cells 
+                     if cell.row_index == r and cell.column_index == c), 
+                    None
+                )
+                
+                # Append cell content, or an empty string if no cell is found at (r, c)
+                row.append(getattr(cell, "content", "") if cell else "")
+            rows.append(row)
+        tables.append(rows)
+
+    return {"key_values": kvs, "tables": tables, "raw": result}
+
+# --- Usage Example ---
+if __name__ == "__main__":
+    # NOTE: You MUST replace 'sample_invoice.pdf' with a path to an actual file for this to run
+    sample_file_path = "sample_invoice.pdf" 
+    
+    try:
+        # out will contain {"key_values": {...}, "tables": [...], "raw": ...}
+        out = analyze_document(sample_file_path)
+        
+        # Example of printing the extracted data:
+        print("\n--- Extracted Key Values ---")
+        for key, data in out["key_values"].items():
+            print(f"Key: **{key}** | Value: {data['value']} | Confidence: {data['confidence']:.2f}")
+
+        print("\n--- Extracted Tables Summary ---")
+        print(f"Found {len(out['tables'])} tables.")
+        if out["tables"]:
+            print("First Table (Rows x Columns):")
+            first_table = out["tables"][0]
+            for row in first_table:
+                print(row)
+
+    except FileNotFoundError:
+        print(f"Error: Document file not found at '{sample_file_path}'. Please update the path.")
+    except Exception as e:
+        print(f"An error occurred during document analysis: {e}")
