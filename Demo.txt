@@ -1,10 +1,8 @@
-vectorizer = TfidfVectorizer()
-tfidf_matrix = vectorizer.fit_transform(vendors)
-
-print("\n=== Cosine Similarity (TF-IDF) ===")
-
-cos_sim = cosine_similarity(tfidf_matrix)
+print("\n=== Hybrid Score (0.5 Trigram + 0.5 Cosine) ===")
 
 for i in range(len(vendors)):
     for j in range(i+1, len(vendors)):
-        print(f"{vendors[i]}  <->  {vendors[j]}  | Cosine = {cos_sim[i][j]:.3f}")
+        tri = trigram_similarity(vendors[i], vendors[j])
+        cos = cos_sim[i][j]
+        hybrid = 0.5 * tri + 0.5 * cos
+        print(f"{vendors[i]}  <->  {vendors[j]}  | Hybrid = {hybrid:.3f}")
