@@ -1,8 +1,28 @@
-print("\n=== Hybrid Score (0.5 Trigram + 0.5 Cosine) ===")
+from rapidfuzz import fuzz
+import itertools
 
-for i in range(len(vendors)):
-    for j in range(i+1, len(vendors)):
-        tri = trigram_similarity(vendors[i], vendors[j])
-        cos = cos_sim[i][j]
-        hybrid = 0.5 * tri + 0.5 * cos
-        print(f"{vendors[i]}  <->  {vendors[j]}  | Hybrid = {hybrid:.3f}")
+vendors = [
+    "Tredence",
+    "Tredence Analytics Solutions Private Limited",
+    "Tredent Solutions",
+    "Infosys Ltd",
+    "Infosys Limited",
+    "ABC Technologies",
+    "XYZ Corporation"
+]
+
+print("\n================ FuzzyWuzzy Style Scores ================\n")
+
+for a, b in itertools.combinations(vendors, 2):
+
+    ratio = fuzz.ratio(a, b)
+    partial = fuzz.partial_ratio(a, b)
+    token_sort = fuzz.token_sort_ratio(a, b)
+    token_set = fuzz.token_set_ratio(a, b)
+
+    print(f"{a}  <->  {b}")
+    print(f"   ratio             : {ratio}")
+    print(f"   partial_ratio     : {partial}")
+    print(f"   token_sort_ratio  : {token_sort}")
+    print(f"   token_set_ratio   : {token_set}")
+    print("------------------------------------------------------")
