@@ -1,27 +1,57 @@
-from name_matching import NameMatcher
+import pandas as pd
+from name_matching.name_matcher import NameMatcher
 
-vendors = [
-    "Tredence",
-    "Tredence Analytics Solutions Private Limited",
-    "Tredent Solutions",
-    "Infosys Ltd",
-    "Infosys Limited",
-    "ABC Technologies",
-    "XYZ Corporation"
-]
+# Sample vendor lists
+df_master = pd.DataFrame({
+    'Company name': [
+        'Tredence',
+        'Tredence Analytics Solutions Private Limited',
+        'Tredent Solutions',
+        'Infosys Ltd',
+        'Infosys Limited',
+        'ABC Technologies',
+        'XYZ Corporation'
+    ]
+})
 
-# Initialize matcher
-matcher = NameMatcher(n_jobs=1, verbose=False)
+df_to_match = pd.DataFrame({
+    'Company name': [
+        'Tredence Analytics Pvt Ltd',
+        'Inforsys Limited',  # intentional typo
+        'ABC Tech',
+        'X Y Z Corp'
+    ]
+})
 
-# Load vendor database
-matcher.load_and_process_master_data(vendors)
+# Initialize the matcher
+matcher = NameMatcher(
+    number_of_matches=3,     # how many matches per query
+    legal_suffixes=True,      # try to handle legal suffixes
+    common_words=False,
+    top_n=50,
+    verbose=True
+)
 
-# Query name
-query = "Tredence"
+# Set the distance metrics to use
+matcher.set_distance_metrics(
+    discounted_levenshtein=True,
+    bag=True,
+    typo=True,
+    refined_soundex=True
+)
 
-# Find matches
-matches = matcher.match_names([query], top_n=5)
+# Load the master data that we want to match against
+matcher.load_and_process_master_data(
+    df_matching_data=df_master,
+    column='Company name',
+    transform=True
+)
 
-print("Query:", query)
-print("\nTop Matches:")
-print(matches)
+# Perform matching
+results = matcher.match_names(
+    to_be_matched=df_to_match,
+    column_matching='Company name'
+)
+
+print("\nMatching Results:")
+print(results)
