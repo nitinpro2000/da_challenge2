@@ -1,39 +1,10 @@
-from rapidfuzz.distance import Levenshtein
-from rapidfuzz import fuzz
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import re
-import itertools
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(vendors)
 
-vendors = [
-    "Tredence",
-    "Tredence Analytics Solutions Private Limited",
-    "Tredent Solutions",
-    "Infosys Ltd",
-    "Infosys Limited",
-    "ABC Technologies",
-    "XYZ Corporation"
-]
+print("\n=== Cosine Similarity (TF-IDF) ===")
 
-# -----------------------------
-# 1️⃣ Levenshtein Distance
-# -----------------------------
-print("\n=== Levenshtein Distance ===")
-for a, b in itertools.combinations(vendors, 2):
-    dist = Levenshtein.distance(a.lower(), b.lower())
-    print(f"{a}  <->  {b}  | Distance = {dist}")
+cos_sim = cosine_similarity(tfidf_matrix)
 
-
-def trigrams(text):
-    text = f"  {text.lower()} "
-    return {text[i:i+3] for i in range(len(text)-2)}
-
-def trigram_similarity(a, b):
-    ta = trigrams(a)
-    tb = trigrams(b)
-    return (2 * len(ta & tb)) / (len(ta) + len(tb))
-
-print("\n=== Trigram Similarity ===")
-for a, b in itertools.combinations(vendors, 2):
-    score = trigram_similarity(a, b)
-    print(f"{a}  <->  {b}  | Similarity = {score:.3f}")
+for i in range(len(vendors)):
+    for j in range(i+1, len(vendors)):
+        print(f"{vendors[i]}  <->  {vendors[j]}  | Cosine = {cos_sim[i][j]:.3f}")
