@@ -1,5 +1,4 @@
-from rapidfuzz import fuzz
-import itertools
+from name_matching import NameMatcher
 
 vendors = [
     "Tredence",
@@ -11,18 +10,18 @@ vendors = [
     "XYZ Corporation"
 ]
 
-print("\n================ FuzzyWuzzy Style Scores ================\n")
+# Initialize matcher
+matcher = NameMatcher(n_jobs=1, verbose=False)
 
-for a, b in itertools.combinations(vendors, 2):
+# Load vendor database
+matcher.load_and_process_master_data(vendors)
 
-    ratio = fuzz.ratio(a, b)
-    partial = fuzz.partial_ratio(a, b)
-    token_sort = fuzz.token_sort_ratio(a, b)
-    token_set = fuzz.token_set_ratio(a, b)
+# Query name
+query = "Tredence"
 
-    print(f"{a}  <->  {b}")
-    print(f"   ratio             : {ratio}")
-    print(f"   partial_ratio     : {partial}")
-    print(f"   token_sort_ratio  : {token_sort}")
-    print(f"   token_set_ratio   : {token_set}")
-    print("------------------------------------------------------")
+# Find matches
+matches = matcher.match_names([query], top_n=5)
+
+print("Query:", query)
+print("\nTop Matches:")
+print(matches)
